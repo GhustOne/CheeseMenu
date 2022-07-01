@@ -13,6 +13,7 @@ Controls will show up in a notification on load, they aren't changeable yet.
 
 ## Customizability
 Cheese menu is quite customizable, it allows mutli frame headers, backgrounds and changing just about any color
+If you wish to use multi frame headers I added an example, fps can go below 1 if you want the header to change every now and then
 
 
 ![GTA5_p6I2g4HpkE](https://user-images.githubusercontent.com/71855034/176974874-7b72c742-fdbc-4cb9-a7b3-3fa0f9efd431.png)
