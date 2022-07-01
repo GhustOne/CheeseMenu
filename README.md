@@ -13,6 +13,7 @@ Controls will show up in a notification on load, they aren't changeable yet.
 
 ## Customizability
 Cheese menu is quite customizable, it allows mutli frame headers, backgrounds and changing just about any color
+
 If you wish to use multi frame headers I added an example, fps can go below 1 if you want the header to change every now and then
 
 
