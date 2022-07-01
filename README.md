@@ -4,6 +4,8 @@ Cheese menu is a UI made for the 2take1 lua api, it is supposed to be as close a
 ## Preview
 ![GTA5_kzYH52SWMf](https://user-images.githubusercontent.com/71855034/176974636-6d80196e-fd48-47d6-8767-f18206ce5b81.png)
 
+Note: other scripts seen loaded here do not come with cheese menu.
+
 ## Usage
 If you are a lua dev then using this is quite close to using the 2t1 api
 
