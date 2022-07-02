@@ -522,7 +522,7 @@ function func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionToDo, pl
 		end
 	end
 	hierarchy_key[#hierarchy_key+1] = nameOfFeat
-	hierarchy_key = table.concat(hierarchy_key, "."):gsub(" ", "_"):lower()
+	hierarchy_key = table.concat(hierarchy_key, "."):gsub(" ", "_")
 
 	currentParent[#currentParent + 1] = {name = nameOfFeat, real_type = stuff.type_id.name_to_id[TypeOfFeat], real_id = tostring(parentOfFeat).."-"..tostring(#currentParent + 1), parent = {id = currentParent.id or 0}, parent_id = currentParent.id or 0, playerFeat = playerFeat}
 	currentParent[#currentParent].activate_feat_func = stuff.activate_feat_func
