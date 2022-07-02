@@ -24,7 +24,7 @@ If you wish to use multi frame headers I added an example, fps can go below 1 if
 
 ## Hotkey system
 Since this is separate from 2t1 and many lua scripts rely on 2t1's hotkeys I've made an extremely similar hotkey system for cheese menu.
-- F11 on a feature will allow you to set a hotkey
+- F11 on a feature will set a hotkey
 - Shift + F11 will remove a hotkey if it exists
 - Ctrl + F11 will show a hotkey if it exists
 
