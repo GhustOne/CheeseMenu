@@ -1111,8 +1111,8 @@ function func.start_hotkey_process(feat)
 			stuff.hotkeys[keyString] = {}
 		end
 		stuff.hotkeys[keyString][feat.hierarchy_key] = true
+		feat.hotkey = keyString
 	end
-	feat.hotkey = keyString
 
 	menu.delete_thread(drawThread)
 	while func.get_key(0x0D):is_down() or func.get_key(0x1B):is_down() do
