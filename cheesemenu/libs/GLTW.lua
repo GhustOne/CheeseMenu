@@ -10,7 +10,6 @@ gltw = {}
 
 function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
 	indentation = indentation or "	"
-	--local concatTable = {}
 	for k, v in pairs(tableTW) do
 		if not exclusions[k] then
 			local index = "[\""..k.."\"] = "
@@ -19,13 +18,10 @@ function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
 			end
 			if type(v) ~= "table" and type(v) ~= "function" and type(v) ~= "string" then
 				file:write(indentation..index..tostring(v)..",\n")
-				--concatTable[#concatTable + 1] = indentation..index..tostring(v)..",\n"
 			elseif type(v) == "string" then
 				file:write(indentation..index.."[["..v.."]],\n")
-				--concatTable[#concatTable + 1] = indentation..index.."[["..v.."]],\n"
 			end
 		end
-		--file:write(table.concat(concatTable, ""))
 	end
 
 	for k, v in pairs(tableTW) do
@@ -81,7 +77,6 @@ function gltw.add_to_table(getTable, addToTable)
 end
 
 function gltw.read(name, path, addToTable, overrideError)
-	--assert(utils.file_exists(path..name..".lua") or overrideError, "file does not exist.")
 	if overrideError and not utils.file_exists(path..name..".lua") then
 		return
 	end
