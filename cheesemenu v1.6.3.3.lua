@@ -1104,9 +1104,9 @@ function func.start_hotkey_process(feat)
 		end
 	until response
 	local keyString = table.concat(keyTable, "|")
-	stuff.hotkeys_to_vk[keyString] = vkTable
 
 	if response ~= "escaped" then
+		stuff.hotkeys_to_vk[keyString] = vkTable
 		if not stuff.hotkeys[keyString] then
 			stuff.hotkeys[keyString] = {}
 		end
