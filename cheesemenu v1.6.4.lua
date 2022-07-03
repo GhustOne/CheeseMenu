@@ -343,6 +343,9 @@ stuff.featMetaTable = {
 				end
 			end
 		elseif k == "value" or k == "min" or k == "mod" or k == "max" then
+			if k ~= "value" and stuff.type_id.id_to_name[t.type]:match("value_str") then
+				error("max, min and mod are readonly for value_str features")
+			end
 			assert(stuff.type_id.id_to_name[t.type]:match("value_[if]") or stuff.type_id.id_to_name[t.type]:match("value_str"), "feat type not supported")
 			assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 			v = tonumber(v)
@@ -392,6 +395,9 @@ stuff.playerfeatMetaTable = {
 			end
 		elseif stuff.playerSpecialValues[k] then
 			k = k:gsub("real_", "")
+			if k ~= "value" and stuff.type_id.id_to_name[t.type]:match("value_str") then
+				error("max, min and mod are readonly for value_str features")
+			end
 			assert(stuff.type_id.id_to_name[t.type]:match("value_[if]") or stuff.type_id.id_to_name[t.type]:match("value_str"), "feat type not supported")
 			assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 			v = tonumber(v)
