@@ -859,7 +859,7 @@ end
 function func.get_feature_by_hierarchy_key(hierarchy_key)
 	local feat = stuff.hotkey_feature_hierarchy_keys[hierarchy_key]
 	if stuff.hotkey_feature_hierarchy_keys[hierarchy_key] then
-		if stuff.hotkey_feature_hierarchy_keys[hierarchy_key][2] then
+		if stuff.hotkey_feature_hierarchy_keys[hierarchy_key][2] and not stuff.hotkey_feature_hierarchy_keys[hierarchy_key].name then
 			return stuff.hotkey_feature_hierarchy_keys[hierarchy_key], true
 		else
 			return stuff.hotkey_feature_hierarchy_keys[hierarchy_key][1]
