@@ -1121,7 +1121,7 @@ end
 
 function func.draw_feat(k, v, offset, hiddenOffset)
 	local stringtype = stuff.type_id.id_to_name[v.type]
-	stuff.drawFeatParams = {rectPos = v2(stuff.menuData.x, stuff.menuData.y - stuff.menuData.feature_offset/2 + stuff.menuData.border), textOffset = v2(-(stuff.menuData.feature_scale.x/2-0.003125), -0.005859375), colorText = stuff.menuData.color.text, colorFeature = stuff.menuData.color.feature, textSize = ((graphics.get_screen_width()*graphics.get_screen_height())/3686400)*(0.45)+0.3}
+	stuff.drawFeatParams = {rectPos = v2(stuff.menuData.x, stuff.menuData.y - stuff.menuData.feature_offset/2 + stuff.menuData.border), textOffset = v2(-(stuff.menuData.feature_scale.x/2-0.003125), -0.005859375), colorText = stuff.menuData.color.text, colorFeature = stuff.menuData.color.feature, textSize = ((graphics.get_screen_width()*graphics.get_screen_height())/3686400)*(0.45)+0.25}
 	offset = offset or 0
 	local center = v.center or 0
 	if center ~= 0 then
