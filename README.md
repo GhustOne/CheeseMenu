@@ -3,6 +3,7 @@ Cheese menu is a UI made for the 2take1 lua api, it is supposed to be as close a
 
 ## Preview
 ![GTA5_kzYH52SWMf](https://user-images.githubusercontent.com/71855034/176974636-6d80196e-fd48-47d6-8767-f18206ce5b81.png)
+![GTA5_w4gl9vnclG](https://user-images.githubusercontent.com/71855034/177609082-edf75130-73b7-4d0d-afcb-69ec9abe4d8c.png)
 
 Note: other scripts seen loaded here do not come with cheese menu.
 
@@ -19,7 +20,7 @@ If you are a lua dev then using this is quite close to using the 2t1 api
 
 If you aren't a lua dev then simply put `cheesemenu x.x.x.lua` and `cheesemenu` folder in the scripts folder for 2t1 and load it, any scripts loaded after will be embedded in cheesemenu
 
-Controls will show up in a notification on load, they aren't changeable yet.
+Controls are in Script Features > Cheese Menu > Controls
 
 ## Customizability
 Cheese menu is quite customizable, it allows mutli frame headers, backgrounds and changing just about any color
