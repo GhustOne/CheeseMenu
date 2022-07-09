@@ -405,12 +405,26 @@ stuff.featMetaTable = {
 			if stuff.type_id.id_to_name[t.type]:match("_i") or stuff.type_id.id_to_name[t.type]:match("value_str") then
 				v = math.floor(v)
 				stuff.rawset(t, "real_"..k, v)
+				if stuff.type_id.id_to_name[t.type]:match("_i") then
+					if t.real_min then
+						if t.real_value < t.real_min then t.real_value = t.real_min end
+					end
+					if t.real_max then
+						if t.real_value > t.real_max then t.real_value = t.real_max end
+					end
+				end
 				if t["table_"..k] then
 					for i, e in pairs(t["table_"..k]) do
 						t["table_"..k][i] = v
 					end
 				end
 			elseif stuff.type_id.id_to_name[t.type]:match("_f") then
+				if t.real_min then
+					if t.real_value < t.real_min then t.real_value = t.real_min end
+				end
+				if t.real_max then
+					if t.real_value > t.real_max then t.real_value = t.real_max end
+				end
 				stuff.rawset(t, "real_"..k, v)
 				if t["table_"..k] then
 					for i, e in pairs(t["table_"..k]) do
