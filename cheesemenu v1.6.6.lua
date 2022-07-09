@@ -419,13 +419,13 @@ stuff.featMetaTable = {
 					end
 				end
 			elseif stuff.type_id.id_to_name[t.type]:match("_f") then
+				stuff.rawset(t, "real_"..k, v)
 				if t.real_min then
 					if t.real_value < t.real_min then t.real_value = t.real_min end
 				end
 				if t.real_max then
 					if t.real_value > t.real_max then t.real_value = t.real_max end
 				end
-				stuff.rawset(t, "real_"..k, v)
 				if t["table_"..k] then
 					for i, e in pairs(t["table_"..k]) do
 						t["table_"..k][i] = v
