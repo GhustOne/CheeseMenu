@@ -25,7 +25,6 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-
 --local Feats = {}
 local features = {OnlinePlayers = {}}
 local currentMenu = features
@@ -261,6 +260,27 @@ stuff.menuData.files.background = {}
 for k, v in pairs(utils.get_all_files_in_directory(stuff.path.background, "png")) do
 	stuff.menuData.files.background[k] = v:sub(1, #v - 4)
 end
+
+-- Version check
+menu.create_thread(function()
+	local responseCode, githubVer = web.request("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu/VERSION.txt")
+	if responseCode == 200 then
+		local versionFile = io.open(stuff.path.cheesemenu.."VERSION.txt")
+		local currentVer = ""
+		if versionFile then
+			currentVer = versionFile:read("*a")
+			versionFile:close()
+		end
+		if not versionFile then
+			menu.notify("VERSION.txt doesn't exist, redownload the script and drag both the lua file and the folder to the 2t1 scripts folder.", "CheeseMenu")
+		else
+			if githubVer:gsub("[\r\n]", "") ~= currentVer:gsub("[\r\n]", "") then
+				menu.notify("Current version: "..currentVer:gsub("[\r\n]", "").."\nLatest version: "..githubVer:gsub("[\r\n]", ""), "CheeseMenu\nNew verison available.")
+			end
+		end
+	end
+end, nil)
+--
 
 stuff.menuData_methods = {
 	set_color = function(self, colorName, r, g, b, a)
