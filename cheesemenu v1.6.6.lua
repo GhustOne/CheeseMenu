@@ -268,14 +268,15 @@ menu.create_thread(function()
 		local versionFile = io.open(stuff.path.cheesemenu.."VERSION.txt")
 		local currentVer = ""
 		if versionFile then
-			currentVer = versionFile:read("*a")
+			currentVer = versionFile:read("*a"):gsub("[\r\n]", "")
 			versionFile:close()
 		end
 		if not versionFile then
 			menu.notify("VERSION.txt doesn't exist, redownload the script and drag both the lua file and the folder to the 2t1 scripts folder.", "CheeseMenu")
 		else
-			if githubVer:gsub("[\r\n]", "") ~= currentVer:gsub("[\r\n]", "") then
-				menu.notify("Current version: "..currentVer:gsub("[\r\n]", "").."\nLatest version: "..githubVer:gsub("[\r\n]", ""), "CheeseMenu\nNew verison available.")
+			githubVer = githubVer:gsub("[\r\n]", "")
+			if githubVer ~= currentVer then
+				menu.notify("Current version: "..currentVer.."\nLatest version: "..githubVer, "CheeseMenu\nNew verison available.")
 			end
 		end
 	end
