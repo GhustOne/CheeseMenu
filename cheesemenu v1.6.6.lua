@@ -373,15 +373,15 @@ stuff.featMetaTable = {
 			else
 				return stuff.rawget(t, "real_"..k)
 			end
+		elseif k == "children" and t.type == 2048 then
+			return t:get_children()
 		else
 			return stuff.rawget(t, k)
 		end
 	end,
 
 	__newindex = function(t, k, v)
-		assert(k ~= "str_data", "'str_data' is read only")
-		assert(k ~= "type", "'type' is read only")
-		assert(k ~= "id", "'id' is read only")
+		assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data", "'"..k.."' is read only")
 		if k == "on" and type(v) == "boolean" then
 			stuff.rawset(t, "real_on", v)
 			if t.feats then
@@ -555,9 +555,9 @@ end
 
 stuff.get_children = function(self)
 	local children = {}
-	for k, v in pairs(self) do
+	for k, v in ipairs(self) do
 		if type(k) == "number" then
-			children[#children + 1] = v
+			children[k] = v
 		end
 	end
 	return children
@@ -588,7 +588,7 @@ stuff.select = function(self)
 
 	if not self.hidden then
 		local hiddenOffset = 0
-		for k, v in pairs(parent_of_feat_wanted) do
+		for k, v in ipairs(parent_of_feat_wanted) do
 			if type(k) == "number" then 
 				if v.hidden and not (k > self.index) then
 					hiddenOffset = hiddenOffset + 1
@@ -684,10 +684,6 @@ function func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionToDo, pl
 	currentParent[#currentParent].get_str_data = stuff.get_str_data
 	currentParent[#currentParent].select = stuff.select
 	setmetatable(currentParent[#currentParent], stuff.featMetaTable)
-	if TypeOfFeat == "parent" then
-		currentParent[#currentParent].children = {}
-		setmetatable(currentParent[#currentParent].children, {__index = currentParent[#currentParent]:get_children()})
-	end
 	currentParent[#currentParent].thread = 0
 	if stuff.type_id.id_to_name[currentParent[#currentParent].real_type]:match("toggle") then
 		if playerFeat then
