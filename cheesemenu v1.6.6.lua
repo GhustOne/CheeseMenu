@@ -579,20 +579,23 @@ stuff.activate_feat_func = function(self)
 end
 
 stuff.select = function(self)
-	local parent_hierarchy_key = self.hierarchy_key:match("^(.*)%..*$")
-	local parent_of_feat_wanted, duplicateFeats = func.get_feature_by_hierarchy_key(parent_hierarchy_key)
+	local parent_of_feat_wanted = stuff.feature_by_id[self.parent_id] or features
 
-	if not parent_of_feat_wanted == currentMenu then
+	if not (parent_of_feat_wanted == currentMenu) then
 		stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
-		if duplicateFeats then
-			currentMenu = parent_of_feat_wanted[1]
-		else
-			currentMenu = parent_of_feat_wanted
-		end
+		currentMenu = parent_of_feat_wanted
 	end
 
 	if not self.hidden then
-		stuff.scroll = self.index
+		local hiddenOffset = 0
+		for k, v in pairs(parent_of_feat_wanted) do
+			if type(k) == "number" then 
+				if v.hidden and not (k > self.index) then
+					hiddenOffset = hiddenOffset + 1
+				end
+			end
+		end
+		stuff.scroll = self.index - hiddenOffset
 		stuff.drawScroll = (stuff.maxDrawScroll >= self.index) and self.index-1 or stuff.maxDrawScroll
 	end
 
