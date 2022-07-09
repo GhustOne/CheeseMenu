@@ -17,7 +17,11 @@ If you are a lua dev then using this is quite close to using the 2t1 api
  
 
 
-If you aren't a lua dev then simply put `cheesemenu vX.X.X.lua` and `cheesemenu` folder in the scripts folder for 2t1 and load it, any scripts loaded after will be embedded in cheesemenu
+How to install
+1. Download by clicking on the green `code` button > Download zip
+2. Simply put `cheesemenu vX.X.X.lua` and `cheesemenu` folder that are in `CheeseMenu-main.zip > CheeseMenu-main` in the scripts folder for 2t1 and load it
+
+Any scripts loaded after will be embedded in cheesemenu
 
 Controls are in Script Features > Cheese Menu > Controls
 
