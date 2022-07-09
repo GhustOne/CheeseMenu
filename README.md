@@ -10,15 +10,14 @@ Note: other scripts seen loaded here do not come with cheese menu.
 ## Usage
 If you are a lua dev then using this is quite close to using the 2t1 api
 - Differences to 2t1
-  - get_feature_by_hierarchy_key
+  - menu.get_feature_by_hierarchy_key
     - if duplicates are found it'll return the first one created
     - its hierarchy keys are case sensitive and not all lowercase like 2t1's
     - it'll look for cheesemenu features first, if not found, it'll use the original 2t1 function
-  - select doesn't select the correct feature when there are hidden features in the same parent, otherwise it works fine
  
 
 
-If you aren't a lua dev then simply put `cheesemenu x.x.x.lua` and `cheesemenu` folder in the scripts folder for 2t1 and load it, any scripts loaded after will be embedded in cheesemenu
+If you aren't a lua dev then simply put `cheesemenu vX.X.X.lua` and `cheesemenu` folder in the scripts folder for 2t1 and load it, any scripts loaded after will be embedded in cheesemenu
 
 Controls are in Script Features > Cheese Menu > Controls
 
