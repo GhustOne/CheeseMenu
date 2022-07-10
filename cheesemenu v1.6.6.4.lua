@@ -471,7 +471,7 @@ stuff.featMetaTable = {
 
 stuff.playerfeatMetaTable = {
 	__index = function(t, k)
-		if k == "str_data" or k == "type" or k == "id" or k == "data" then
+		if k == "str_data" or k == "type" or k == "id" or k == "data" or k == "hidden" then
 			return stuff.rawget(t, "real_"..k)
 		elseif stuff.playerSpecialValues[k] then
 			if t["table_"..k:gsub("real_", "")] then
@@ -801,7 +801,7 @@ function func.add_player_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionT
 	pfeat.feats = {}
 
 	if parentOfFeat == 0 then
-		for k, v in pairs(stuff.playerIds) do
+		for k = 0, 31 do
 			stuff.playerIds[k][#stuff.playerIds[k]+1] = {}
 			local currentFeat = stuff.playerIds[k][#stuff.playerIds[k]]
 			func.add_to_table(pfeat, currentFeat, k, nil, true)
@@ -814,7 +814,7 @@ function func.add_player_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionT
 	else
 		local playerParent = stuff.player_feature_by_id[parentOfFeat]
 		if playerParent then
-			for k, v in pairs(playerParent.feats) do
+			for k = 0, 31 do
 				playerParent.feats[k][#playerParent.feats[k]+1] = {}
 				local currentFeat = playerParent.feats[k][#playerParent.feats[k]]
 
