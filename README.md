@@ -41,3 +41,10 @@ Since this is separate from 2t1 and many lua scripts rely on 2t1's hotkeys I've 
 - Ctrl + F11 will show a hotkey if it exists
 
 Hotkeys will be saved automatically
+
+## Credits
+- Kektram - for teaching me the basics of lua, I only started because of him.
+
+- Proddy - telling me about many bad habits in lua and helping even though he hates the concept of cheesemenu
+
+- Rimuru - only got the idea because of her UI, learnt some stuff from it too 
