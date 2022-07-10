@@ -483,7 +483,7 @@ stuff.playerfeatMetaTable = {
 	end,
 
 	__newindex = function(t, k, v)
-		assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "data", "'"..k.."' is read only for all features or player features only")
+		assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data", "'"..k.."' is read only")
 		if (k == "on" or k == "real_on") and type(v) == "boolean" then
 			t["table_on"][t.pid] = v
 			if v then
@@ -503,6 +503,8 @@ stuff.playerfeatMetaTable = {
 			elseif stuff.type_id.id_to_name[t.type]:match("_f") then
 				t["table_"..k][t.pid] = v
 			end
+		elseif k == "data" then
+			t.real_data = v
 		else
 			stuff.rawset(t, k, v)
 		end
