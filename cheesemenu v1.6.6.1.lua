@@ -1170,7 +1170,7 @@ function func.draw_current_menu()
 	if stuff.menuData.background_sprite.sprite and func.load_sprite(stuff.menuData.background_sprite.sprite, stuff.path.background) then
 		scriptdraw.draw_sprite(func.load_sprite(stuff.menuData.background_sprite.sprite, stuff.path.background), v2((stuff.menuData.x + stuff.menuData.background_sprite.offset.x)*2-1, (stuff.menuData.y+stuff.menuData.background_sprite.offset.y+stuff.menuData.height/2+0.01458)*-2+1), stuff.menuData.background_sprite.size, 0, func.convert_rgba_to_int(255, 255, 255, stuff.menuData.color.background.a))
 	else
-		scriptdraw.draw_rect(v2(stuff.menuData.x*2-1, (stuff.menuData.y+stuff.menuData.height/2)*-2+1), v2(stuff.menuData.width*2, stuff.menuData.height*2), func.convert_rgba_to_int(stuff.menuData.color.background.r, stuff.menuData.color.background.g, stuff.menuData.color.background.b, stuff.menuData.color.background.a))
+		scriptdraw.draw_rect(v2(stuff.menuData.x*2-1, (stuff.menuData.y+stuff.menuData.border+stuff.menuData.height/2)*-2+1), v2(stuff.menuData.width*2, stuff.menuData.height*2), func.convert_rgba_to_int(stuff.menuData.color.background.r, stuff.menuData.color.background.g, stuff.menuData.color.background.b, stuff.menuData.color.background.a))
 	end
 	if #currentMenu - stuff.drawHiddenOffset >= stuff.menuData.max_features  then
 		stuff.maxDrawScroll = #currentMenu - stuff.drawHiddenOffset - stuff.menuData.max_features
@@ -1203,7 +1203,7 @@ function func.draw_current_menu()
 		-- footer border
 		local footer_border_y_pos
 		if stuff.menuData.footer.footer_pos_related_to_background then
-			footer_border_y_pos = (stuff.menuData.y + stuff.menuData.height + stuff.menuData.border/2)*-2+1
+			footer_border_y_pos = (stuff.menuData.y + stuff.menuData.height + stuff.menuData.border*1.5)*-2+1
 		else
 			footer_border_y_pos = (stuff.menuData.y + (drawnfeats*stuff.menuData.feature_offset) + stuff.menuData.border*1.5)*-2+1
 		end
@@ -1212,7 +1212,7 @@ function func.draw_current_menu()
 		-- footer and text/scroll
 		local footer_y_pos
 		if stuff.menuData.footer.footer_pos_related_to_background then
-			footer_y_pos = (stuff.menuData.y + stuff.menuData.height + stuff.menuData.border + stuff.menuData.footer.footer_size/2)*-2+1
+			footer_y_pos = (stuff.menuData.y + stuff.menuData.height + stuff.menuData.border*2 + stuff.menuData.footer.footer_size/2)*-2+1
 		else
 			footer_y_pos = (stuff.menuData.y + (drawnfeats*stuff.menuData.feature_offset) + stuff.menuData.border*2 + stuff.menuData.footer.footer_size/2)*-2+1
 		end
