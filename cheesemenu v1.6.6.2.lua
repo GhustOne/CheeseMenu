@@ -388,8 +388,8 @@ stuff.playerSpecialValues = {value = true, min = true, max = true, mod = true, o
 
 stuff.featMetaTable = {
 	__index = function(t, k)
-		if k == "value" or k == "min" or k == "mod" or k == "max" or k == "str_data" or k == "type" or k == "id" or k == "on" or k == "hidden" then
-			if t.playerFeat and k ~= "str_data" and k ~= "type" and k ~= "id" then
+		if k == "value" or k == "min" or k == "mod" or k == "max" or k == "str_data" or k == "type" or k == "id" or k == "on" or k == "hidden" or k == "data" then
+			if t.playerFeat and k ~= "str_data" and k ~= "type" and k ~= "id" and k ~= "hidden" and k ~= "data" then
 				return stuff.rawget(t, "table_"..k)
 			else
 				return stuff.rawget(t, "real_"..k)
@@ -456,6 +456,13 @@ stuff.featMetaTable = {
 		elseif k == "hidden" then
 			t.real_hidden = v
 			func.deleted_or_hidden_parent_check(t)
+		elseif k == "data" then
+			stuff.rawset(t, "real_data", v)
+			if t.feats then
+				for i, e in pairs(t.feats) do
+					t.feats[i].real_data = v
+				end
+			end
 		else
 			stuff.rawset(t, k, v)
 		end
@@ -464,7 +471,7 @@ stuff.featMetaTable = {
 
 stuff.playerfeatMetaTable = {
 	__index = function(t, k)
-		if k == "str_data" or k == "type" or k == "id" then
+		if k == "str_data" or k == "type" or k == "id" or k == "data" then
 			return stuff.rawget(t, "real_"..k)
 		elseif stuff.playerSpecialValues[k] then
 			if t["table_"..k:gsub("real_", "")] then
@@ -476,9 +483,7 @@ stuff.playerfeatMetaTable = {
 	end,
 
 	__newindex = function(t, k, v)
-		assert(k ~= "str_data", "'str_data' is read only")
-		assert(k ~= "type", "'type' is read only")
-		assert(k ~= "id", "'id' is read only")
+		assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "data", "'"..k.."' is read only for all features or player features only")
 		if (k == "on" or k == "real_on") and type(v) == "boolean" then
 			t["table_on"][t.pid] = v
 			if v then
@@ -584,20 +589,32 @@ stuff.get_children = function(self)
 	return children
 end
 
+-- function callback ~Thanks to Proddy for telling me that doing function() every time creates a new one and providing examples on how to use menu.create_thread with the function below
+function stuff.feature_callback(self)
+    local continue = self:func(self.data)
+    while continue == HANDLER_CONTINUE and self.real_on do
+        system.wait(0)
+        continue = self:func(self.data)
+    end
+end
+
+function stuff.player_feature_callback(self)
+    local continue = self:func(self.pid, self.data)
+    while continue == HANDLER_CONTINUE and self.real_on do
+        system.wait(0)
+        continue = self:func(self.pid, self.data)
+    end
+end
+
 stuff.activate_feat_func = function(self)
 	if not (self.thread) then
 		self.thread = 0
 	end
 	if self.func and menu.has_thread_finished(self.thread) then
-		self.thread = menu.create_thread(function()
-			local continue = self:func(self.pid)
-			while continue == HANDLER_CONTINUE and self.real_on do
-				system.wait(0)
-				continue = self:func(self.pid)
-			end
-		end, nil)
+		self.thread = menu.create_thread(self.playerFeat and stuff.player_feature_callback or stuff.feature_callback, self)
 	end
 end
+--
 
 stuff.select = function(self)
 	local parent_of_feat_wanted = stuff.feature_by_id[self.parent_id] or features
