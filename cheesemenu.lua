@@ -51,18 +51,18 @@ menu.create_thread(function()
 							local status = autoupdater()
 							if status then
 								if type(status) == "string" then
-									menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "CheeseMenu")
+									menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "CheeseMenu", 5, 0x0000FF)
 								else
 									menu.notify("Update successful", "CheeseMenu", 4, 0x00FF00)
 									dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
 								end
 							else
-								menu.notify("Download for updated files failed, current files have not been replaced.", "CheeseMenu")
+								menu.notify("Download for updated files failed, current files have not been replaced.", "CheeseMenu", 5, 0x0000FF)
 							end
 						end, nil)
 						break
 					else
-						menu.notify("Getting Updater failed. Check your connection and try downloading manually.", "CheeseMenu")
+						menu.notify("Getting Updater failed. Check your connection and try downloading manually.", "CheeseMenu", 5, 0x0000FF)
 					end
 				end
 				system.wait(0)
