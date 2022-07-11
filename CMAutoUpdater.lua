@@ -24,7 +24,7 @@ end
 
 if status then
 	for k, v in pairs(files) do
-		local currentFile = io.open(filePaths[k], "w+")
+		local currentFile = io.open(filePaths[k], "w+b")
 		if currentFile then
 			currentFile:write(v)
 			currentFile:flush()
