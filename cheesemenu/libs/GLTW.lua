@@ -2,15 +2,17 @@
 -- L00naMods "Even if you say L00na is a bitch just put my name in there somewhere"
 -- Ghost's Lua Table Writer
 --[[
-nil			gltw.write(table table, string name, string path|nil (in same path as lua), table index exclusions) -- example gltw.write({name = "l00na", iq = -1}, "something", "folder1\\", {"name"})
-table[]		gltw.read(string name, string path|nil(in same path as lua))
+nil			gltw.write(table table, string name, string path|nil (in same path as lua), table index exclusions, skip empty tables)
+-- example gltw.write({name = "l00na", iq = -1, braincells = {}}, "something", "folder1\\", {"name"}, true) < this will not write 'name' (excluded) or 'braincells' (empty)
+table[]		gltw.read(string name, string path|nil(in same path as lua), table|nil, bool|nil)
+-- if a table is the 3rd arg then whatever is read from the file will be added to it without overwriting stuff that isn't in the saved file
+-- if the 4th arg is true the function won't throw an error if the file doesn't exist and will return nil
 ]]
 
 gltw = {}
 
 function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
 	indentation = indentation or "	"
-	--local concatTable = {}
 	for k, v in pairs(tableTW) do
 		if not exclusions[k] then
 			local index = "[\""..k.."\"] = "
@@ -19,13 +21,10 @@ function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
 			end
 			if type(v) ~= "table" and type(v) ~= "function" and type(v) ~= "string" then
 				file:write(indentation..index..tostring(v)..",\n")
-				--concatTable[#concatTable + 1] = indentation..index..tostring(v)..",\n"
 			elseif type(v) == "string" then
 				file:write(indentation..index.."[["..v.."]],\n")
-				--concatTable[#concatTable + 1] = indentation..index.."[["..v.."]],\n"
 			end
 		end
-		--file:write(table.concat(concatTable, ""))
 	end
 
 	for k, v in pairs(tableTW) do
