@@ -37,9 +37,10 @@ menu.create_thread(function()
 		githubVer = githubVer:gsub("[\r\n]", "")
 		if githubVer ~= version then
 			while true do
-				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.\nCurrent Version:"..version.."\nLatest Version:"..githubVer)
+				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", v2(-scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", 1).x/graphics.get_screen_width(), 0), v2(2, 2), 1, 0xFFFFFFFF, 2)
+				scriptdraw.draw_text("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, v2(-scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, 1).x/graphics.get_screen_width(), 0), v2(2, 2), 1, 0xFFFFFFFF, 2)
 				if vercheckKeys.ctrl:is_down() or vercheckKeys.space:is_down() then
-					loadCurrentMenu = true
+					loadCurrentMenu()
 					break
 				elseif vercheckKeys.enter:is_down() or vercheckKeys.rshift:is_down() then
 					local responseCode, autoupdater = web.get([[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CMAutoUpdater.lua]])
@@ -51,6 +52,7 @@ menu.create_thread(function()
 								menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "CheeseMenu")
 							else
 								menu.notify("Update successful", "CheeseMenu", 4, 0x00FF00)
+								dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
 								break
 							end
 						else
@@ -62,6 +64,8 @@ menu.create_thread(function()
 				end
 				system.wait(0)
 			end
+		else
+			loadCurrentMenu()
 		end
 	end
 end, nil)
