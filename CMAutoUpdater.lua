@@ -1,4 +1,4 @@
-function()
+return function()
 	local status = true
 	local appdata_path = utils.get_appdata_path("PopstarDevs", "2Take1Menu")
 
