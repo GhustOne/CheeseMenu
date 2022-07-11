@@ -358,6 +358,7 @@ function loadCurrentMenu()
 
 	stuff.input = require("cheesemenu.libs.Get Input")
 	require("cheesemenu.libs.GLTW")
+	assert(gltw, "GLTW is not found, please reinstall the menu.")
 
 
 	gltw.read("controls", stuff.path.cheesemenu, stuff.controls, true)
