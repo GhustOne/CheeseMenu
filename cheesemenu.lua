@@ -47,6 +47,7 @@ menu.create_thread(function()
 					if responseCode == 200 then
 						autoupdater = load(autoupdater)
 						menu.create_thread(function()
+							menu.notify("Update started, please wait...", "CheeseMenu")
 							local status = autoupdater()
 							if status then
 								if type(status) == "string" then
