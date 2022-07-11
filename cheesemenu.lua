@@ -46,18 +46,20 @@ menu.create_thread(function()
 					local responseCode, autoupdater = web.get([[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CMAutoUpdater.lua]])
 					if responseCode == 200 then
 						autoupdater = load(autoupdater)
-						local status = autoupdater()
-						if status then
-							if type(status) == "string" then
-								menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "CheeseMenu")
+						menu.create_thread(function()
+							local status = autoupdater()
+							if status then
+								if type(status) == "string" then
+									menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "CheeseMenu")
+								else
+									menu.notify("Update successful", "CheeseMenu", 4, 0x00FF00)
+									dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
+								end
 							else
-								menu.notify("Update successful", "CheeseMenu", 4, 0x00FF00)
-								dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
-								break
+								menu.notify("Download for updated files failed, current files have not been replaced.", "CheeseMenu")
 							end
-						else
-							menu.notify("Download for updated files failed, current files have not been replaced.", "CheeseMenu")
-						end
+						end, nil)
+						break
 					else
 						menu.notify("Getting Updater failed. Check your connection and try downloading manually.", "CheeseMenu")
 					end
@@ -74,7 +76,7 @@ local features
 local currentMenu
 local func
 local stuff
-if loadCurrentMenu then
+function loadCurrentMenu()
 	features = {OnlinePlayers = {}}
 	currentMenu = features
 	func = {}
@@ -1920,6 +1922,4 @@ if loadCurrentMenu then
 	cheeseUIdata = stuff.menuData
 	--
 	func.set_player_feat_parent("Online Players", 0)
-else
-	dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
 end
