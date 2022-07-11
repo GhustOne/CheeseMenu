@@ -18,8 +18,8 @@ If you are a lua dev then using this is quite close to using the 2t1 api
 
 
 How to install
-1. Download by clicking on the green `code` button > Download zip
-2. Simply put `cheesemenu vX.X.X.lua` and `cheesemenu` folder that are in `CheeseMenu-main.zip > CheeseMenu-main` in the scripts folder for 2t1 and load it
+1. Download by going to [Releases](https://github.com/GhustOne/CheeseMenu/releases) and downloading cheesemenu.zip on the latest release
+2. Simply put `cheesemenu.lua` and `cheesemenu` folder that are in the downloaded zip in the scripts folder for 2t1 and load it
 
 Any scripts loaded after will be embedded in cheesemenu
 
