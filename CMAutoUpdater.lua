@@ -2,9 +2,9 @@ local status = true
 local appdata_path = utils.get_appdata_path("PopstarDevs", "2Take1Menu")
 
 local filePaths = {
-	cheesemenu = appdata_path.."\\scripts\\",
-	gltw = appdata_path.."\\scripts\\cheesemenu\\libs\\",
-	getinput = appdata_path.."\\scripts\\cheesemenu\\libs\\",
+	cheesemenu = appdata_path.."\\scripts\\cheesemenu.lua",
+	gltw = appdata_path.."\\scripts\\cheesemenu\\libs\\GLTW.lua",
+	getinput = appdata_path.."\\scripts\\cheesemenu\\libs\\Get Input.lua",
 }
 local files = {
 	cheesemenu = [[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu.lua]],
