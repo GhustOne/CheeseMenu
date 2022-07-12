@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.6.5"
+local version = "1.6.6.6"
 local loadCurrentMenu
 
 -- Version check
@@ -1651,13 +1651,58 @@ function loadCurrentMenu()
 
 	menu.add_feature("Load UI", "action_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
 		func.load_ui(f.str_data[f.value + 1])
+
+		menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
+		menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
+		menu_configuration_features.maxfeats.value = math.floor(stuff.menuData.max_features)
+		menu_configuration_features.menuWidth.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
+		menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
+		menu_configuration_features.featYfeat.value = math.floor(stuff.menuData.feature_scale.y*graphics.get_screen_height())
+		menu_configuration_features.feature_offset.value = math.floor(stuff.menuData.feature_offset*graphics.get_screen_height())
+		menu_configuration_features.border.value = math.floor(stuff.menuData.border*graphics.get_screen_height())
+		menu_configuration_features.backgroundsize.value = stuff.menuData.background_sprite.size
+		menu_configuration_features.backgroundoffsetx.value = math.floor(stuff.menuData.background_sprite.offset.x*graphics.get_screen_width())
+		menu_configuration_features.backgroundoffsety.value = math.floor(stuff.menuData.background_sprite.offset.y*graphics.get_screen_height())
+		menu_configuration_features.footer_size.value = math.floor(stuff.menuData.footer.footer_size*graphics.get_screen_height())
+		menu_configuration_features.padding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
+		menu_configuration_features.draw_footer.on = stuff.menuData.footer.draw_footer
+		menu_configuration_features.footer_pos_related_to_background.on = stuff.menuData.footer.footer_pos_related_to_background
+
+		for k, v in pairs(stuff.menuData.color) do
+			if type(v) == "table" then
+				menu_configuration_features[k].r.value = v.r
+				menu_configuration_features[k].g.value = v.g
+				menu_configuration_features[k].b.value = v.b
+				menu_configuration_features[k].a.value = v.a
+			else
+				menu_configuration_features[k].r.value = func.convert_int_to_rgba(v, "r")
+				menu_configuration_features[k].g.value = func.convert_int_to_rgba(v, "g")
+				menu_configuration_features[k].b.value = func.convert_int_to_rgba(v, "b")
+				menu_configuration_features[k].a.value = func.convert_int_to_rgba(v, "a")
+			end
+		end
+
+		for k, v in pairs(menu_configuration_features.headerfeat.str_data) do
+			if v == stuff.menuData.header then
+				menu_configuration_features.headerfeat.value = k - 1
+			end
+		end
+
+		for k, v in pairs(menu_configuration_features.backgroundfeat.str_data) do
+			if v == stuff.menuData.header then
+				menu_configuration_features.backgroundfeat.value = k - 1
+			end
+		end
+
 	end):set_str_data(stuff.menuData.files.ui)
 
 	menu_configuration_features.menuXfeat = menu.add_feature("Menu pos X", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		if func.get_key(0x65):is_down() then
+		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
-			stuff.menuData.x = num/graphics.get_screen_height()
-			f.value = num
+			if stat == 0 and tonumber(num) then
+				stuff.menuData.x = num/graphics.get_screen_height()
+				f.value = num
+			end
 		end
 		stuff.menuData.x = f.value/graphics.get_screen_width()
 	end)
@@ -1667,10 +1712,12 @@ function loadCurrentMenu()
 	menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
 
 	menu_configuration_features.menuYfeat = menu.add_feature("Menu pos Y", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		if func.get_key(0x65):is_down() then
+		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
-			stuff.menuData.y = num/graphics.get_screen_height()
-			f.value = num
+			if stat == 0 and tonumber(num) then
+				stuff.menuData.y = num/graphics.get_screen_height()
+				f.value = num
+			end
 		end
 		stuff.menuData.y = f.value/graphics.get_screen_height()
 	end)
@@ -1679,21 +1726,21 @@ function loadCurrentMenu()
 	menu_configuration_features.menuYfeat.min = -graphics.get_screen_height()
 	menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
 
-	menu_configuration_features.menuYfeat = menu.add_feature("Max features", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
+	menu_configuration_features.maxfeats = menu.add_feature("Max features", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		stuff.menuData:set_max_features(f.value)
 	end)
-	menu_configuration_features.menuYfeat.max = 25
-	menu_configuration_features.menuYfeat.mod = 1
-	menu_configuration_features.menuYfeat.min = 1
-	menu_configuration_features.menuYfeat.value = math.floor(11)
+	menu_configuration_features.maxfeats.max = 50
+	menu_configuration_features.maxfeats.mod = 1
+	menu_configuration_features.maxfeats.min = 1
+	menu_configuration_features.maxfeats.value = math.floor(stuff.menuData.max_features)
 
-	menu_configuration_features.menuYfeat = menu.add_feature("Menu width", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
+	menu_configuration_features.menuWidth = menu.add_feature("Menu width", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		stuff.menuData.width = f.value/graphics.get_screen_width()
 	end)
-	menu_configuration_features.menuYfeat.max = graphics.get_screen_width()
-	menu_configuration_features.menuYfeat.mod = 1
-	menu_configuration_features.menuYfeat.min = -graphics.get_screen_width()
-	menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
+	menu_configuration_features.menuWidth.max = graphics.get_screen_width()
+	menu_configuration_features.menuWidth.mod = 1
+	menu_configuration_features.menuWidth.min = -graphics.get_screen_width()
+	menu_configuration_features.menuWidth.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
 
 	menu_configuration_features.featXfeat = menu.add_feature("Feature dimensions X", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		stuff.menuData.feature_scale.x = f.value/graphics.get_screen_width()
@@ -1702,6 +1749,7 @@ function loadCurrentMenu()
 	menu_configuration_features.featXfeat.mod = 1
 	menu_configuration_features.featXfeat.min = -graphics.get_screen_width()
 	menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
+
 	menu_configuration_features.featYfeat = menu.add_feature("Feature dimensions Y", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		stuff.menuData.feature_scale.y = f.value/graphics.get_screen_height()
 	end)
@@ -1761,59 +1809,65 @@ function loadCurrentMenu()
 
 	menu_configuration_features.backgroundparent = menu.add_feature("Background", "parent", menu_configuration_features.cheesemenuparent.id)
 
-	local backgroundfeat = menu.add_feature("Background", "autoaction_value_str", menu_configuration_features.backgroundparent.id, function(f)
+	menu_configuration_features.backgroundfeat = menu.add_feature("Background", "autoaction_value_str", menu_configuration_features.backgroundparent.id, function(f)
 		if f.str_data[f.value + 1] == "NONE" then
 			stuff.menuData.background_sprite.sprite = nil
 		else
 			stuff.menuData.background_sprite.sprite = f.str_data[f.value + 1]
 		end
 	end)
-	backgroundfeat:set_str_data({"NONE", table.unpack(stuff.menuData.files.background)})
+	menu_configuration_features.backgroundfeat:set_str_data({"NONE", table.unpack(stuff.menuData.files.background)})
 
 	menu.add_feature("Fit background to width", "action", menu_configuration_features.backgroundparent.id, function()
 		stuff.menuData.background_sprite:fit_size_to_width()
 	end)
 
-	local backgroundoffsetx = menu.add_feature("Background pos X", "autoaction_value_i", menu_configuration_features.backgroundparent.id, function(f)
-		if func.get_key(0x65):is_down() then
+	menu_configuration_features.backgroundoffsetx = menu.add_feature("Background pos X", "autoaction_value_i", menu_configuration_features.backgroundparent.id, function(f)
+		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
-			stuff.menuData.background_sprite.offset.x = num/graphics.get_screen_width()
-			f.value = num
+			if stat == 0 and tonumber(num) then
+				stuff.menuData.background_sprite.offset.x = num/graphics.get_screen_width()
+				f.value = num
+			end
 		end
 		stuff.menuData.background_sprite.offset.x = f.value/graphics.get_screen_width()
 	end)
-	backgroundoffsetx.max = graphics.get_screen_width()
-	backgroundoffsetx.mod = 1
-	backgroundoffsetx.min = -graphics.get_screen_width()
-	backgroundoffsetx.value = math.floor(stuff.menuData.background_sprite.offset.x*graphics.get_screen_width())
+	menu_configuration_features.backgroundoffsetx.max = graphics.get_screen_width()
+	menu_configuration_features.backgroundoffsetx.mod = 1
+	menu_configuration_features.backgroundoffsetx.min = -graphics.get_screen_width()
+	menu_configuration_features.backgroundoffsetx.value = math.floor(stuff.menuData.background_sprite.offset.x*graphics.get_screen_width())
 
-	local backgroundoffsety = menu.add_feature("Background pos Y", "autoaction_value_i", menu_configuration_features.backgroundparent.id, function(f)
-		if func.get_key(0x65):is_down() then
+	menu_configuration_features.backgroundoffsety = menu.add_feature("Background pos Y", "autoaction_value_i", menu_configuration_features.backgroundparent.id, function(f)
+		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
-			stuff.menuData.background_sprite.offset.y = num/graphics.get_screen_height()
-			f.value = num
+			if stat == 0 and tonumber(num) then
+				stuff.menuData.background_sprite.offset.y = num/graphics.get_screen_height()
+				f.value = num
+			end
 		end
 		stuff.menuData.background_sprite.offset.y = f.value/graphics.get_screen_height()
 	end)
-	backgroundoffsety.max = graphics.get_screen_height()
-	backgroundoffsety.mod = 1
-	backgroundoffsety.min = -graphics.get_screen_height()
-	backgroundoffsety.value = math.floor(stuff.menuData.background_sprite.offset.y*graphics.get_screen_height())
+	menu_configuration_features.backgroundoffsety.max = graphics.get_screen_height()
+	menu_configuration_features.backgroundoffsety.mod = 1
+	menu_configuration_features.backgroundoffsety.min = -graphics.get_screen_height()
+	menu_configuration_features.backgroundoffsety.value = math.floor(stuff.menuData.background_sprite.offset.y*graphics.get_screen_height())
 
 	menu_configuration_features.backgroundsize = menu.add_feature("Background Size", "autoaction_value_f", menu_configuration_features.backgroundparent.id, function(f)
 		stuff.menuData.background_sprite.size = f.value
 	end)
-
 	menu_configuration_features.backgroundsize.max = 1
 	menu_configuration_features.backgroundsize.mod = 0.01
+	menu_configuration_features.backgroundsize.value = stuff.menuData.background_sprite.size
 
 	menu_configuration_features.footer = menu.add_feature("Footer", "parent", menu_configuration_features.cheesemenuparent.id)
 
 	menu_configuration_features.footer_size = menu.add_feature("Footer Size", "autoaction_value_i", menu_configuration_features.footer.id, function(f)
-		if func.get_key(0x65):is_down() then
+		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
-			stuff.menuData.footer.footer_size = num/graphics.get_screen_height()
-			f.value = num
+			if stat == 0 and tonumber(num) then
+				stuff.menuData.footer.footer_size = num/graphics.get_screen_height()
+				f.value = num
+			end
 		end
 		stuff.menuData.footer.footer_size = f.value/graphics.get_screen_height()
 	end)
@@ -1823,10 +1877,12 @@ function loadCurrentMenu()
 	menu_configuration_features.footer_size.value = math.floor(stuff.menuData.footer.footer_size*graphics.get_screen_height())
 
 	menu_configuration_features.padding = menu.add_feature("Padding", "autoaction_value_i", menu_configuration_features.footer.id, function(f)
-		if func.get_key(0x65):is_down() then
+		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
-			stuff.menuData.footer.padding = num/graphics.get_screen_width()
-			f.value = num
+			if stat == 0 and tonumber(num) then
+				stuff.menuData.footer.padding = num/graphics.get_screen_width()
+				f.value = num
+			end
 		end
 		stuff.menuData.footer.padding = f.value/graphics.get_screen_width()
 	end)
@@ -1835,13 +1891,15 @@ function loadCurrentMenu()
 	menu_configuration_features.padding.min = -graphics.get_screen_width()
 	menu_configuration_features.padding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
 
-	menu.add_feature("Draw footer", "toggle", menu_configuration_features.footer.id, function(f)
+	menu_configuration_features.draw_footer = menu.add_feature("Draw footer", "toggle", menu_configuration_features.footer.id, function(f)
 		stuff.menuData.footer.draw_footer = f.on
-	end).on = stuff.menuData.footer.draw_footer
+	end)
+	menu_configuration_features.draw_footer.on = stuff.menuData.footer.draw_footer
 
-	menu.add_feature("Footer position based on background", "toggle", menu_configuration_features.footer.id, function(f)
+	menu_configuration_features.footer_pos_related_to_background = menu.add_feature("Footer position based on background", "toggle", menu_configuration_features.footer.id, function(f)
 		stuff.menuData.footer.footer_pos_related_to_background = f.on
-	end).on = stuff.menuData.footer.footer_pos_related_to_background
+	end)
+	menu_configuration_features.footer_pos_related_to_background.on = stuff.menuData.footer.footer_pos_related_to_background
 
 	menu_configuration_features.footer_text = menu.add_feature("Footer Text", "action", menu_configuration_features.footer.id, function()
 		local status, text = input.get("Footer Text", "", 50, 0)
@@ -1863,42 +1921,67 @@ function loadCurrentMenu()
 
 	local colorParent = menu.add_feature("Colors", "parent", menu_configuration_features.cheesemenuparent.id)
 	for k, v in pairs(stuff.menuData.color) do
+		menu_configuration_features[k] = {}
 		local vParent = menu.add_feature(k, "parent", colorParent.id)
-		local red = menu.add_feature("Red", "autoaction_value_i", vParent.id, function(f)
+		menu_configuration_features[k].r = menu.add_feature("Red", "autoaction_value_i", vParent.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					f.value = num
+				end
+			end
 			stuff.menuData.color:set_color(k, f.value)
 		end)
-		red.max = 255
+		menu_configuration_features[k].r.max = 255
 		if type(v) == "table" then
-			red.value = v.r
+			menu_configuration_features[k].r.value = v.r
 		else
-			red.value = func.convert_int_to_rgba(v, "r")
+			menu_configuration_features[k].r.value = func.convert_int_to_rgba(v, "r")
 		end
-		local green = menu.add_feature("Green", "autoaction_value_i", vParent.id, function(f)
+		menu_configuration_features[k].g = menu.add_feature("Green", "autoaction_value_i", vParent.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					f.value = num
+				end
+			end
 			stuff.menuData.color:set_color(k, nil, f.value)
 		end)
-		green.max = 255
+		menu_configuration_features[k].g.max = 255
 		if type(v) == "table" then
-			green.value = v.g
+			menu_configuration_features[k].g.value = v.g
 		else
-			green.value = func.convert_int_to_rgba(v, "g")
+			menu_configuration_features[k].g.value = func.convert_int_to_rgba(v, "g")
 		end
-		local blue = menu.add_feature("Blue", "autoaction_value_i", vParent.id, function(f)
+		menu_configuration_features[k].b = menu.add_feature("Blue", "autoaction_value_i", vParent.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					f.value = num
+				end
+			end
 			stuff.menuData.color:set_color(k, nil, nil, f.value)
 		end)
-		blue.max = 255
+		menu_configuration_features[k].b.max = 255
 		if type(v) == "table" then
-			blue.value = v.b
+			menu_configuration_features[k].b.value = v.b
 		else
-			blue.value = func.convert_int_to_rgba(v, "b")
+			menu_configuration_features[k].b.value = func.convert_int_to_rgba(v, "b")
 		end
-		local alpha = menu.add_feature("Alpha", "autoaction_value_i", vParent.id, function(f)
+		menu_configuration_features[k].a = menu.add_feature("Alpha", "autoaction_value_i", vParent.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					f.value = num
+				end
+			end
 			stuff.menuData.color:set_color(k, nil, nil, nil, f.value)
 		end)
-		alpha.max = 255
+		menu_configuration_features[k].a.max = 255
 		if type(v) == "table" then
-			alpha.value = v.a
+			menu_configuration_features[k].a.value = v.a
 		else
-			alpha.value = func.convert_int_to_rgba(v, "a")
+			menu_configuration_features[k].a.value = func.convert_int_to_rgba(v, "a")
 		end
 	end
 
