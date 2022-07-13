@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.6.7"
+local version = "1.6.6.8"
 local loadCurrentMenu
 
 -- Version check
@@ -36,9 +36,22 @@ menu.create_thread(function()
 	if responseCode == 200 then
 		githubVer = githubVer:gsub("[\r\n]", "")
 		if githubVer ~= version then
+			local strings = {
+				version_compare = "\nCurrent Version:"..version.."\nLatest Version:"..githubVer,
+				version_compare_x_offset = -scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, 1).x/graphics.get_screen_width(),
+				new_ver_x_offset = -scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", 1).x/graphics.get_screen_width()
+			}
+			strings.changelog_rc, strings.changelog = web.request("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CHANGELOG.txt")
+			if strings.changelog_rc == 200 then
+				strings.changelog = "\n\n\nChangelog:\n"..strings.changelog
+			else
+				strings.changelog = ""
+			end
+			strings.changelog_x_offset = -scriptdraw.get_text_size(strings.changelog, 1).x/graphics.get_screen_width()
 			while true do
-				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", v2(-scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", 1).x/graphics.get_screen_width(), 0), v2(2, 2), 1, 0xFFFFFFFF, 2)
-				scriptdraw.draw_text("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, v2(-scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, 1).x/graphics.get_screen_width(), 0), v2(2, 2), 1, 0xFFFFFFFF, 2)
+				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", v2(strings.new_ver_x_offset, 0), v2(2, 2), 1, 0xFF0CB4F4, 2)
+				scriptdraw.draw_text(strings.version_compare, v2(strings.version_compare_x_offset, 0), v2(2, 2), 1, 0xFF0CB4F4, 2)
+				scriptdraw.draw_text(strings.changelog, v2(strings.changelog_x_offset, 0), v2(2, 2), 1, 0xFF0CB4F4, 2)
 				if vercheckKeys.ctrl:is_down() or vercheckKeys.space:is_down() then
 					loadCurrentMenu()
 					break
