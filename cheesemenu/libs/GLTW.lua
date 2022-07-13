@@ -22,7 +22,7 @@ function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
 			if type(v) ~= "table" and type(v) ~= "function" and type(v) ~= "string" then
 				file:write(indentation..index..tostring(v)..",\n")
 			elseif type(v) == "string" then
-				file:write(indentation..index.."[["..v.."]],\n")
+				file:write(indentation..index.."[=["..v.."]=],\n")
 			end
 		end
 	end
