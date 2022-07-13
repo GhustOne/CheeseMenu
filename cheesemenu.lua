@@ -1629,7 +1629,10 @@ function loadCurrentMenu()
 								end
 							end
 						end
-						system.wait(250)
+						local time = utils.time_ms() + 250
+						while time > utils.time_ms() do
+							system.wait(0)
+						end
 					end
 				end
 			end
