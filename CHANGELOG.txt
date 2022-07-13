@@ -1,1 +1,2 @@
 Temporary fix for hotkey activation cooldown
+Added Changelog to update confirmation
