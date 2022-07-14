@@ -1,2 +1,3 @@
-Temporary fix for hotkey activation cooldown
-Added Changelog to update confirmation
+Added "support" for gif, bmp, jpg and jpeg.
+I recommend using gif as its probably the smallest that supports transparency
+or jpeg if you can't use gif for whatever reason 
