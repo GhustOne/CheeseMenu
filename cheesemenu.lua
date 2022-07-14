@@ -1667,7 +1667,7 @@ function loadCurrentMenu()
 		end
 	end, nil)
 	--End of threads
-	menu.notify("Controls can be found in\nScript Features > Cheese Menu > Controls", "Made by GhostOne\n"..stuff.controls.open.." to open", 6, 0x00ff00)
+	menu.notify("Controls can be found in\nScript Features > Cheese Menu > Controls", "CheeseMenu by GhostOne\n"..stuff.controls.open.." to open", 6, 0x00ff00)
 
 	local menu_configuration_features = {}
 	menu_configuration_features.cheesemenuparent = menu.add_feature("Cheese menu", "parent")
