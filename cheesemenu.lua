@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.6.8"
+local version = "1.6.6.9"
 local loadCurrentMenu
 
 -- Version check
@@ -1120,6 +1120,7 @@ function loadCurrentMenu()
 		end
 	end
 
+	stuff.image_ext = {"gif", "bmp", "jpg", "jpeg", "png"}
 	stuff.header_ids = {}
 	function func.load_sprite(name, path, id_table)
 		path = path or stuff.path.header
@@ -1127,19 +1128,32 @@ function loadCurrentMenu()
 		name = tostring(name)
 		assert(name, "invalid name")
 
-		if name:match("%.png") then
-			name = name:sub(1, #name - 4)
-		end
+		name:gsub("%.[a-z]+[a-z]+[a-z]+[a-z]*$", "")
 
 		if not id_table[name] then
 			if utils.dir_exists(path..name) then
 				id_table[name] = {}
 				local path = path..name.."\\"
-				for i, e in pairs(utils.get_all_files_in_directory(path, "png")) do
+				local images
+
+				for _, v in pairs(stuff.image_ext) do
+					images = utils.get_all_files_in_directory(path, v)
+					if images[1] then break end
+				end
+
+				table.sort(images, function(a, b) return a < b end)
+
+				for i, e in pairs(images) do
 					id_table[name][i] = scriptdraw.register_sprite(path..e)
 				end
+
 				id_table[name].fps = utils.get_all_files_in_directory(path, "txt")[1]
+				if not id_table[name].fps then
+					menu.notify("FPS file not found, create a txt file with the framerate of the gif.\nExample: '25 fps.txt'", "CheeseMenu", 5, 0x0000FF)
+					return
+				end
 				id_table[name].fps = tonumber(id_table[name].fps:match("(%d*%.*%d+)%s+fps"))
+
 			elseif utils.file_exists(path..name..".png") then
 				id_table[name] = scriptdraw.register_sprite(path..name..".png")
 			end
@@ -1297,7 +1311,7 @@ function loadCurrentMenu()
 				else
 					stuff.draw_current_menu.frameCounter = 1
 				end
-				stuff.draw_current_menu.time = utils.time_ms() + math.floor(1000 / sprite.fps)
+				stuff.draw_current_menu.time = utils.time_ms() + math.floor(1000 / (sprite.fps or 30))
 			end
 			sprite = sprite[stuff.draw_current_menu.frameCounter]
 		end
