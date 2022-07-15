@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.6.9"
+local version = "1.6.7"
 local loadCurrentMenu
 
 -- Version check
