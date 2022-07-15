@@ -1,4 +1,2 @@
-Added "support" for gif, bmp, jpg and jpeg for multi-frame headers. (Images still separate)
-I recommend using gif as its probably the smallest that supports transparency
-or jpeg if you can't use gif for whatever reason
-(nice)
+Added Player Info Window
+Fixed 0-1 scroll loop
