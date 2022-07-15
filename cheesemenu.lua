@@ -95,7 +95,12 @@ function loadCurrentMenu()
 	currentMenu = features
 	func = {}
 	stuff = {
-		pid = 0,
+		pid = -1,
+		player_info = {
+			{"Player ID", "0"},
+			{"IP", "0.0.0.0"},
+			{"SCID", "133769420"}
+		},
 		scroll = 1,
 		scrollHiddenOffset = 0,
 		previousMenus = {},
@@ -255,6 +260,12 @@ function loadCurrentMenu()
 				footer_pos_related_to_background = false,
 				footer_text = "Made by GhostOne",
 			},
+			side_window = {
+				offset = {x = 0, y = 0},
+				spacing = 0.0547222,
+				width = 0.3,
+				padding = 0.01
+			},
 			header = "cheese_menu",
 			feature_offset = 0.025,
 			feature_scale = {x = 0.2, y = 0.025},
@@ -294,6 +305,8 @@ function loadCurrentMenu()
 		footer = {r = 255, g = 160, b = 0, a = 170},
 		footer_text = {r = 0, g = 0, b = 0, a = 180},
 		notifications = {r = 255, g = 200, b = 0, a = 255},
+		side_window = {r = 0, g = 0, b = 0, a = 150},
+		side_window_text = {r = 255, g = 255, b = 255, a = 220}
 	}
 
 	stuff.path.cheesemenu = stuff.path.scripts.."cheesemenu\\"
@@ -369,6 +382,16 @@ function loadCurrentMenu()
 		return table.unpack(values)
 	end
 	setmetatable(stuff.menuData.color, {__index = stuff.menuData_methods})
+
+	function func.convert_int_ip(ip)
+		local ipTable = {}
+		ipTable[1] = ip >> 24 & 255
+		ipTable[2] = ip >> 16 & 255
+		ipTable[3] = ip >> 8 & 255
+		ipTable[4] = ip & 255
+		
+		return table.concat(ipTable, ".")
+	end
 
 	stuff.input = require("cheesemenu.libs.Get Input")
 	require("cheesemenu.libs.GLTW")
@@ -1256,7 +1279,7 @@ function loadCurrentMenu()
 		end
 		if stuff.scroll > #currentMenu - stuff.drawHiddenOffset then
 			stuff.scroll = #currentMenu - stuff.drawHiddenOffset
-		elseif stuff.scroll < 1 then
+		elseif stuff.scroll < 1 and #currentMenu > 0 then
 			stuff.scroll = 1
 		end
 
@@ -1321,6 +1344,42 @@ function loadCurrentMenu()
 		system.wait(0)
 	end
 
+	--[[
+		example of table_of_lines:
+		{
+			{"leftside", "rightside"},
+			{"IP", "ddosing u rn"},
+			{"Cheesus", "Christ"}
+		}
+		has to be in this structure, you can add more than three
+	]]
+	function func.draw_side_window(header_text, table_of_lines, v2pos, rect_color, rect_width, text_spacing, text_padding, text_color)
+		text_color = text_color or 0xFFFFFFFF
+		assert(
+			type(header_text) == "string"
+			and type(table_of_lines) == "table"
+			and type(v2pos) == "userdata"
+			and type(rect_color) == "number"
+			and type(rect_width) == "number"
+			and type(text_spacing) == "number"
+			and type(text_padding) == "number"
+			and type(text_color) == "number",
+			"one or more draw_side_window args were invalid"
+		)
+		local rect_height = #table_of_lines*text_spacing+0.07125
+		v2pos.y = v2pos.y-(rect_height/2)
+
+		scriptdraw.draw_rect(v2pos, v2(rect_width, rect_height), rect_color)
+
+		-- Header text
+		scriptdraw.draw_text(header_text, v2(v2pos.x - scriptdraw.get_text_size(header_text, 1, 0).x/graphics.get_screen_width(), v2pos.y+(rect_height/2)-0.015), v2(2, 2), 1, text_color, 0, 0)
+		-- table_of_lines
+		for k, v in ipairs(table_of_lines) do
+			local pos_y = v2pos.y-k*text_spacing+rect_height/2-0.03
+			scriptdraw.draw_text(v[1], v2(v2pos.x-rect_width/2+text_padding, pos_y), v2(2, 2), 1, text_color, 0, 2)
+			scriptdraw.draw_text(v[2], v2(v2pos.x+rect_width/2-text_padding, pos_y), v2(2, 2), 1, text_color, 16, 2)
+		end
+	end
 
 	--Hotkey functions
 	function func.get_hotkey(keyTable, vkTable, singlekey)
@@ -1440,6 +1499,28 @@ function loadCurrentMenu()
 		while true do
 			if stuff.menuData.menuToggle then
 				func.draw_current_menu()
+				if currentMenu then
+					local pid = currentMenu.pid
+					if not pid and currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+						pid = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].pid
+					end
+					if pid and pid ~= stuff.pid then
+						stuff.player_info[1][2] = tostring(pid)
+						stuff.player_info[2][2] = func.convert_int_ip(player.get_player_ip(pid))
+						stuff.player_info[3][2] = tostring(player.get_player_scid(pid))
+						stuff.pid = pid
+					end
+					if pid then
+						func.draw_side_window(
+							tostring(player.get_player_name(pid)),
+							stuff.player_info,
+							v2((stuff.menuData.x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.y + stuff.menuData.side_window.offset.y)*-2+1),
+							func.convert_rgba_to_int(stuff.menuData.color.side_window.r, stuff.menuData.color.side_window.g, stuff.menuData.color.side_window.b, stuff.menuData.color.side_window.a),
+							stuff.menuData.side_window.width, stuff.menuData.side_window.spacing, stuff.menuData.side_window.padding,
+							func.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a)
+						)
+					end
+				end
 				controls.disable_control_action(0, 172, true)
 				controls.disable_control_action(0, 27, true)
 			else
@@ -1697,6 +1778,11 @@ function loadCurrentMenu()
 		menu_configuration_features.padding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
 		menu_configuration_features.draw_footer.on = stuff.menuData.footer.draw_footer
 		menu_configuration_features.footer_pos_related_to_background.on = stuff.menuData.footer.footer_pos_related_to_background
+		menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
+		menu_configuration_features.side_window_offsety.value = math.floor(stuff.menuData.side_window.offset.y*graphics.get_screen_height())
+		menu_configuration_features.side_window_spacing.value = math.floor(stuff.menuData.side_window.spacing*graphics.get_screen_height())
+		menu_configuration_features.side_window_padding.value = math.floor(stuff.menuData.side_window.padding*graphics.get_screen_width())
+		menu_configuration_features.side_window_width.value = math.floor(stuff.menuData.side_window.width*graphics.get_screen_width())
 
 		for k, v in pairs(stuff.menuData.color) do
 			if type(v) == "table" then
@@ -1836,6 +1922,91 @@ function loadCurrentMenu()
 			menu.delete_thread(disablethread)
 		end):set_str_data({v})
 	end
+
+	-- Player Info
+	menu_configuration_features.side_window = menu.add_feature("Player Info Window", "parent", menu_configuration_features.cheesemenuparent.id)
+
+		-- Offset
+		menu_configuration_features.side_window_offsetx = menu.add_feature("X Offset", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					stuff.menuData.side_window.offset.x = num/graphics.get_screen_height()
+					f.value = num
+				end
+			end
+			stuff.menuData.side_window.offset.x = f.value/graphics.get_screen_width()
+		end)
+		menu_configuration_features.side_window_offsetx.max = graphics.get_screen_width()
+		menu_configuration_features.side_window_offsetx.mod = 1
+		menu_configuration_features.side_window_offsetx.min = -graphics.get_screen_width()
+		menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
+
+		menu_configuration_features.side_window_offsety = menu.add_feature("Y Offset", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					stuff.menuData.side_window.offset.y = num/graphics.get_screen_height()
+					f.value = num
+				end
+			end
+			stuff.menuData.side_window.offset.y = f.value/graphics.get_screen_height()
+		end)
+		menu_configuration_features.side_window_offsety.max = graphics.get_screen_height()
+		menu_configuration_features.side_window_offsety.mod = 1
+		menu_configuration_features.side_window_offsety.min = -graphics.get_screen_height()
+		menu_configuration_features.side_window_offsety.value = math.floor(stuff.menuData.side_window.offset.y*graphics.get_screen_height())
+
+		-- Spacing
+		menu_configuration_features.side_window_spacing = menu.add_feature("Spacing", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					stuff.menuData.side_window.spacing = num/graphics.get_screen_height()
+					f.value = num
+				end
+			end
+			stuff.menuData.side_window.spacing = f.value/graphics.get_screen_height()
+		end)
+		menu_configuration_features.side_window_spacing.max = graphics.get_screen_height()
+		menu_configuration_features.side_window_spacing.mod = 1
+		menu_configuration_features.side_window_spacing.min = -graphics.get_screen_height()
+		menu_configuration_features.side_window_spacing.value = math.floor(stuff.menuData.side_window.spacing*graphics.get_screen_height())
+
+		-- Padding
+		menu_configuration_features.side_window_padding = menu.add_feature("Padding", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					stuff.menuData.side_window.padding = num/graphics.get_screen_height()
+					f.value = num
+				end
+			end
+			stuff.menuData.side_window.padding = f.value/graphics.get_screen_width()
+		end)
+		menu_configuration_features.side_window_padding.max = graphics.get_screen_width()
+		menu_configuration_features.side_window_padding.mod = 1
+		menu_configuration_features.side_window_padding.min = -graphics.get_screen_width()
+		menu_configuration_features.side_window_padding.value = math.floor(stuff.menuData.side_window.padding*graphics.get_screen_width())
+
+		-- Width
+		menu_configuration_features.side_window_width = menu.add_feature("Width", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
+			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+				local stat, num = input.get("num", "", 10, 3)
+				if stat == 0 and tonumber(num) then
+					stuff.menuData.side_window.width = num/graphics.get_screen_height()
+					f.value = num
+				end
+			end
+			stuff.menuData.side_window.width = f.value/graphics.get_screen_width()
+		end)
+		menu_configuration_features.side_window_width.max = graphics.get_screen_width()
+		menu_configuration_features.side_window_width.mod = 1
+		menu_configuration_features.side_window_width.min = -graphics.get_screen_width()
+		menu_configuration_features.side_window_width.value = math.floor(stuff.menuData.side_window.width*graphics.get_screen_width())
+
+	-- End of Player Info
+
 
 	menu_configuration_features.backgroundparent = menu.add_feature("Background", "parent", menu_configuration_features.cheesemenuparent.id)
 
