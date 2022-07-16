@@ -1,2 +1,2 @@
-Added Player Info Window
-Fixed 0-1 scroll loop in empty parents
+Added toggle for Player Info Window
+Fixed issue with deleting player features
