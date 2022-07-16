@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.7"
+local version = "1.6.7.1"
 local loadCurrentMenu
 
 -- Version check
@@ -261,6 +261,7 @@ function loadCurrentMenu()
 				footer_text = "Made by GhostOne",
 			},
 			side_window = {
+				on = true,
 				offset = {x = 0, y = 0},
 				spacing = 0.0547222,
 				width = 0.3,
@@ -1098,6 +1099,9 @@ function loadCurrentMenu()
 			func.delete_feature(v.ps_id, true)
 		end
 
+		for i = feat.index+1, #parent do
+			parent[i].index = parent[i].index-1
+		end
 		table.remove(parent, tonumber(feat.index))
 	end
 
@@ -1499,7 +1503,7 @@ function loadCurrentMenu()
 		while true do
 			if stuff.menuData.menuToggle then
 				func.draw_current_menu()
-				if currentMenu then
+				if currentMenu and stuff.menuData.side_window.on then
 					local pid = currentMenu.pid
 					if not pid and currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
 						pid = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].pid
@@ -1783,6 +1787,7 @@ function loadCurrentMenu()
 		menu_configuration_features.side_window_spacing.value = math.floor(stuff.menuData.side_window.spacing*graphics.get_screen_height())
 		menu_configuration_features.side_window_padding.value = math.floor(stuff.menuData.side_window.padding*graphics.get_screen_width())
 		menu_configuration_features.side_window_width.value = math.floor(stuff.menuData.side_window.width*graphics.get_screen_width())
+		menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on
 
 		for k, v in pairs(stuff.menuData.color) do
 			if type(v) == "table" then
@@ -1925,6 +1930,12 @@ function loadCurrentMenu()
 
 	-- Player Info
 	menu_configuration_features.side_window = menu.add_feature("Player Info Window", "parent", menu_configuration_features.cheesemenuparent.id)
+
+		-- On
+		menu_configuration_features.side_window_on = menu.add_feature("Draw", "toggle", menu_configuration_features.side_window.id, function(f)
+			stuff.menuData.side_window.on = f.on
+		end)
+		menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on
 
 		-- Offset
 		menu_configuration_features.side_window_offsetx = menu.add_feature("X Offset", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
