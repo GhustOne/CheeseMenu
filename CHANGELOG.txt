@@ -1,2 +1,2 @@
 Added toggle for Player Info Window
-Fixed issue with deleting player features
+Fixed issue with deleting player features thanks to 2Take1Script
