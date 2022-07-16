@@ -60,22 +60,22 @@ menu.create_thread(function()
 					if responseCode == 200 then
 						autoupdater = load(autoupdater)
 						menu.create_thread(function()
-							menu.notify("Update started, please wait...", "CheeseMenu")
+							menu.notify("Update started, please wait...", "Cheese Menu")
 							local status = autoupdater()
 							if status then
 								if type(status) == "string" then
-									menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "CheeseMenu", 5, 0x0000FF)
+									menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "Cheese Menu", 5, 0x0000FF)
 								else
-									menu.notify("Update successful", "CheeseMenu", 4, 0x00FF00)
+									menu.notify("Update successful", "Cheese Menu", 4, 0x00FF00)
 									dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
 								end
 							else
-								menu.notify("Download for updated files failed, current files have not been replaced.", "CheeseMenu", 5, 0x0000FF)
+								menu.notify("Download for updated files failed, current files have not been replaced.", "Cheese Menu", 5, 0x0000FF)
 							end
 						end, nil)
 						break
 					else
-						menu.notify("Getting Updater failed. Check your connection and try downloading manually.", "CheeseMenu", 5, 0x0000FF)
+						menu.notify("Getting Updater failed. Check your connection and try downloading manually.", "Cheese Menu", 5, 0x0000FF)
 					end
 				end
 				system.wait(0)
@@ -1172,7 +1172,7 @@ function loadCurrentMenu()
 
 				id_table[name].fps = utils.get_all_files_in_directory(path, "txt")[1]
 				if not id_table[name].fps then
-					menu.notify("FPS file not found, create a txt file with the framerate of the gif.\nExample: '25 fps.txt'", "CheeseMenu", 5, 0x0000FF)
+					menu.notify("FPS file not found, create a txt file with the framerate of the gif.\nExample: '25 fps.txt'", "Cheese Menu", 5, 0x0000FF)
 					return
 				end
 				id_table[name].fps = tonumber(id_table[name].fps:match("(%d*%.*%d+)%s+fps"))
