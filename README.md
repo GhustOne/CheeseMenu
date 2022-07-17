@@ -45,6 +45,6 @@ Hotkeys will be saved automatically
 ## Credits
 - Kektram - for teaching me the basics of lua, I only started because of him.
 
-- Proddy - telling me about many bad habits in lua and helping even though he hates the concept of cheesemenu
+- Proddy - telling me about bad habits in lua and helping even though he hates the concept of cheesemenu
 
 - Rimuru - only got the idea because of her UI, learnt some stuff from it too 
