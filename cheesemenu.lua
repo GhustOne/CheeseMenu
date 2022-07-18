@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.8"
+local version = "1.6.8.1"
 local loadCurrentMenu
 
 -- Version check
@@ -524,8 +524,11 @@ function loadCurrentMenu()
 					end
 				end
 			elseif k == "hidden" then
+				assert(type(v) == "boolean", "hidden only accepts booleans")
 				t.real_hidden = v
-				func.deleted_or_hidden_parent_check(t)
+				if v then
+					func.deleted_or_hidden_parent_check(t)
+				end
 			elseif k == "data" then
 				stuff.rawset(t, "real_data", v)
 				if t.feats then
@@ -1031,7 +1034,7 @@ function loadCurrentMenu()
 					if parentBeforeDHparent then
 						stuff.previousMenus[k] = nil
 					else
-						if v.menu == parent or (v.menu.hidden and check_hidden_only) then
+						if (v.menu == parent and not check_hidden_only) or (v.menu.hidden and check_hidden_only) then
 							parentBeforeDHparent = true
 							currentMenu = stuff.previousMenus[k-1].menu
 							stuff.scroll = stuff.previousMenus[k-1].scroll
