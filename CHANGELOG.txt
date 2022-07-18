@@ -1,1 +1,2 @@
 Added highlight function callback and is_highlighted
+Fixed getting kicked out of certain submenus
