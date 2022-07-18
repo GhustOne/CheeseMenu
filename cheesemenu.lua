@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.7.1"
+local version = "1.6.8"
 local loadCurrentMenu
 
 -- Version check
@@ -456,7 +456,9 @@ function loadCurrentMenu()
 
 	stuff.featMetaTable = {
 		__index = function(t, k)
-			if k == "value" or k == "min" or k == "mod" or k == "max" or k == "str_data" or k == "type" or k == "id" or k == "on" or k == "hidden" or k == "data" then
+			if k == "is_highlighted" then
+				return t == currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+			elseif k == "value" or k == "min" or k == "mod" or k == "max" or k == "str_data" or k == "type" or k == "id" or k == "on" or k == "hidden" or k == "data" then
 				if t.playerFeat and k ~= "str_data" and k ~= "type" and k ~= "id" and k ~= "hidden" and k ~= "data" then
 					return stuff.rawget(t, "table_"..k)
 				else
@@ -470,7 +472,7 @@ function loadCurrentMenu()
 		end,
 
 		__newindex = function(t, k, v)
-			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data", "'"..k.."' is read only")
+			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "is_highlighted", "'"..k.."' is read only")
 			if k == "on" and type(v) == "boolean" then
 				stuff.rawset(t, "real_on", v)
 				if t.feats then
@@ -539,7 +541,9 @@ function loadCurrentMenu()
 
 	stuff.playerfeatMetaTable = {
 		__index = function(t, k)
-			if k == "str_data" or k == "type" or k == "id" or k == "data" or k == "hidden" then
+			if k == "is_highlighted" then
+				return t == currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+			elseif k == "str_data" or k == "type" or k == "id" or k == "data" or k == "hidden" then
 				return stuff.rawget(t, "real_"..k)
 			elseif stuff.playerSpecialValues[k] then
 				if t["table_"..k:gsub("real_", "")] then
@@ -551,7 +555,7 @@ function loadCurrentMenu()
 		end,
 
 		__newindex = function(t, k, v)
-			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data", "'"..k.."' is read only")
+			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "is_highlighted", "'"..k.."' is read only")
 			if (k == "on" or k == "real_on") and type(v) == "boolean" then
 				t["table_on"][t.pid] = v
 				if v then
@@ -661,19 +665,21 @@ function loadCurrentMenu()
 
 	-- function callback ~Thanks to Proddy for telling me that doing function() every time creates a new one and providing examples on how to use menu.create_thread with the function below
 	function stuff.feature_callback(self)
-	    local continue = self:func(self.data)
-	    while continue == HANDLER_CONTINUE and self.real_on do
-	        system.wait(0)
-	        continue = self:func(self.data)
-	    end
+		local pidordata = self.pid or self.data
+		local continue = self:func(pidordata, self.data)
+		while continue == HANDLER_CONTINUE and self.real_on do
+			system.wait(0)
+			continue = self:func(pidordata, self.data)
+		end
 	end
 
-	function stuff.player_feature_callback(self)
-	    local continue = self:func(self.pid, self.data)
-	    while continue == HANDLER_CONTINUE and self.real_on do
-	        system.wait(0)
-	        continue = self:func(self.pid, self.data)
-	    end
+	function stuff.highlight_callback(self)
+		local pidordata = self.pid or self.data
+		local continue = self:hl_func(pidordata, self.data)
+		while continue == HANDLER_CONTINUE and self.real_on do
+			system.wait(0)
+			continue = self:hl_func(pidordata, self.data)
+		end
 	end
 
 	stuff.activate_feat_func = function(self)
@@ -681,7 +687,19 @@ function loadCurrentMenu()
 			self.thread = 0
 		end
 		if self.func and menu.has_thread_finished(self.thread) then
-			self.thread = menu.create_thread(self.playerFeat and stuff.player_feature_callback or stuff.feature_callback, self)
+			self.thread = menu.create_thread(stuff.feature_callback, self)
+		end
+	end
+
+	-- highlight callback
+	stuff.activate_hl_func = function(self)
+		if self.hl_func then
+			if not self.hl_thread then
+				self.hl_thread = 0
+			end
+			if menu.has_thread_finished(self.hl_thread) then
+				self.hl_thread = menu.create_thread(stuff.highlight_callback, self)
+			end
 		end
 	end
 	--
@@ -751,11 +769,11 @@ function loadCurrentMenu()
 	}
 
 	--Functions
-	function func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionToDo, playerFeat, playerid)
+	function func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback, playerFeat)
 		assert((type(nameOfFeat) == "string"), "invalid name in add_feature")
 		assert((type(TypeOfFeat) == "string") and stuff.type_id.name_to_id[TypeOfFeat], "invalid type in add_feature")
 		assert(((type(parentOfFeat) == "string") or (type(parentOfFeat) == "number")) or not parentOfFeat, "invalid parent id in add_feature")
-		assert((type(functionToDo) == "function") or not functionToDo, "invalid function in add_feature")
+		assert((type(functionCallback) == "function") or not functionCallback, "invalid function in add_feature")
 		if not parentOfFeat then
 			parentOfFeat = 0
 		end
@@ -782,6 +800,7 @@ function loadCurrentMenu()
 
 		currentParent[#currentParent + 1] = {name = nameOfFeat, real_type = stuff.type_id.name_to_id[TypeOfFeat], real_id = 0, parent = {id = currentParent.id or 0}, parent_id = currentParent.id or 0, playerFeat = playerFeat, index = #currentParent + 1}
 		currentParent[#currentParent].activate_feat_func = stuff.activate_feat_func
+		currentParent[#currentParent].activate_hl_func = stuff.activate_hl_func
 		currentParent[#currentParent].set_str_data = stuff.set_str_data
 		currentParent[#currentParent].toggle = stuff.toggle
 		currentParent[#currentParent].get_children = stuff.get_children
@@ -830,9 +849,8 @@ function loadCurrentMenu()
 			currentParent[#currentParent].mod = 1
 		end
 		currentParent[#currentParent].hidden = false
-		if functionToDo then
-			currentParent[#currentParent]["func"] = functionToDo
-		end
+		currentParent[#currentParent]["func"] = functionCallback
+		currentParent[#currentParent]["hl_func"] = highlightCallback
 		if TypeOfFeat == "parent" then
 			currentParent[#currentParent].child_count = 0
 		end
@@ -862,10 +880,10 @@ function loadCurrentMenu()
 	--player feature functions
 
 	-- if you set a toggle player feature to on it'll enable for any valid players/joining players but if a player leaves functions like player.get_player_name will return nil before the feature is turned off
-	function func.add_player_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionToDo)
+	function func.add_player_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback)
 		parentOfFeat = parentOfFeat or 0
 		assert(stuff.PlayerParent, "you need to use set_player_feat_parent before adding player features")
-		local pfeat = func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionToDo, true)
+		local pfeat = func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback, true)
 		pfeat.feats = {}
 
 		if parentOfFeat == 0 then
@@ -955,7 +973,7 @@ function loadCurrentMenu()
 		stuff.PlayerParent.playerFeat = true
 		stuff.playerIds = {}
 			for i = 0, 31 do
-				stuff.playerIds[i] = func.add_feature(tostring(player.get_player_name(i)), "parent", stuff.PlayerParent.id, nil, nil, i)
+				stuff.playerIds[i] = func.add_feature(tostring(player.get_player_name(i)), "parent", stuff.PlayerParent.id)
 				stuff.playerIds[i].pid = i
 				stuff.playerIds[i].hidden = not player.is_player_valid(i)
 			end
@@ -1379,6 +1397,8 @@ function loadCurrentMenu()
 		scriptdraw.draw_text(header_text, v2(v2pos.x - scriptdraw.get_text_size(header_text, 1, 0).x/graphics.get_screen_width(), v2pos.y+(rect_height/2)-0.015), v2(2, 2), 1, text_color, 0, 0)
 		-- table_of_lines
 		for k, v in ipairs(table_of_lines) do
+			v[1] = tostring(v[1])
+			v[2] = tostring(v[2])
 			local pos_y = v2pos.y-k*text_spacing+rect_height/2-0.03
 			scriptdraw.draw_text(v[1], v2(v2pos.x-rect_width/2+text_padding, pos_y), v2(2, 2), 1, text_color, 0, 2)
 			scriptdraw.draw_text(v[2], v2(v2pos.x+rect_width/2-text_padding, pos_y), v2(2, 2), 1, text_color, 16, 2)
@@ -1498,7 +1518,7 @@ function loadCurrentMenu()
 
 	--End of functions
 
-	--key threads
+	--threads
 	menu.create_thread(function()
 		while true do
 			if stuff.menuData.menuToggle then
@@ -1577,6 +1597,7 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.down, true, function() -- downKey
+					local old_scroll = stuff.scroll + stuff.scrollHiddenOffset
 					if stuff.scroll + stuff.drawHiddenOffset >= #currentMenu then
 						stuff.scroll = 1
 						stuff.drawScroll = 0
@@ -1584,6 +1605,12 @@ function loadCurrentMenu()
 						stuff.scroll = stuff.scroll + 1
 						if stuff.scroll - stuff.drawScroll >= (stuff.menuData.max_features - 1) and stuff.drawScroll < stuff.maxDrawScroll then
 							stuff.drawScroll = stuff.drawScroll + 1
+						end
+					end
+					if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
+						currentMenu[old_scroll]:activate_hl_func()
+						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 						end
 					end
 				end)
@@ -1595,6 +1622,7 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.up, true, function() -- upKey
+					local old_scroll = stuff.scroll + stuff.scrollHiddenOffset
 					if stuff.scroll <= 1 then
 						stuff.scroll = #currentMenu
 						stuff.drawScroll = stuff.maxDrawScroll
@@ -1602,6 +1630,12 @@ function loadCurrentMenu()
 						stuff.scroll = stuff.scroll - 1
 						if stuff.scroll - stuff.drawScroll <= 2 and stuff.drawScroll > 0 then
 							stuff.drawScroll = stuff.drawScroll - 1
+						end
+					end
+					if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
+						currentMenu[old_scroll]:activate_hl_func()
+						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 						end
 					end
 				end)
@@ -1615,6 +1649,7 @@ function loadCurrentMenu()
 				func.do_key(500, stuff.vkcontrols.select, true, function() --enter
 					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
 						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type == stuff.type_id.name_to_id["parent"] and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
+							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 							stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
 							currentMenu = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
 							currentMenu:activate_feat_func()
@@ -1622,6 +1657,9 @@ function loadCurrentMenu()
 							system.wait(0)
 							stuff.drawScroll = 0
 							stuff.scrollHiddenOffset = 0
+							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+								currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+							end
 							while func.get_key(stuff.vkcontrols.select):is_down() do
 								system.wait(0)
 							end
@@ -1644,11 +1682,15 @@ function loadCurrentMenu()
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.back, false, function() --backspace
 					if stuff.previousMenus[#stuff.previousMenus] then
+						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+						end
 						currentMenu = stuff.previousMenus[#stuff.previousMenus].menu
 						stuff.scroll = stuff.previousMenus[#stuff.previousMenus].scroll
 						stuff.drawScroll = stuff.previousMenus[#stuff.previousMenus].drawScroll
 						stuff.scrollHiddenOffset = stuff.previousMenus[#stuff.previousMenus].scrollHiddenOffset
 						stuff.previousMenus[#stuff.previousMenus] = nil
+						currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 					end
 				end)
 			end
@@ -2031,7 +2073,9 @@ function loadCurrentMenu()
 	menu_configuration_features.backgroundfeat:set_str_data({"NONE", table.unpack(stuff.menuData.files.background)})
 
 	menu.add_feature("Fit background to width", "action", menu_configuration_features.backgroundparent.id, function()
-		stuff.menuData.background_sprite:fit_size_to_width()
+		if stuff.menuData.background_sprite.sprite then
+			stuff.menuData.background_sprite:fit_size_to_width()
+		end
 	end)
 
 	menu_configuration_features.backgroundoffsetx = menu.add_feature("Background pos X", "autoaction_value_i", menu_configuration_features.backgroundparent.id, function(f)
