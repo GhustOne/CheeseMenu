@@ -988,9 +988,6 @@ function loadCurrentMenu()
 			func.reset_player_submenu(listener.player)
 		end)
 		event.add_event_listener("player_leave", function(listener)
-			if listener.player == player.player_id() then
-				stuff.lastleave = utils.time_ms() + 1000
-			end
 			func.reset_player_submenu(listener.player)
 			stuff.playerIds[listener.player].hidden = true
 			stuff.playerIds[listener.player].name = "nil"
@@ -1571,14 +1568,11 @@ function loadCurrentMenu()
 				stuff.scrollHiddenOffset = stuff.previousMenus[#stuff.previousMenus].scrollHiddenOffset
 				stuff.previousMenus[#stuff.previousMenus] = nil
 			end
-			if stuff.lastleave then
-				if stuff.lastleave < utils.time_ms() and stuff.playerIds[player.player_id()].hidden then
-					local pid = player.player_id()
-					stuff.playerIds[pid].hidden = false
-					stuff.playerIds[pid].name = player.get_player_name(pid)
-					func.reset_player_submenu(pid)
-					stuff.lastleave = nil
-				end
+			local pid = player.player_id()
+			if stuff.playerIds[pid].hidden then
+				stuff.playerIds[pid].hidden = false
+				stuff.playerIds[pid].name = player.get_player_name(pid)
+				func.reset_player_submenu(pid)
 			end
 			system.wait(0)
 		end
