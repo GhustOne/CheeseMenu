@@ -2,8 +2,9 @@
 -- L00naMods "Even if you say L00na is a bitch just put my name in there somewhere"
 -- Ghost's Lua Table Writer
 --[[
-nil			gltw.write(table table, string name, string path|nil (in same path as lua), table index exclusions, skip empty tables)
+nil			gltw.write(table table, string name, string path|nil, table index exclusions, skip empty tables)
 -- example gltw.write({name = "l00na", iq = -1, braincells = {}}, "something", "folder1\\", {"name"}, true) < this will not write 'name' (excluded) or 'braincells' (empty)
+
 table[]		gltw.read(string name, string path|nil(in same path as lua), table|nil, bool|nil)
 -- if a table is the 3rd arg then whatever is read from the file will be added to it without overwriting stuff that isn't in the saved file
 -- if the 4th arg is true the function won't throw an error if the file doesn't exist and will return nil
@@ -12,31 +13,24 @@ table[]		gltw.read(string name, string path|nil(in same path as lua), table|nil,
 gltw = {}
 
 function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
+	local l_next = next
 	indentation = indentation or "	"
 	for k, v in pairs(tableTW) do
 		if not exclusions[k] then
+			local typeofv = type(v)
 			local index = "[\""..k.."\"] = "
 			if type(k) == "number" then
 				index = "["..k.."] = "
 			end
-			if type(v) ~= "table" and type(v) ~= "function" and type(v) ~= "string" then
-				file:write(indentation..index..tostring(v)..",\n")
-			elseif type(v) == "string" then
-				file:write(indentation..index.."[=["..v.."]=],\n")
-			end
-		end
-	end
 
-	for k, v in pairs(tableTW) do
-		if not exclusions[k] then
-			if type(v) == "table" and (next(v) or not exclude_empty) then
-				local index = "[\""..k.."\"] = "
-				if type(k) == "number" then
-					index = "["..k.."] = "
-				end
+			if typeofv == "string" then
+				file:write(indentation..index.."[=["..v.."]=],\n")
+			elseif typeofv == "table" and (l_next(v) or not exclude_empty) then
 				file:write(indentation..index.."{\n")
 				gltw.write_table(file, v, indentation.."	", exclusions, exclude_empty)
 				file:write(indentation.."},\n")
+			elseif typeofv ~= "function" and typeofv ~= "table" then
+				file:write(indentation..index..tostring(v)..",\n")
 			end
 		end
 	end
@@ -80,7 +74,6 @@ function gltw.add_to_table(getTable, addToTable)
 end
 
 function gltw.read(name, path, addToTable, overrideError)
-	--assert(utils.file_exists(path..name..".lua") or overrideError, "file does not exist.")
 	if overrideError and not utils.file_exists(path..name..".lua") then
 		return
 	end
