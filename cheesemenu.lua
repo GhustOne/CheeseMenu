@@ -32,7 +32,7 @@ menu.create_thread(function()
 	local vercheckKeys = {ctrl = MenuKey(), space = MenuKey(), enter = MenuKey(), rshift = MenuKey()}
 	vercheckKeys.ctrl:push_vk(0x11); vercheckKeys.space:push_vk(0x20); vercheckKeys.enter:push_vk(0x0D); vercheckKeys.rshift:push_vk(0xA1)
 
-	local responseCode, githubVer = web.request("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/VERSION.txt")
+	local responseCode, githubVer = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/VERSION.txt")
 	if responseCode == 200 then
 		githubVer = githubVer:gsub("[\r\n]", "")
 		if githubVer ~= version then
@@ -41,7 +41,7 @@ menu.create_thread(function()
 				version_compare_x_offset = -scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, 1).x/graphics.get_screen_width(),
 				new_ver_x_offset = -scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", 1).x/graphics.get_screen_width()
 			}
-			strings.changelog_rc, strings.changelog = web.request("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CHANGELOG.txt")
+			strings.changelog_rc, strings.changelog = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CHANGELOG.txt")
 			if strings.changelog_rc == 200 then
 				strings.changelog = "\n\n\nChangelog:\n"..strings.changelog
 			else
@@ -98,8 +98,30 @@ function loadCurrentMenu()
 		pid = -1,
 		player_info = {
 			{"Player ID", "0"},
+			{"God", "false"},
+			{"Proofs (God)", "false"},
+			{"Vehicle God", "false"},
+			{"Flagged as Modder", "false"},
+			{"Host", "false"},
+			{"Wanted", "0"},
+			{"Health", "327/327"},
+			{"Armor", "50"},
 			{"IP", "0.0.0.0"},
-			{"SCID", "133769420"}
+			{"SCID", "133769420"},
+			{"Host Token", "0xdeadbeef"},
+			{"Host Priority", "0"},
+			max_health = "/327",
+			name = "cheesemenu"
+		},
+		proofs = {
+			bulletProof = native.ByteBuffer8(),
+			fireProof = native.ByteBuffer8(),
+			explosionProof = native.ByteBuffer8(),
+			collisionProof = native.ByteBuffer8(),
+			meleeProof = native.ByteBuffer8(),
+			steamProof = native.ByteBuffer8(),
+			p7 = native.ByteBuffer8(),
+			drownProof = native.ByteBuffer8(),
 		},
 		scroll = 1,
 		scrollHiddenOffset = 0,
@@ -507,6 +529,12 @@ function loadCurrentMenu()
 					if t["table_"..k] then
 						for i, e in pairs(t["table_"..k]) do
 							t["table_"..k][i] = v
+							if t.real_min then
+								if t["table_value"][i] < t.real_min then t["table_value"][i] = t.real_min end
+							end
+							if t.real_max then
+								if t["table_value"][i] > t.real_max then t["table_value"][i] = t.real_max end
+							end
 						end
 					end
 				elseif stuff.type_id.id_to_name[t.type]:match("_f") then
@@ -520,6 +548,12 @@ function loadCurrentMenu()
 					if t["table_"..k] then
 						for i, e in pairs(t["table_"..k]) do
 							t["table_"..k][i] = v
+							if t.real_min then
+								if t["table_value"][i] < t.real_min then t["table_value"][i] = t.real_min end
+							end
+							if t.real_max then
+								if t["table_value"][i] > t.real_max then t["table_value"][i] = t.real_max end
+							end
 						end
 					end
 				end
@@ -575,8 +609,22 @@ function loadCurrentMenu()
 				if stuff.type_id.id_to_name[t.type]:match("_i") or stuff.type_id.id_to_name[t.type]:match("value_str") then
 					v = math.floor(v)
 					t["table_"..k][t.pid] = v
+					if stuff.type_id.id_to_name[t.type]:match("_i") then
+						if t.real_min then
+							if t["table_value"][t.pid] < t.real_min then t["table_value"][t.pid] = t.real_min end
+						end
+						if t.real_max then
+							if t["table_value"][t.pid] > t.real_max then t["table_value"][t.pid] = t.real_max end
+						end
+					end
 				elseif stuff.type_id.id_to_name[t.type]:match("_f") then
 					t["table_"..k][t.pid] = v
+					if t.real_min then
+						if t["table_value"][t.pid] < t.real_min then t["table_value"][t.pid] = t.real_min end
+					end
+					if t.real_max then
+						if t["table_value"][t.pid] > t.real_max then t["table_value"][t.pid] = t.real_max end
+					end
 				end
 			elseif k == "data" then
 				t.real_data = v
@@ -793,7 +841,11 @@ function loadCurrentMenu()
 			else
 				currentParent = stuff.feature_by_id[parentOfFeat]
 			end
-			assert(currentParent.type == stuff.type_id.name_to_id["parent"], "parent id is not a parent feature")
+			if currentParent then
+				assert(currentParent.type == 2048, "parent is not a parent feature")
+			else
+				error("parent is not valid "..((stuff.player_feature_by_id[parentOfFeat] and not playerFeat) and "using player feature as parent for a local feature" or (stuff.feature_by_id[parentOfFeat] and playerFeat and "using local parent for player feature")))
+			end
 		end
 		if currentParent.hierarchy_key then
 			hierarchy_key = currentParent.hierarchy_key.."."..nameOfFeat:gsub("[ %.]", "_")
@@ -973,7 +1025,6 @@ function loadCurrentMenu()
 
 	function func.set_player_feat_parent(nameOfFeat, parentOfFeat, functionToDo)
 		stuff.PlayerParent = func.add_feature(nameOfFeat, "parent", parentOfFeat, functionToDo)
-		stuff.PlayerParent.playerFeat = true
 		stuff.playerIds = {}
 			for i = 0, 31 do
 				stuff.playerIds[i] = func.add_feature(tostring(player.get_player_name(i)), "parent", stuff.PlayerParent.id)
@@ -1088,15 +1139,11 @@ function loadCurrentMenu()
 			func.deleted_or_hidden_parent_check(feat)
 		end
 
+		local index = feat.index
 		table.remove(parent, tonumber(feat.index))
-		for k, v in pairs(parent) do
-			if type(parent[k]) == "table" then
-				if parent[k].index then
-					if parent[k].index > feat.index then
-						parent[k].index = parent[k].index - 1
-					end
-				end
-			end
+
+		for i = index, #parent do
+			parent[i].index = i
 		end
 
 		return true
@@ -1120,10 +1167,14 @@ function loadCurrentMenu()
 			func.delete_feature(v.ps_id, true)
 		end
 
-		for i = feat.index+1, #parent do
-			parent[i].index = parent[i].index-1
+		local index = feat.index
+		table.remove(parent, tonumber(index))
+		for i = index, #parent do
+			parent[i].index = i
+			for pid = 0, 31 do
+				parent[i].feats[pid].index = i
+			end
 		end
-		table.remove(parent, tonumber(feat.index))
 	end
 
 	function func.get_player_feature(id)
@@ -1176,11 +1227,10 @@ function loadCurrentMenu()
 		name = tostring(name)
 		assert(name, "invalid name")
 
-		name:gsub("%.[a-z]+[a-z]+[a-z]+[a-z]*$", "")
+		name:gsub("%.[a-z]+$", "")
 
 		if not id_table[name] then
 			if utils.dir_exists(path..name) then
-				id_table[name] = {}
 				local path = path..name.."\\"
 				local images
 
@@ -1188,19 +1238,29 @@ function loadCurrentMenu()
 					images = utils.get_all_files_in_directory(path, v)
 					if images[1] then break end
 				end
-
-				table.sort(images, function(a, b) return a < b end)
-
-				for i, e in pairs(images) do
-					id_table[name][i] = scriptdraw.register_sprite(path..e)
-				end
-
-				id_table[name].fps = utils.get_all_files_in_directory(path, "txt")[1]
-				if not id_table[name].fps then
-					menu.notify("FPS file not found, create a txt file with the framerate of the gif.\nExample: '25 fps.txt'", "Cheese Menu", 5, 0x0000FF)
+				if not images[1] then
+					menu.notify("No frames found.", "Cheese Menu", 5, 0x0000FF)
 					return
 				end
-				id_table[name].fps = tonumber(id_table[name].fps:match("(%d*%.*%d+)%s+fps"))
+
+				id_table[name] = {}
+				for i, e in pairs(images) do
+					id_table[name][i] = {}
+					id_table[name][i].sprite = scriptdraw.register_sprite(path..e)
+					id_table[name][i].delay = e:match("%d+_(%d+)")
+				end
+
+				id_table[name].constant_delay = utils.get_all_files_in_directory(path, "txt")[1]
+				if not id_table[name].constant_delay then
+					for k, v in pairs(images) do
+						if not v:match("%d+_(%d+)") then
+							menu.notify("FPS file not found and frames are not in format, create a txt file with the framerate of the gif.\nExample: '25 fps.txt'", "Cheese Menu", 5, 0x0000FF)
+							break
+						end
+					end
+				else
+					id_table[name].constant_delay = math.floor(1000 / tonumber(id_table[name].constant_delay:match("(%d*%.*%d+)%s+fps")))
+				end
 
 			elseif utils.file_exists(path..name..".png") then
 				id_table[name] = scriptdraw.register_sprite(path..name..".png")
@@ -1283,6 +1343,10 @@ function loadCurrentMenu()
 		if stuff.draw_current_menu.currentSprite ~= stuff.menuData.header then
 			stuff.draw_current_menu.currentSprite = stuff.menuData.header
 			stuff.draw_current_menu.time = 0
+			stuff.draw_current_menu.frameCounter = 1
+			if type(sprite) == "table" then
+				stuff.draw_current_menu.time = utils.time_ms() + (sprite[stuff.draw_current_menu.frameCounter].delay or sprite.constant_delay or 33)
+			end
 		end
 		stuff.drawHiddenOffset = 0
 		for k, v in pairs(currentMenu) do
@@ -1359,9 +1423,9 @@ function loadCurrentMenu()
 				else
 					stuff.draw_current_menu.frameCounter = 1
 				end
-				stuff.draw_current_menu.time = utils.time_ms() + math.floor(1000 / (sprite.fps or 30))
+				stuff.draw_current_menu.time = utils.time_ms() + (sprite[stuff.draw_current_menu.frameCounter].delay or sprite.constant_delay or 33)
 			end
-			sprite = sprite[stuff.draw_current_menu.frameCounter]
+			sprite = sprite[stuff.draw_current_menu.frameCounter].sprite
 		end
 		if sprite then
 			scriptdraw.draw_sprite(sprite, v2(stuff.menuData.x * 2 - 1, ((stuff.menuData.y+stuff.menuData.height/2) - (stuff.menuData.height/2 + ((scriptdraw.get_sprite_size(sprite).y*((2.56 * stuff.menuData.width) * (1000 / scriptdraw.get_sprite_size(sprite).x)) / (2560 / graphics.get_screen_width()))/2)/graphics.get_screen_height()))*-2+1), ((2.56 * stuff.menuData.width) * (1000 / scriptdraw.get_sprite_size(sprite).x)) / (2560 / graphics.get_screen_width()), 0, stuff.menuData.color.sprite)
@@ -1532,14 +1596,29 @@ function loadCurrentMenu()
 						pid = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].pid
 					end
 					if pid and pid ~= stuff.pid then
-						stuff.player_info[1][2] = tostring(pid)
-						stuff.player_info[2][2] = func.convert_int_ip(player.get_player_ip(pid))
-						stuff.player_info[3][2] = tostring(player.get_player_scid(pid))
-						stuff.pid = pid
+						if not stuff.playerIds[pid].hidden then
+							stuff.player_info[1][2] = tostring(pid)
+							stuff.player_info[10][2] = func.convert_int_ip(player.get_player_ip(pid))
+							stuff.player_info[11][2] = tostring(player.get_player_scid(pid))
+							stuff.player_info[12][2] = string.format("%X", player.get_player_host_token(pid))
+							stuff.player_info.max_health = "/"..math.floor(player.get_player_max_health(pid))
+							stuff.player_info.name = tostring(player.get_player_name(pid))
+							stuff.pid = pid
+						end
 					end
 					if pid then
+						native.call(0xBE8CD9BE829BBEBF, player.get_player_ped(stuff.pid), stuff.proofs.bulletProof, stuff.proofs.fireProof, stuff.proofs.explosionProof, stuff.proofs.collisionProof, stuff.proofs.meleeProof, stuff.proofs.steamProof, stuff.proofs.p7, stuff.proofs.drownProof)
+						stuff.player_info[2][2] = player.is_player_god(stuff.pid) and "Yes" or "No"
+						stuff.player_info[3][2] = (stuff.proofs.bulletProof:__tointeger()|stuff.proofs.fireProof:__tointeger()|stuff.proofs.explosionProof:__tointeger()|stuff.proofs.collisionProof:__tointeger()|stuff.proofs.meleeProof:__tointeger()|stuff.proofs.steamProof:__tointeger()|stuff.proofs.p7:__tointeger()|stuff.proofs.drownProof:__tointeger()) == 1 and "Yes" or "No"
+						stuff.player_info[4][2] = player.is_player_vehicle_god(stuff.pid) and "Yes" or "No"
+						stuff.player_info[5][2] = player.is_player_modder(stuff.pid, -1) and "Yes" or "No"
+						stuff.player_info[6][2] = player.is_player_host(stuff.pid) and "Yes" or "No"
+						stuff.player_info[7][2] = player.get_player_wanted_level(stuff.pid)
+						stuff.player_info[8][2] = math.floor(player.get_player_health(stuff.pid))..stuff.player_info.max_health
+						stuff.player_info[9][2] = math.floor(player.get_player_armour(stuff.pid)).."/50"
+						stuff.player_info[13][2] = player.get_player_host_priority(stuff.pid)
 						func.draw_side_window(
-							tostring(player.get_player_name(pid)),
+							stuff.player_info.name,
 							stuff.player_info,
 							v2((stuff.menuData.x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.y + stuff.menuData.side_window.offset.y)*-2+1),
 							func.convert_rgba_to_int(stuff.menuData.color.side_window.r, stuff.menuData.color.side_window.g, stuff.menuData.color.side_window.b, stuff.menuData.color.side_window.a),
@@ -1569,6 +1648,7 @@ function loadCurrentMenu()
 				stuff.previousMenus[#stuff.previousMenus] = nil
 			end
 			local pid = player.player_id()
+			stuff.playerIds[pid].name = player.get_player_name(pid)
 			if stuff.playerIds[pid].hidden then
 				stuff.playerIds[pid].hidden = false
 				stuff.playerIds[pid].name = player.get_player_name(pid)
@@ -1607,10 +1687,10 @@ function loadCurrentMenu()
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.down, true, function() -- downKey
 					local old_scroll = stuff.scroll + stuff.scrollHiddenOffset
-					if stuff.scroll + stuff.drawHiddenOffset >= #currentMenu then
+					if stuff.scroll + stuff.drawHiddenOffset >= #currentMenu and #currentMenu - stuff.drawHiddenOffset > 1 then
 						stuff.scroll = 1
 						stuff.drawScroll = 0
-					else
+					elseif #currentMenu - stuff.drawHiddenOffset > 1 then
 						stuff.scroll = stuff.scroll + 1
 						if stuff.scroll - stuff.drawScroll >= (stuff.menuData.max_features - 1) and stuff.drawScroll < stuff.maxDrawScroll then
 							stuff.drawScroll = stuff.drawScroll + 1
@@ -1632,10 +1712,10 @@ function loadCurrentMenu()
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.up, true, function() -- upKey
 					local old_scroll = stuff.scroll + stuff.scrollHiddenOffset
-					if stuff.scroll <= 1 then
+					if stuff.scroll <= 1 and #currentMenu - stuff.drawHiddenOffset > 1 then
 						stuff.scroll = #currentMenu
 						stuff.drawScroll = stuff.maxDrawScroll
-					else
+					elseif #currentMenu - stuff.drawHiddenOffset > 1 then
 						stuff.scroll = stuff.scroll - 1
 						if stuff.scroll - stuff.drawScroll <= 2 and stuff.drawScroll > 0 then
 							stuff.drawScroll = stuff.drawScroll - 1
@@ -1967,7 +2047,7 @@ function loadCurrentMenu()
 					system.wait(0)
 				end
 			end
-			menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, 0x00c8ff)
+			menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, func.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
 			local disablethread = menu.create_thread(stuff.disable_all_controls, nil)
 			local stringkey, vk = func.get_hotkey({}, {}, true)
 			if stringkey ~= "escaped" then
