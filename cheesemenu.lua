@@ -1227,7 +1227,7 @@ function loadCurrentMenu()
 		name = tostring(name)
 		assert(name, "invalid name")
 
-		name:gsub("%.[a-z]+$", "")
+		name = name:gsub("%.[a-z]+$", "")
 
 		if not id_table[name] then
 			if utils.dir_exists(path..name) then
