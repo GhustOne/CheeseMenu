@@ -1,3 +1,3 @@
-Added highlight function callback and is_highlighted
-Fixed getting kicked out of certain submenus
-Fixed your own player submenu staying hidden after going to single player
+Added support for individual frame delays (like GIFHeader)
+Added more info for player side window
+Other improvements
