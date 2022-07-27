@@ -14,23 +14,24 @@ gltw = {}
 
 function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
 	local l_next = next
-	indentation = indentation or "	"
 	for k, v in pairs(tableTW) do
 		if not exclusions[k] then
 			local typeofv = type(v)
-			local index = "[\""..k.."\"] = "
+			local index
 			if type(k) == "number" then
 				index = "["..k.."] = "
+			else
+				index = "[\""..k.."\"] = "
 			end
 
 			if typeofv == "string" then
 				file:write(indentation..index.."[=["..v.."]=],\n")
+			elseif typeofv ~= "function" and typeofv ~= "table" then
+				file:write(indentation..index..tostring(v)..",\n")
 			elseif typeofv == "table" and (l_next(v) or not exclude_empty) then
 				file:write(indentation..index.."{\n")
 				gltw.write_table(file, v, indentation.."	", exclusions, exclude_empty)
 				file:write(indentation.."},\n")
-			elseif typeofv ~= "function" and typeofv ~= "table" then
-				file:write(indentation..index..tostring(v)..",\n")
 			end
 		end
 	end
@@ -44,7 +45,7 @@ function gltw.write(tableTW, name, path, exclusions, exclude_empty)
 		end
 	end
 
-	name = name or "include a name next time"
+	name = name or "set a name next time"
 	assert(tableTW, "no table was provided to write for file '"..name.."'")
 	path = path or ""
 	assert(type(name) == "string" and type(path) == "string", "name or path isn't a string")
@@ -53,7 +54,7 @@ function gltw.write(tableTW, name, path, exclusions, exclude_empty)
 	assert(file, "'"..name.."' was not created.")
 
 	file:write("return {\n")
-	gltw.write_table(file, tableTW, nil, convertedExclusions, exclude_empty)
+	gltw.write_table(file, tableTW, "	", convertedExclusions, exclude_empty)
 	file:write("}")
 
 	file:flush()
