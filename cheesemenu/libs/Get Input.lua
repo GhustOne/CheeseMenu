@@ -501,6 +501,9 @@ gginput.char_codes = {
 			gginput.do_key(0x25, pressed, gginput.moveCursorLeft, inputTable, 1) -- left
 			system.wait(0)
 		end
+
+		gginput.disableESC()
+
 		local success = gginput.get_key(0x0D):is_down()
 		while gginput.get_key(0x0D):is_down() do
 			system.wait(0)
@@ -508,7 +511,6 @@ gginput.char_codes = {
 		menu.delete_thread(drawThread)
 		menu.delete_thread(menuNavThread)
 		menu.set_menu_can_navigate(true)
-		menu.create_thread(gginput.disableESC)
 		inputTable.string = table.concat(inputTable.string)
 		inputTable.state = success and 0 or 2
 
