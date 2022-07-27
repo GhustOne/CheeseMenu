@@ -1684,6 +1684,9 @@ function loadCurrentMenu()
 				func.do_key(500, stuff.vkcontrols.setHotkey, false, function() -- F11
 					if func.get_key(0x10):is_down() and stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
 						stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey][currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hierarchy_key] = nil
+						if not next(stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey]) then
+							stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] = nil
+						end
 						currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey = nil
 						gltw.write(stuff.hotkeys, "hotkeys", stuff.path.hotkeys, nil, true)
 						menu.notify("Removed "..currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey")
