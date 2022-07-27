@@ -431,12 +431,16 @@ gginput.char_codes = {
 	end
 
 	local shift_esc = MenuKey()
-	shift_esc:push_vk(0x11)
+	shift_esc:push_vk(0x10)
 	shift_esc:push_vk(0x1B)
 	function gginput.reset_menu_nav()
-		if shift_esc:is_down() then
-			menu.set_menu_can_navigate(true)
-			menu.notify("Reset menu navigation")
+		while true do
+			if shift_esc:is_down() then
+				menu.set_menu_can_navigate(true)
+				menu.notify("Reset menu navigation")
+				break
+			end
+			system.wait(0)
 		end
 	end
 
