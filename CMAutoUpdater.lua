@@ -29,7 +29,7 @@ if status then
 			status = "ERROR REPLACING"
 			break
 		end
-        currentFile:close()
+        	currentFile:close()
 	end
 	if status ~= "ERROR REPLACING" then
 		for k, v in pairs(files) do
