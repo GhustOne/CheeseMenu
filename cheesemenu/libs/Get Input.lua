@@ -1,526 +1,519 @@
 --Made by GhostOne
 
-local Ghost = {}
-Ghost.charCodes = {
-	{
-		{0x30, "0", ")"},
-		{0x31, "1", "!"},
-		{0x32, "2", "@"},
-		{0x33, "3", "#"},
-		{0x34, "4", "$"},
-		{0x35, "5", "%"},
-		{0x36, "6", "^"},
-		{0x37, "7", "&"},
-		{0x38, "8", "*"},
-		{0x39, "9", "("},
-		{0x41, "A"},
-		{0x42, "B"},
-		{0x43, "C"},
-		{0x44, "D"},
-		{0x45, "E"},
-		{0x46, "F"},
-		{0x47, "G"},
-		{0x48, "H"},
-		{0x49, "I"},
-		{0x4A, "J"},
-		{0x4B, "K"},
-		{0x4C, "L"},
-		{0x4D, "M"},
-		{0x4E, "N"},
-		{0x4F, "O"},
-		{0x50, "P"},
-		{0x51, "Q"},
-		{0x52, "R"},
-		{0x53, "S"},
-		{0x54, "T"},
-		{0x55, "U"},
-		{0x56, "V"},
-		{0x57, "W"},
-		{0x58, "X"},
-		{0x59, "Y"},
-		{0x5A, "Z"},
-		{0x60, "0", ")"},
-		{0x61, "1", "!"},
-		{0x62, "2", "@"},
-		{0x63, "3", "#"},
-		{0x64, "4", "$"},
-		{0x65, "5", "%"},
-		{0x66, "6", "^"},
-		{0x67, "7", "&"},
-		{0x68, "8", "*"},
-		{0x69, "9", "("},
-		{0x20, " "},
-		{0xBA, ";", ":"},
-		{0xBB, "=", "+"},
-		{0xBC, ",", "<"},
-		{0xBD, "-", "_"},
-		{0xBE, ".", ">"},
-		{0xBF, "/", "?"},
-		{0xC0, "`", "~"},
-		{0xDB, "[", "{"},
-		{0xDC, "\\", "|"},
-		{0xDD, "]", "}"},
-		{0xDE, "\'", "\""},
-		{0x6A, "*"},
-		{0x6B, "+"},
-		{0x6D, "-"},
-		{0x6E, "."},
-		{0x6F, "/"}
+local gginput = {indicator_timer = utils.time_ms() + 750, indicator = false}
+gginput.char_codes = {
+    {
+		[0x30] = {"0", ")"},
+		[0x31] = {"1", "!"},
+		[0x32] = {"2", "@"},
+		[0x33] = {"3", "#"},
+		[0x34] = {"4", "$"},
+		[0x35] = {"5", "%"},
+		[0x36] = {"6", "^"},
+		[0x37] = {"7", "&"},
+		[0x38] = {"8", "*"},
+		[0x39] = {"9", "("},
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+		[0x60] = {"0", ")"},
+		[0x61] = {"1", "!"},
+		[0x62] = {"2", "@"},
+		[0x63] = {"3", "#"},
+		[0x64] = {"4", "$"},
+		[0x65] = {"5", "%"},
+		[0x66] = {"6", "^"},
+		[0x67] = {"7", "&"},
+		[0x68] = {"8", "*"},
+		[0x69] = {"9", "("},
+		[0x20] = {" "},
+		[0xBA] = {";", ":"},
+		[0xBB] = {"=", "+"},
+		[0xBC] = {",", "<"},
+		[0xBD] = {"-", "_"},
+		[0xBE] = {".", ">"},
+		[0xBF] = {"/", "?"},
+		[0xC0] = {"`", "~"},
+		[0xDB] = {"[", "{"},
+		[0xDC] = {"\\", "|"},
+		[0xDD] = {"]", "}"},
+		[0xDE] = {"\'", "\""},
+		[0x6A] = {"*"},
+		[0x6B] = {"+"},
+		[0x6D] = {"-"},
+		[0x6E] = {"."},
+		[0x6F] = {"/"}
 	},
 	{
-		{0x41, "A"},
-		{0x42, "B"},
-		{0x43, "C"},
-		{0x44, "D"},
-		{0x45, "E"},
-		{0x46, "F"},
-		{0x47, "G"},
-		{0x48, "H"},
-		{0x49, "I"},
-		{0x4A, "J"},
-		{0x4B, "K"},
-		{0x4C, "L"},
-		{0x4D, "M"},
-		{0x4E, "N"},
-		{0x4F, "O"},
-		{0x50, "P"},
-		{0x51, "Q"},
-		{0x52, "R"},
-		{0x53, "S"},
-		{0x54, "T"},
-		{0x55, "U"},
-		{0x56, "V"},
-		{0x57, "W"},
-		{0x58, "X"},
-		{0x59, "Y"},
-		{0x5A, "Z"}
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
 	},
 	{
-		{0x41, "A"},
-		{0x42, "B"},
-		{0x43, "C"},
-		{0x44, "D"},
-		{0x45, "E"},
-		{0x46, "F"},
-		{0x47, "G"},
-		{0x48, "H"},
-		{0x49, "I"},
-		{0x4A, "J"},
-		{0x4B, "K"},
-		{0x4C, "L"},
-		{0x4D, "M"},
-		{0x4E, "N"},
-		{0x4F, "O"},
-		{0x50, "P"},
-		{0x51, "Q"},
-		{0x52, "R"},
-		{0x53, "S"},
-		{0x54, "T"},
-		{0x55, "U"},
-		{0x56, "V"},
-		{0x57, "W"},
-		{0x58, "X"},
-		{0x59, "Y"},
-		{0x5A, "Z"},
-		{0x60, "0"},
-		{0x61, "1"},
-		{0x62, "2"},
-		{0x63, "3"},
-		{0x64, "4"},
-		{0x65, "5"},
-		{0x66, "6"},
-		{0x67, "7"},
-		{0x68, "8"},
-		{0x69, "9"},
-		{0x30, "0"},
-		{0x31, "1"},
-		{0x32, "2"},
-		{0x33, "3"},
-		{0x34, "4"},
-		{0x35, "5"},
-		{0x36, "6"},
-		{0x37, "7"},
-		{0x38, "8"},
-		{0x39, "9"}
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"}
 	},
 	{
-		{0xBD, "-"},
-		{0x6D, "-"},
-		{0x60, "0"},
-		{0x61, "1"},
-		{0x62, "2"},
-		{0x63, "3"},
-		{0x64, "4"},
-		{0x65, "5"},
-		{0x66, "6"},
-		{0x67, "7"},
-		{0x68, "8"},
-		{0x69, "9"},
-		{0x30, "0"},
-		{0x31, "1"},
-		{0x32, "2"},
-		{0x33, "3"},
-		{0x34, "4"},
-		{0x35, "5"},
-		{0x36, "6"},
-		{0x37, "7"},
-		{0x38, "8"},
-		{0x39, "9"}
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"}
 	},
 	{
-		{0xBD, "-"},
-		{0x6D, "-"},
-		{0x60, "0"},
-		{0x61, "1"},
-		{0x62, "2"},
-		{0x63, "3"},
-		{0x64, "4"},
-		{0x65, "5"},
-		{0x66, "6"},
-		{0x67, "7"},
-		{0x68, "8"},
-		{0x69, "9"},
-		{0x30, "0"},
-		{0x31, "1"},
-		{0x32, "2"},
-		{0x33, "3"},
-		{0x34, "4"},
-		{0x35, "5"},
-		{0x36, "6"},
-		{0x37, "7"},
-		{0x38, "8"},
-		{0x39, "9"},
-		{0x6E, "."},
-		{0xBE, "."},
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"},
+		[0x6E] = {"."},
+		[0xBE] = {"."},
+	},
+	{
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"},
+		[0x6E] = {"."},
+		[0xBE] = {"."},
 	},
 }
 
--- Huge thanks to Proddy for this function and for telling me of ways to improve this script
-Ghost.Keys = {}
-function Ghost.get_key(...)
-    local args = {...}
-    assert(#args > 0, "must give at least one key")
-    local ID = table.concat(args, "|")
-    if not Ghost.Keys[ID] then
-        local key = MenuKey()
-        for i=1,#args do
-           key:push_vk(args[i])
-        end
-        Ghost.Keys[ID] = key
-    end
-    
-    return Ghost.Keys[ID]
-end
+--Functions
 
-function Ghost.doWrite(time, key, extraArg, ignoreMax, stringTable, functionToDo)
-	if Ghost.get_key(key):is_down() then
-		if (extraArg and #stringTable.string < stringTable.maxLen) or ignoreMax then
-			functionToDo()
-		end
-		local timer = utils.time_ms() + time
-		while timer > utils.time_ms() and Ghost.get_key(key):is_down() and extraArg do
-			system.wait(0)
-		end
-		while timer < utils.time_ms() and Ghost.get_key(key):is_down() and extraArg do
-			if #stringTable.string < stringTable.maxLen or ignoreMax then
-				functionToDo()
+	-- Credits to Proddy for this function
+	gginput.Keys = {}
+	function gginput.get_key(...)
+		local args = {...}
+		assert(#args > 0, "must give at least one key")
+		local ID = table.concat(args, "|")
+		if not gginput.Keys[ID] then
+			local key = MenuKey()
+			for i=1,#args do
+			key:push_vk(args[i])
 			end
-			local timer = utils.time_ms() + 50
-			while timer > utils.time_ms() do
-				system.wait(0)
-			end
+			gginput.Keys[ID] = key
 		end
-	end
-end
 
-function Ghost.scrollToMax(stringTable, dataTable)
-	stringTable.maxDraw = 9999
-	stringTable.drawPointer = 0
-	while true do
-		local sizeString = stringTable.string:gsub(" ", ".")
-		if scriptdraw.get_text_size(sizeString:sub(stringTable.drawPointer, #stringTable.string), dataTable.fontSize, dataTable.font).x > 275 then
-			stringTable.drawPointer = stringTable.drawPointer + 1
-		else
-			stringTable.maxDraw = stringTable.drawPointer
-			break
-		end
-	end
-end
-
-function Ghost.addPointer(skipArg, character, stringTable, dataTable)
-	if skipArg then
-		local tempDPointer = stringTable.drawPointer
-		Ghost.scrollToMax(stringTable, dataTable)
-		stringTable.drawPointer = tempDPointer
-	end
-	if not (stringTable.pointer >= #stringTable.string) or skipArg then
-		stringTable.pointer = stringTable.pointer + 1
-		stringTable.locString = stringTable.locString:gsub(" ", ".")
-		local sizeString = stringTable.string:gsub(" ", ".")
-		if scriptdraw.get_text_size(stringTable.locString:sub(stringTable.pointer - stringTable.drawPointer + 1, #stringTable.locString), dataTable.fontSize, dataTable.font).x < 43.5 and scriptdraw.get_text_size(sizeString, dataTable.fontSize, dataTable.font).x > 275 and stringTable.drawPointer < stringTable.maxDraw then
-			stringTable.drawPointer = stringTable.drawPointer + 1
-			while scriptdraw.get_text_size(stringTable.locString:sub(stringTable.pointer - stringTable.drawPointer + 1, #stringTable.locString), dataTable.fontSize, dataTable.font).x == 0.0 do
-				stringTable.drawPointer = stringTable.drawPointer + 1
-			end
-		end
-	end
-end
-
-function Ghost.subPointer(moveDrawPointer, stringTable, dataTable)
-	if moveDrawPointer then
-		local tempDPointer = stringTable.drawPointer
-		Ghost.scrollToMax(stringTable, dataTable)
-		stringTable.drawPointer = tempDPointer
+		return gginput.Keys[ID]
 	end
 
-	if not (stringTable.pointer <= 0) then
-		stringTable.pointer = stringTable.pointer - 1
-		if 3 >= stringTable.pointer - stringTable.drawPointer then
-			if not (stringTable.drawPointer <= 0) then
-				stringTable.drawPointer = stringTable.drawPointer - 1
-			end
-		end
-	end
-end
-
-local EBreakKeys = MenuKey()
-EBreakKeys:push_vk(0x10)
-EBreakKeys:push_vk(0x1B)
-function Ghost.EBreak()
-	while true do
-		if EBreakKeys:is_down() then
-			menu.notify("Emergency break activated.")
-			menu.set_menu_can_navigate(true)
-		end
-		system.wait(0)
-	end
-end
-
-function Ghost.getInput(title, default, len, inputType, dataTable)
-	--thanks to kektram for letting me know about the assert function
-	assert(type(title) == "string" or type(title) == "number" or not (title), "title parameter needs to be a string")
-	assert(type(default) == "string" or type(default) == "number" or not (default), "default parameter needs to be a string")
-	assert(type(len) == "number" or not  (len), "length parameter needs to be a number")
-	assert(type(inputType) == "number" or not (inputType), "type parameter needs to be a number")
-	title = tostring(title)
-	default = tostring(default)
-	local EBreak = menu.create_thread(Ghost.EBreak, nil)
-	local dataTable = dataTable
-	if not dataTable then
-		dataTable = {}
-	end
-	dataTable.fontSize = 0.5
-	dataTable.font = 6
-
-	inputType = inputType + 1
-	if inputType then
-		if inputType > 5 or inputType < 1 or not inputType then
-			inputType = 1
-		end
-	end
-
-	inputType = inputType or 1
-	menu.set_menu_can_navigate(false)
-	local stringTable = {string = default or "", title = title or "", titleSize = 0.3, maxLen = len, locString = "", displayString = ""}
-	stringTable.pointer = #stringTable.string
-	stringTable.drawPointer = 0
-	stringTable.maxDraw = 9999
-	for i = 0.65, 0.3, -0.01 do
-		if scriptdraw.get_text_size(title, i).x < 330 then
-			stringTable.titleSize = i
-			break
-		end
-	end
-
-	Ghost.scrollToMax(stringTable, dataTable)
-	local timer = utils.time_ms() + 1000
-	system.wait(100)
-
-	local drawThread = menu.create_thread(function()
-		while true do
-			local displayTable = {string = "", scriptdrawOffset = 0}
-			for i = #stringTable.string, 1, -1 do
-				local tempString = stringTable.string:sub(stringTable.drawPointer + 1, stringTable.drawPointer + i)
-				if scriptdraw.get_text_size(tempString, dataTable.fontSize, dataTable.font).x < 275 then
-					displayTable.string = tempString
-					break
-				end
-			end
-			stringTable.displayString = displayTable.string
-			if stringTable.pointerFlash then
-				stringTable.locString = displayTable.string
-				displayTable.string = displayTable.string:sub(1, stringTable.pointer - stringTable.drawPointer - displayTable.scriptdrawOffset).."|"..displayTable.string:sub(stringTable.pointer - stringTable.drawPointer - displayTable.scriptdrawOffset + 1, #displayTable.string)
+	function gginput.do_key(key, pressed, funcPressed, ...)
+		if gginput.get_key(key):is_down() and ((utils.time_ms() > pressed[key]) or (pressed[key] == 0)) then
+			funcPressed(...)
+			if pressed[key] == 0 then
+				pressed[key] = utils.time_ms() + 500
 			else
-				stringTable.locString = displayTable.string
-				displayTable.string = displayTable.string:sub(1, stringTable.pointer - stringTable.drawPointer - displayTable.scriptdrawOffset).." "..displayTable.string:sub(stringTable.pointer - stringTable.drawPointer - displayTable.scriptdrawOffset + 1, #displayTable.string)
+				pressed[key] = utils.time_ms() + 30
 			end
-			displayTable.string = displayTable.string:gsub("~", "~~")
-			ui.draw_rect(0.5, 0.5, 1, 1, 0, 0, 0, 100) --screenBG
-			ui.draw_rect(0.5, 0.541388888888, 0.314, 0.0027777777778, 255, 255, 255, 200) --Outline down
-			ui.draw_rect(0.5, 0.4986111111, 0.314, 0.0027777777778, 255, 255, 255, 200) --Outline up
-			ui.draw_rect(0.3421, 0.5201, 0.0015, 0.04555555556, 255, 255, 255, 200) --Outline left
-			ui.draw_rect(0.6579, 0.5201, 0.0015, 0.04555555556, 255, 255, 255, 200) --Outline right
-			ui.draw_rect(0.5, 0.52, 0.314, 0.04, 0, 0, 0, 200) --insideRect
-			ui.set_text_scale(dataTable.fontSize)
-			ui.set_text_color(255, 255, 255, 255)
-			ui.set_text_font(dataTable.font)
-			ui.set_text_outline(false)
-			ui.draw_text(displayTable.string, v2(0.345, 0.505))
-			ui.set_text_scale(stringTable.titleSize)
-			ui.set_text_color(255, 255, 255, 255)
-			ui.set_text_font(0)
-			ui.set_text_outline(false)
-			ui.set_text_right_justify(false)
-			ui.draw_text(stringTable.title, v2(0.5, 0.455))
+		elseif not gginput.get_key(key):is_down() then
+			pressed[key] = 0
+		end
+	end
+
+    function gginput.draw_outline(v2pos, v2size, color, thickness)
+        thickness = v2(thickness / graphics.get_screen_width() * 2, thickness / graphics.get_screen_height() * 2)
+        scriptdraw.draw_rect(v2(v2pos.x, v2pos.y - (v2size.y/2)), v2(v2size.x + thickness.x, thickness.y), color)
+        scriptdraw.draw_rect(v2(v2pos.x, v2pos.y + (v2size.y/2)), v2(v2size.x + thickness.x, thickness.y), color)
+        scriptdraw.draw_rect(v2(v2pos.x - (v2size.x/2), v2pos.y), v2(thickness.x, v2size.y - thickness.y), color)
+        scriptdraw.draw_rect(v2(v2pos.x + (v2size.x/2), v2pos.y), v2(thickness.x, v2size.y - thickness.y), color)
+    end
+
+    function gginput.draw_input(inputTable, bg_color, inputbox_color, outline_color, text_color)
+		local string = table.concat(inputTable.string)
+		if gginput.indicator then
+			string = string:sub(1, inputTable.cursor-1).."_"..string:sub(inputTable.cursor+1, #string)
+		end
+        scriptdraw.draw_rect(v2(0, 0), v2(2, 2), bg_color) -- background
+        gginput.draw_outline(v2(0, 0), v2(0.9390625, 0.06180555555555), outline_color, 2)
+        scriptdraw.draw_rect(v2(0, 0), v2(0.9375, 0.0590277777777778), inputbox_color) -- inputBox
+		scriptdraw.draw_text(string, v2(-0.4609375, 0.01111111111111111), v2(2, 2), 0.8, text_color, 0)
+		scriptdraw.draw_text(inputTable.title, v2(-scriptdraw.get_text_size(inputTable.title, 1.2).x/graphics.get_screen_width(), 0.10555554), v2(2, 2), 1.2, 0xDC000000 | (text_color & 0xFFFFFF), 0)
+
+		local text_width = scriptdraw.get_text_size(table.concat(inputTable.string, "", 1, inputTable.cursor):gsub(" ", "."), 0.8).x/graphics.get_screen_width()*2
+		scriptdraw.draw_text("_", v2(-0.4609375 + text_width + 0.0015625, 0.01111111111111111), v2(2, 2), 0.8, 0x64000000 | (text_color & 0xFFFFFF), 0)
+    end
+
+	function gginput.draw_thread(inputTable)
+		while true do
 			for i = 0, 357 do
 				controls.disable_control_action(0, i, true)
 			end
+			if utils.time_ms() > gginput.indicator_timer then
+				gginput.indicator = not gginput.indicator
+				gginput.indicator_timer = utils.time_ms() + 750
+			end
+			gginput.draw_input(inputTable, 0x64000000, 0xC8000000, 0xC8FFFFFF, 0xC8FFFFFF)
 			system.wait(0)
-		end
-	end, nil)
-
-	while true do
-		if utils.time_ms() < timer - 500 then
-			stringTable.pointerFlash = true
-		elseif utils.time_ms() > timer - 500 then
-			stringTable.pointerFlash = false
-			if utils.time_ms() >= timer then
-				timer = utils.time_ms() + 1000
-			end
-		end
-
-		for k, v in pairs(Ghost.charCodes[inputType]) do
-			Ghost.doWrite(500, v[1], not Ghost.get_key(0x11):is_down(), false, stringTable, function()
-				if not Ghost.get_key(0x10):is_down() then
-					stringTable.string = stringTable.string:sub(1, stringTable.pointer)..v[2]:lower()..stringTable.string:sub(stringTable.pointer + 1, #stringTable.string)
-					Ghost.addPointer(true, v[2]:lower(), stringTable, dataTable)
-				else
-					if v[3] then
-						stringTable.string = stringTable.string:sub(1, stringTable.pointer)..v[3]..stringTable.string:sub(stringTable.pointer + 1, #stringTable.string)
-						Ghost.addPointer(true, v[3], stringTable, dataTable)
-					else
-						stringTable.string = stringTable.string:sub(1, stringTable.pointer)..v[2]..stringTable.string:sub(stringTable.pointer + 1, #stringTable.string)
-						Ghost.addPointer(true, v[2], stringTable, dataTable)
-					end
-				end
-			end)
-		end
-
-		if Ghost.get_key(0x0D):is_down() then
-			while Ghost.get_key(0x0D):is_down() do
-				system.wait(0)
-			end
-			dataTable.status = 0
-			if inputType >= 4 then
-				if tonumber(stringTable.string) then
-					dataTable.input = tonumber(stringTable.string)
-				else
-					dataTable.input = stringTable.string
-				end
-			else
-				dataTable.input = stringTable.string
-			end
-			menu.delete_thread(EBreak)
-			menu.delete_thread(drawThread)
-			menu.set_menu_can_navigate(true)
-			return 0, dataTable.input
-
-		elseif Ghost.get_key(0x1B):is_down() and not Ghost.get_key(0x10):is_down() then
-			while Ghost.get_key(0x1B):is_down() do
-				controls.disable_control_action(0, 200, true)
-				system.wait(0)
-			end
-			controls.disable_control_action(0, 200, true)
-			dataTable.status = 2
-			dataTable.input = nil
-			menu.delete_thread(EBreak)
-			menu.delete_thread(drawThread)
-			menu.set_menu_can_navigate(true)
-			return 2, nil
-
-		elseif Ghost.get_key(0x11, 0x56):is_down() then
-			local clipboardString = utils.from_clipboard():gsub("[\n\r]", "")
-			local charCodeString = ""
-
-			for k, v in pairs(Ghost.charCodes[inputType]) do
-				for i, e in pairs(v) do
-					if i ~= 1 then
-						charCodeString = charCodeString..e
-					else
-						if e >= 65 and e <= 90 then
-							charCodeString = charCodeString..v[2]:lower()
-						end
-					end
-				end
-			end
-
-			charCodeString = "[^"..charCodeString.."]"
-			clipboardString = clipboardString:gsub(charCodeString, "")
-			clipboardString = clipboardString:sub(1, stringTable.maxLen - #stringTable.string)
-			stringTable.string = stringTable.string:sub(1, stringTable.pointer)..clipboardString..stringTable.string:sub(stringTable.pointer + 1, #stringTable.string)
-			local tempPointer = stringTable.pointer
-			local tempDraw = stringTable.drawPointer
-			Ghost.scrollToMax(stringTable, dataTable)
-			stringTable.drawPointer = tempDraw
-			for i = 1, #clipboardString do
-				Ghost.addPointer(nil, nil, stringTable, dataTable)
-			end
-			while Ghost.get_key(0x11, 0x56):is_down() do
-				system.wait(0)
-			end
-
-		elseif Ghost.get_key(0x11, 0x43):is_down() then
-			utils.to_clipboard(stringTable.string)
-			while Ghost.get_key(0x11, 0x43):is_down() do
-				system.wait(0)
-			end
-		end
-
-		Ghost.doWrite(500, 0x08, true, true, stringTable, function()
-			if Ghost.get_key(0x11, 0x08):is_down() then
-				stringTable.string = ""
-				stringTable.pointer = 0
-				stringTable.drawPointer = 0
-				stringTable.maxDraw = 0
-			elseif stringTable.pointer ~= 0 then
-				stringTable.string = stringTable.string:sub(1, stringTable.pointer - 1)..stringTable.string:sub(stringTable.pointer + 1, #stringTable.string)
-				Ghost.subPointer(true, stringTable, dataTable)
-			end
-		end)
-
-		Ghost.doWrite(500, 0x27, true, true, stringTable, function()
-			if Ghost.get_key(0x11):is_down() then
-				stringTable.pointer = #stringTable.string
-				stringTable.drawPointer = stringTable.maxDraw
-			else
-				Ghost.addPointer(nil, nil, stringTable, dataTable)
-			end
-		end)
-
-		Ghost.doWrite(500, 0x25, true, true, stringTable, function()
-			if Ghost.get_key(0x11):is_down() then
-				stringTable.pointer = 0
-				stringTable.drawPointer = 0
-			else
-				Ghost.subPointer(false, stringTable, dataTable)
-			end
-		end)
-		system.wait(0)
-		dataTable.status = 1
-		if inputType >= 4 then
-			if tonumber(stringTable.string) then
-				dataTable.input = tonumber(stringTable.string)
-			else
-				dataTable.input = stringTable.string
-			end
-		else
-			dataTable.input = stringTable.string
 		end
 	end
 
-	menu.delete_thread(EBreak)
-	menu.delete_thread(drawThread)
-	menu.set_menu_can_navigate(true)
-end
+	function gginput.disableESC()
+		while gginput.get_key(0x1B):is_down() do
+			controls.disable_control_action(0, 200, true)
+			system.wait(0)
+		end
+		controls.disable_control_action(0, 200, true)
+	end
 
-return Ghost
+	function gginput.moveCursorRight(inputTable, moveAmount)
+		if gginput.get_key(0x11):is_down() then
+			for i = inputTable.cursor+1, #inputTable.string do
+				if inputTable.string[i] == " " then
+					if i == inputTable.cursor+1 then
+						for i = inputTable.cursor+1, #inputTable.string do
+							if inputTable.string[i] ~= " " then
+								inputTable.cursor = i-1
+								break
+							end
+						end
+					else
+						inputTable.cursor = i-1
+					end
+					break
+				elseif i == #inputTable.string then
+					inputTable.cursor = #inputTable.string
+				end
+			end
+		elseif not (inputTable.cursor >= #inputTable.string) then
+			inputTable.cursor = inputTable.cursor + moveAmount
+		end
+	end
+	function gginput.moveCursorLeft(inputTable, moveAmount)
+		if gginput.get_key(0x11):is_down() then
+			for i = inputTable.cursor, 2, -1 do
+				if inputTable.string[i] == " " then
+					if i == inputTable.cursor then
+						for i = inputTable.cursor, 2, -1 do
+							if inputTable.string[i] ~= " " then
+								inputTable.cursor = i
+								break
+							end
+						end
+					else
+						inputTable.cursor = i
+					end
+					break
+				elseif i == 2 then
+					inputTable.cursor = 1
+				end
+			end
+		elseif not (inputTable.cursor <= 1) then
+			inputTable.cursor = inputTable.cursor - moveAmount
+		end
+	end
+
+	function gginput.write_char(keyTable, inputTable)
+		if gginput.get_key(0x10):is_down() then
+			if inputTable.cursor == #inputTable.string then
+				inputTable.string[#inputTable.string+1] = keyTable[2] or keyTable[1]:upper()
+			else
+				table.insert(inputTable.string, inputTable.cursor+1, keyTable[2] or keyTable[1]:upper())
+			end
+		else
+			if inputTable.cursor == #inputTable.string then
+				inputTable.string[#inputTable.string+1] = keyTable[1]
+			else
+				table.insert(inputTable.string, inputTable.cursor+1, keyTable[1])
+			end
+		end
+
+		gginput.moveCursorRight(inputTable, 1)
+	end
+
+	function gginput.paste(stringInput, inputTable)
+		if inputTable.cursor == #inputTable.string then
+			for char in stringInput:gmatch(".") do
+				if #inputTable.string-1 ~= inputTable.limit then
+					inputTable.string[#inputTable.string+1] = char
+				end
+			end
+			inputTable.cursor = #inputTable.string
+		else
+			for char in stringInput:gmatch(".") do
+				if #inputTable.string-1 ~= inputTable.limit then
+					table.insert(inputTable.string, inputTable.cursor+1, char)
+					inputTable.cursor = inputTable.cursor+1
+				end
+			end
+		end
+	end
+
+	function gginput.delete_char(inputTable, range_start, range_end)
+		if not range_start then
+			gginput.moveCursorLeft(inputTable, 1)
+			if inputTable.cursor == #inputTable.string-1 then
+				inputTable.string[#inputTable.string] = nil
+			else
+				table.remove(inputTable.string, inputTable.cursor+1)
+			end
+		else
+			if range_end ~= #inputTable.string then
+				inputTable.cursor = range_start
+				for i = range_end, range_start+1, -1 do
+					table.remove(inputTable.string, i)
+				end
+			else
+				inputTable.cursor = range_start
+				for i = range_start+1, #inputTable.string do
+					inputTable.string[i] = i == 1 and "" or nil
+				end
+			end
+		end
+	end
+
+	function gginput.delete(inputTable)
+		if gginput.get_key(0x11):is_down() then
+			local range_start
+			for i = inputTable.cursor, 1, -1 do
+				if inputTable.string[i] == " " then
+					if i == inputTable.cursor then
+						for i = inputTable.cursor, 1, -1 do
+							if inputTable.string[i] ~= " " then
+								range_start = i
+								break
+							end
+						end
+					else
+						range_start = i
+					end
+					break
+				elseif i == 1 then
+					range_start = 1
+				end
+			end
+			gginput.delete_char(inputTable, range_start, inputTable.cursor)
+		else
+			gginput.delete_char(inputTable)
+		end
+	end
+
+	local shift_esc = MenuKey()
+	shift_esc:push_vk(0x11)
+	shift_esc:push_vk(0x1B)
+	function gginput.reset_menu_nav()
+		if shift_esc:is_down() then
+			menu.set_menu_can_navigate(true)
+			menu.notify("Reset menu navigation")
+		end
+	end
+
+
+	function gginput.get_input(title, default, len, inputtype, inputTable)
+		local menuNavThread = menu.create_thread(gginput.reset_menu_nav)
+		menu.set_menu_can_navigate(false)
+		local pressed = {}
+
+		for k, v in pairs(gginput.char_codes[1]) do
+			if gginput.get_key(k):is_down() then
+				pressed[k] = utils.time_ms() + 2000
+			else
+				pressed[k] = 0
+			end
+		end
+
+		inputtype = (inputtype <= 5 and inputtype >= 0) and inputtype or 0
+		inputtype = inputtype + 1
+		local charTable = gginput.char_codes[inputtype]
+		local pasteCheck = {}
+		for k, v in pairs(charTable) do
+			local concatenated = table.concat(v)
+			pasteCheck[#pasteCheck+1] = concatenated
+			if concatenated ~= concatenated:upper() then
+				pasteCheck[#pasteCheck+1] = concatenated:upper()
+			end
+		end
+		pasteCheck = "[^"..table.concat(pasteCheck).."]"
+
+		inputTable = inputTable or {}
+		inputTable.string = {""}
+		inputTable.state = 1
+		inputTable.cursor = 1
+		inputTable.title = title
+		inputTable.limit = len or 25
+
+		gginput.paste(default, inputTable)
+
+		local drawThread = menu.create_thread(gginput.draw_thread, inputTable)
+		while gginput.get_key(0x0D):is_down() do
+			system.wait()
+		end
+		while not (gginput.get_key(0x0D):is_down() or gginput.get_key(0x1B):is_down()) do
+			for k, v in pairs(charTable) do
+				if not gginput.get_key(0x11):is_down() and #inputTable.string-1 ~= len then
+					gginput.do_key(k, pressed, gginput.write_char, v, inputTable)
+				end
+			end
+
+			if gginput.get_key(0x11, 0x56):is_down() then
+				gginput.paste(utils.from_clipboard():gsub("\r\n", " "):gsub(pasteCheck, ""), inputTable)
+				while gginput.get_key(0x11, 0x56):is_down() do
+					system.wait()
+				end
+			elseif gginput.get_key(0x11, 0x43):is_down() then
+				utils.to_clipboard(table.concat(inputTable.string))
+			end
+
+			gginput.do_key(0x08, pressed, gginput.delete, inputTable) -- backspace
+			gginput.do_key(0x27, pressed, gginput.moveCursorRight, inputTable, 1) -- right
+			gginput.do_key(0x25, pressed, gginput.moveCursorLeft, inputTable, 1) -- left
+			system.wait(0)
+		end
+		local success = gginput.get_key(0x0D):is_down()
+		while gginput.get_key(0x0D):is_down() do
+			system.wait(0)
+		end
+		menu.delete_thread(drawThread)
+		menu.delete_thread(menuNavThread)
+		menu.set_menu_can_navigate(true)
+		menu.create_thread(gginput.disableESC)
+		inputTable.string = table.concat(inputTable.string)
+		inputTable.state = success and 0 or 2
+
+		return inputTable.state, success and inputTable.string or nil
+	end
+--
+
+return gginput
