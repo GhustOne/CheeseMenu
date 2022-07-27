@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.8.3"
+local version = "1.6.8.4"
 local loadCurrentMenu
 
 -- Version check
@@ -448,29 +448,49 @@ function loadCurrentMenu()
 		function input.get(title, default, len, Type)
 			local originalmenuToggle = stuff.menuData.menuToggle
 			stuff.menuData.menuToggle = false
-			local status, gottenInput = stuff.input.getInput(title, default, len, Type)
+			local status, gottenInput = stuff.input.get_input(title, default, len, Type)
 
 			stuff.menuData.menuToggle = originalmenuToggle
 			return status, gottenInput
 		end
 	end
 
-	-- Had a lil look at kek's menu cause the functions apparently don't exist or something
-	stuff.rawset = function(t, k, v)
-		local metatable = getmetatable(t)
-		local __newindex = metatable.__newindex
-		metatable.__newindex = nil
-		t[k] = v
-		metatable.__newindex = __newindex
+	-- Credit to kektram for these functions
+	do
+		local _ENV <const> = {
+			getmetatable = debug.getmetatable
+		}
+		function stuff.rawset(Table, index, value) -- Matches performance of normal rawset.
+			local metatable <const> = getmetatable(Table)
+			local __newindex
+			if metatable then
+				__newindex = metatable.__newindex
+				metatable.__newindex = nil
+			end
+			Table[index] = value
+			if __newindex then
+				metatable.__newindex = __newindex
+			end
+			return Table
+		end
 	end
-
-	stuff.rawget = function(t, k)
-		local metatable = getmetatable(t)
-		local __index = getmetatable(t).__index
-		metatable.__index = nil
-		local item = t[k]
-		metatable.__index = __index
-		return item
+	do
+		local _ENV <const> = {
+			getmetatable = debug.getmetatable
+		}
+		function stuff.rawget(Table, index, value) -- Matches performance of normal rawget.
+			local metatable <const> = getmetatable(Table)
+			local __index
+			if metatable then
+				__index = metatable.__index
+				metatable.__index = nil
+			end
+			local value <const> = Table[index]
+			if __index then
+				metatable.__index = __index
+			end
+			return value
+		end
 	end
 	--
 
@@ -1872,10 +1892,7 @@ function loadCurrentMenu()
 								end
 							end
 						end
-						local time = utils.time_ms() + 250
-						while time > utils.time_ms() do
-							system.wait(0)
-						end
+						system.wait(250)
 					end
 				end
 			end
