@@ -492,7 +492,7 @@ gginput.char_codes = {
 			end
 
 			if gginput.get_key(0x11, 0x56):is_down() then
-				gginput.paste(utils.from_clipboard():gsub("\r\n", " "):gsub(pasteCheck, ""), inputTable)
+				gginput.paste(utils.from_clipboard():gsub("[\r\n]", " "):gsub(pasteCheck, ""), inputTable)
 				while gginput.get_key(0x11, 0x56):is_down() do
 					system.wait()
 				end
