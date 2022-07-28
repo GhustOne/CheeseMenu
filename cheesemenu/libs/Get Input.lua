@@ -1,5 +1,6 @@
 --Made by GhostOne
 
+local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
 local gginput = {indicator_timer = utils.time_ms() + 750, indicator = false}
 gginput.char_codes = {
     {
@@ -253,29 +254,56 @@ gginput.char_codes = {
 		end
 	end
 
-    function gginput.draw_outline(v2pos, v2size, color, thickness)
-        thickness = v2(thickness / graphics.get_screen_width() * 2, thickness / graphics.get_screen_height() * 2)
-        scriptdraw.draw_rect(v2(v2pos.x, v2pos.y - (v2size.y/2)), v2(v2size.x + thickness.x, thickness.y), color)
-        scriptdraw.draw_rect(v2(v2pos.x, v2pos.y + (v2size.y/2)), v2(v2size.x + thickness.x, thickness.y), color)
-        scriptdraw.draw_rect(v2(v2pos.x - (v2size.x/2), v2pos.y), v2(thickness.x, v2size.y - thickness.y), color)
-        scriptdraw.draw_rect(v2(v2pos.x + (v2size.x/2), v2pos.y), v2(thickness.x, v2size.y - thickness.y), color)
-    end
+    --[[ function gginput.draw_outline(v2pos, v2size, color, thickness, reusablePos, reusablePos2)
+        local thickness_y = thickness / graphics.get_screen_height() * 2
+		local thickness_x = thickness / graphics.get_screen_width() * 2
 
-    function gginput.draw_input(inputTable, bg_color, inputbox_color, outline_color, text_color)
+		reusablePos2.x, reusablePos2.y = v2pos.x, v2pos.y
+
+		reusablePos2.y = v2pos.y - (v2size.y/2)
+		reusablePos.x, reusablePos.y = v2size.x + thickness_x, thickness_y
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+
+		reusablePos2.y = v2pos.y + (v2size.y/2)
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+
+		reusablePos2.y = v2pos.y
+		reusablePos2.x = v2pos.x - (v2size.x/2)
+		reusablePos.x, reusablePos.y = thickness_x, v2size.y - thickness_y
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+
+		reusablePos2.x = v2pos.x + (v2size.x/2)
+		
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+    end ]]
+
+    function gginput.draw_input(inputTable, bg_color, inputbox_color, outline_color, text_color, tableOfPos_Size)
 		local string = table.concat(inputTable.string)
 		if gginput.indicator then
 			string = string:sub(1, inputTable.cursor-1).."_"..string:sub(inputTable.cursor+1, #string)
 		end
-        scriptdraw.draw_rect(v2(0, 0), v2(2, 2), bg_color) -- background
-        gginput.draw_outline(v2(0, 0), v2(0.9390625, 0.06180555555555), outline_color, 2)
-        scriptdraw.draw_rect(v2(0, 0), v2(0.9375, 0.0590277777777778), inputbox_color) -- inputBox
-		scriptdraw.draw_text(string, v2(-0.4609375, 0.01111111111111111), v2(2, 2), 0.8, text_color, 0)
-		scriptdraw.draw_text(inputTable.title, v2(-scriptdraw.get_text_size(inputTable.title, 1.2).x/graphics.get_screen_width(), 0.10555554), v2(2, 2), 1.2, 0xDC000000 | (text_color & 0xFFFFFF), 0)
+
+		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.backround_size, bg_color) -- background
+		cheeseUtils.draw_outline(tableOfPos_Size.middle_pos, tableOfPos_Size.outline_size, outline_color, 2)
+		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.inputBox_size, inputbox_color) -- inputBox
+		scriptdraw.draw_text(string, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, 0.8, text_color, 0)
+		tableOfPos_Size.title_pos.x = -scriptdraw.get_text_size(inputTable.title, 1.2).x/graphics.get_screen_width()
+		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, 1.2, 0xDC000000 | (text_color & 0xFFFFFF), 0)
 
 		local text_width = scriptdraw.get_text_size(table.concat(inputTable.string, "", 1, inputTable.cursor):gsub(" ", "."), 0.8).x/graphics.get_screen_width()*2
-		scriptdraw.draw_text("_", v2(-0.4609375 + text_width + 0.0015625, 0.01111111111111111), v2(2, 2), 0.8, 0x64000000 | (text_color & 0xFFFFFF), 0)
+		tableOfPos_Size.underscore_pos.x = -0.4609375 + text_width + 0.0015625
+		scriptdraw.draw_text("_", tableOfPos_Size.underscore_pos, tableOfPos_Size.backround_size, 0.8, 0x64000000 | (text_color & 0xFFFFFF), 0)
     end
 
+	gginput.tableOfPos_Size = {
+		middle_pos = v2(0, 0),
+		backround_size = v2(2, 2),
+		outline_size = v2(0.9390625, 0.06180555555555),
+		inputBox_size = v2(0.9375, 0.0590277777777778),
+		text_pos = v2(-0.4609375, 0.01111111111111111),
+		underscore_pos = v2(0, 0.01111111111111111),
+		title_pos = v2(0, 0.10555554),
+	}
 	function gginput.draw_thread(inputTable)
 		while true do
 			for i = 0, 357 do
@@ -285,7 +313,7 @@ gginput.char_codes = {
 				gginput.indicator = not gginput.indicator
 				gginput.indicator_timer = utils.time_ms() + 750
 			end
-			gginput.draw_input(inputTable, 0x64000000, 0xC8000000, 0xC8FFFFFF, 0xC8FFFFFF)
+			gginput.draw_input(inputTable, 0x64000000, 0xC8000000, 0xC8FFFFFF, 0xC8FFFFFF, gginput.tableOfPos_Size)
 			system.wait(0)
 		end
 	end
