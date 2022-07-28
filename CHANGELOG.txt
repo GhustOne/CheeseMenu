@@ -1,3 +1,4 @@
-Completely rewrote Get Input
-Removed temp fix for yield
-Now using kektram's better rawset & get functions
+Memoizing v2s thanks to kektram (should reduce stutters)
+Fixed 3 pixel toggle outlines
+Disable hotkeys when input box is open
+Fixed hotkeys not getting set correctly after changing them midway of setting
