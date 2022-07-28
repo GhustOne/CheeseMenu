@@ -44,6 +44,7 @@ Hotkeys will be saved automatically
 
 ## Credits
 - Kektram - for teaching me the basics of lua, I only started because of him.
+also providing neat functions and telling me of ways to optimize my code
 
 - Proddy - telling me about bad habits in lua and helping even though he hates the concept of cheesemenu
 
