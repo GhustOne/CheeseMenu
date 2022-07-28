@@ -13,7 +13,7 @@ If you are a lua dev then using this is quite close to using the 2t1 api
   - menu.get_feature_by_hierarchy_key
     - if duplicates are found it'll return the first one created
     - its hierarchy keys are case sensitive and not all lowercase like 2t1's
-    - it'll look for cheesemenu features first, if not found, it'll use the original 2t1 function
+    - it'll use the original 2t1 function, if it returns nil it will use cheesemenu's function
  
 
 
