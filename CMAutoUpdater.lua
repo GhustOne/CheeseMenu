@@ -5,11 +5,13 @@ local filePaths = {
 	cheesemenu = appdata_path.."\\scripts\\cheesemenu.lua",
 	gltw = appdata_path.."\\scripts\\cheesemenu\\libs\\GLTW.lua",
 	getinput = appdata_path.."\\scripts\\cheesemenu\\libs\\Get Input.lua",
+	cheeseUtils = appdata_path.."\\scripts\\cheesemenu\\libs\\CheeseUtilities.lua",
 }
 local files = {
 	cheesemenu = [[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu.lua]],
 	gltw = [[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu/libs/GLTW.lua]],
 	getinput = [[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu/libs/Get%20Input.lua]],
+	cheeseUtils = [[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu/libs/CheeseUtilities.lua]],
 }
 
 for k, v in pairs(files) do
