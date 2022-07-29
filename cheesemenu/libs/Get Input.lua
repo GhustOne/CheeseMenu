@@ -282,17 +282,18 @@ gginput.char_codes = {
 		if gginput.indicator then
 			string = string:sub(1, inputTable.cursor-1).."_"..string:sub(inputTable.cursor+1, #string)
 		end
+		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.6+0.2
 
 		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.backround_size, bg_color) -- background
 		cheeseUtils.draw_outline(tableOfPos_Size.middle_pos, tableOfPos_Size.outline_size, outline_color, 2)
 		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.inputBox_size, inputbox_color) -- inputBox
-		scriptdraw.draw_text(string, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, 0.8, text_color, 0)
+		scriptdraw.draw_text(string, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, text_size, text_color, 0)
 		tableOfPos_Size.title_pos.x = -scriptdraw.get_text_size(inputTable.title, 1.2).x/graphics.get_screen_width()
-		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, 1.2, 0xDC000000 | (text_color & 0xFFFFFF), 0)
+		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, text_size+0.4, 0xDC000000 | (text_color & 0xFFFFFF), 0)
 
-		local text_width = scriptdraw.get_text_size(table.concat(inputTable.string, "", 1, inputTable.cursor):gsub(" ", "."), 0.8).x/graphics.get_screen_width()*2
+		local text_width = scriptdraw.get_text_size(table.concat(inputTable.string, "", 1, inputTable.cursor):gsub(" ", "."), text_size).x/graphics.get_screen_width()*2
 		tableOfPos_Size.underscore_pos.x = -0.4609375 + text_width + 0.0015625
-		scriptdraw.draw_text("_", tableOfPos_Size.underscore_pos, tableOfPos_Size.backround_size, 0.8, 0x64000000 | (text_color & 0xFFFFFF), 0)
+		scriptdraw.draw_text("_", tableOfPos_Size.underscore_pos, tableOfPos_Size.backround_size, text_size, 0x64000000 | (text_color & 0xFFFFFF), 0)
     end
 
 	gginput.tableOfPos_Size = {
@@ -335,6 +336,8 @@ gginput.char_codes = {
 							if inputTable.string[i] ~= " " then
 								inputTable.cursor = i-1
 								break
+							elseif i == #inputTable.string then
+								inputTable.cursor = #inputTable.string
 							end
 						end
 					else
@@ -358,6 +361,8 @@ gginput.char_codes = {
 							if inputTable.string[i] ~= " " then
 								inputTable.cursor = i
 								break
+							elseif i == 2 then
+								inputTable.cursor = 1
 							end
 						end
 					else
