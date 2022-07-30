@@ -2,3 +2,7 @@ Memoizing v2s thanks to kektram (should reduce stutters)
 Fixed 3 pixel toggle outlines
 Disable hotkeys when input box is open
 Fixed hotkeys not getting set correctly after changing them midway of setting
+v1.6.9.1
+Update text scales with res
+Fixed str_data feature stuff
+Feature threads stop when deleted
