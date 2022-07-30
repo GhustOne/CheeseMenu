@@ -921,10 +921,6 @@ function loadCurrentMenu()
 		currentParent[#currentParent].set_str_data = stuff.set_str_data
 		currentParent[#currentParent].toggle = stuff.toggle
 		currentParent[#currentParent].get_children = stuff.get_children
-		currentParent[#currentParent].set_value = stuff.set_value
-		currentParent[#currentParent].set_min = stuff.set_min
-		currentParent[#currentParent].set_mod = stuff.set_mod
-		currentParent[#currentParent].set_max = stuff.set_max
 		currentParent[#currentParent].get_str_data = stuff.get_str_data
 		currentParent[#currentParent].select = stuff.select
 		setmetatable(currentParent[#currentParent], stuff.featMetaTable)
