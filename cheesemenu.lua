@@ -32,8 +32,6 @@ menu.create_thread(function()
 	local vercheckKeys = {ctrl = MenuKey(), space = MenuKey(), enter = MenuKey(), rshift = MenuKey()}
 	vercheckKeys.ctrl:push_vk(0x11); vercheckKeys.space:push_vk(0x20); vercheckKeys.enter:push_vk(0x0D); vercheckKeys.rshift:push_vk(0xA1)
 
-	local stringV2size = v2(2, 2)
-
 	local responseCode, githubVer = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/VERSION.txt")
 	if responseCode == 200 then
 		githubVer = githubVer:gsub("[\r\n]", "")
@@ -50,10 +48,12 @@ menu.create_thread(function()
 				strings.changelog = ""
 			end
 			strings.changelog_x_offset = v2(-scriptdraw.get_text_size(strings.changelog, 1).x/graphics.get_screen_width(), 0)
+			local stringV2size = v2(2, 2)
+			local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.5+0.5
 			while true do
-				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", strings.new_ver_x_offset, stringV2size, 1, 0xFF0CB4F4, 2)
-				scriptdraw.draw_text(strings.version_compare, strings.version_compare_x_offset, stringV2size, 1, 0xFF0CB4F4, 2)
-				scriptdraw.draw_text(strings.changelog, strings.changelog_x_offset, stringV2size, 1, 0xFF0CB4F4, 2)
+				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", strings.new_ver_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
+				scriptdraw.draw_text(strings.version_compare, strings.version_compare_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
+				scriptdraw.draw_text(strings.changelog, strings.changelog_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
 				if vercheckKeys.ctrl:is_down() or vercheckKeys.space:is_down() then
 					loadCurrentMenu()
 					break
