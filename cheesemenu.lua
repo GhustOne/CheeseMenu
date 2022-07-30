@@ -542,45 +542,43 @@ function loadCurrentMenu()
 				assert(stuff.type_id.id_to_name[t.type]:match("value_[if]") or stuff.type_id.id_to_name[t.type]:match("value_str"), "feat type not supported")
 				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
-				if stuff.type_id.id_to_name[t.type]:match("_i") or stuff.type_id.id_to_name[t.type]:match("value_str") then
-					v = math.floor(v)
-					stuff.rawset(t, "real_"..k, v)
-					if stuff.type_id.id_to_name[t.type]:match("_i") then
-						if t.real_min then
-							if t.real_value < t.real_min then t.real_value = t.real_min end
+
+				if k:match("value") then
+					if t.real_min then
+						if v < t.real_min then
+							v = t.real_min
 						end
-						if t.real_max then
-							if t.real_value > t.real_max then t.real_value = t.real_max end
+					else
+						if v < 0 then
+							v = 0
 						end
 					end
+					if t.real_max then
+						if v > t.real_max then
+							v = t.real_max
+						end
+					elseif t.real_str_data then
+						if v+1 > #t.real_str_data then
+							v = #t.real_str_data-1
+						end
+					end
+				end
+
+				if stuff.type_id.id_to_name[t.type]:match("_i") or stuff.type_id.id_to_name[t.type]:match("value_str") then
+					v = math.floor(v)
+
+					stuff.rawset(t, "real_"..k, v)
 					if t["table_"..k] then
 						for i, e in pairs(t["table_"..k]) do
 							t["table_"..k][i] = v
-							if t.real_min then
-								if t["table_value"][i] < t.real_min then t["table_value"][i] = t.real_min end
-							end
-							if t.real_max then
-								if t["table_value"][i] > t.real_max then t["table_value"][i] = t.real_max end
-							end
 						end
 					end
 				elseif stuff.type_id.id_to_name[t.type]:match("_f") then
 					stuff.rawset(t, "real_"..k, v)
-					if t.real_min then
-						if t.real_value < t.real_min then t.real_value = t.real_min end
-					end
-					if t.real_max then
-						if t.real_value > t.real_max then t.real_value = t.real_max end
-					end
+
 					if t["table_"..k] then
 						for i, e in pairs(t["table_"..k]) do
 							t["table_"..k][i] = v
-							if t.real_min then
-								if t["table_value"][i] < t.real_min then t["table_value"][i] = t.real_min end
-							end
-							if t.real_max then
-								if t["table_value"][i] > t.real_max then t["table_value"][i] = t.real_max end
-							end
 						end
 					end
 				end
@@ -633,25 +631,31 @@ function loadCurrentMenu()
 				assert(stuff.type_id.id_to_name[t.type]:match("value_[if]") or stuff.type_id.id_to_name[t.type]:match("value_str"), "feat type not supported")
 				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
+
+				if t.real_min then
+					if v < t.real_min then
+						v = t.real_min
+					end
+				else
+					if v < 0 then
+						v = 0
+					end
+				end
+				if t.real_max then
+					if v > t.real_max then
+						v = t.real_max
+					end
+				elseif t.real_str_data then
+					if v+1 > #t.real_str_data then
+						v = #t.real_str_data-1
+					end
+				end
+
 				if stuff.type_id.id_to_name[t.type]:match("_i") or stuff.type_id.id_to_name[t.type]:match("value_str") then
 					v = math.floor(v)
 					t["table_"..k][t.pid] = v
-					if stuff.type_id.id_to_name[t.type]:match("_i") then
-						if t.real_min then
-							if t["table_value"][t.pid] < t.real_min then t["table_value"][t.pid] = t.real_min end
-						end
-						if t.real_max then
-							if t["table_value"][t.pid] > t.real_max then t["table_value"][t.pid] = t.real_max end
-						end
-					end
 				elseif stuff.type_id.id_to_name[t.type]:match("_f") then
 					t["table_"..k][t.pid] = v
-					if t.real_min then
-						if t["table_value"][t.pid] < t.real_min then t["table_value"][t.pid] = t.real_min end
-					end
-					if t.real_max then
-						if t["table_value"][t.pid] > t.real_max then t["table_value"][t.pid] = t.real_max end
-					end
 				end
 			elseif k == "data" then
 				t.real_data = v
@@ -663,7 +667,8 @@ function loadCurrentMenu()
 
 	-- featMethods
 
-	stuff.set_val = function(self, valueType, val, dont_set_all)
+	-- dogshit dont use
+	--[[ stuff.set_val = function(self, valueType, val, dont_set_all)
 		assert(stuff.type_id.id_to_name[self.type]:match("value_[if]") or stuff.type_id.id_to_name[self.type]:match("value_str"), "feat type not supported")
 		assert(tonumber(val), "tried to set "..valueType.." to a non-number value")
 		if stuff.type_id.id_to_name[self.type]:match("value_i") then
@@ -671,10 +676,32 @@ function loadCurrentMenu()
 		else
 			val = tonumber(val)
 		end
+
+		if valueType == "value" then
+			if self.real_min then
+				if val < self.real_min then
+					val = self.real_min
+				end
+			else
+				if val < 0 then
+					val = 0
+				end
+			end
+			if self.real_max then
+				if val > self.real_max then
+					val = self.real_max
+				end
+			elseif self.real_str_data then
+				if val+1 > #self.real_str_data then
+					val = #self.real_str_data-1
+				end
+			end
+		end
+
 		self[valueType] = val
 		if self["table_"..valueType] and not dont_set_all then
-			for k, v in pairs(self["table_"..valueType]) do
-				self["table_"..valueType][k] = val
+			for i = 0, 31 do
+				self["table_"..valueType][i] = val
 			end
 		end
 	end
@@ -690,7 +717,7 @@ function loadCurrentMenu()
 	end
 	stuff.set_mod = function(self, val, dont_set_all)
 		stuff.set_val(self, "mod", val, dont_set_all)
-	end
+	end ]]
 
 	stuff.get_str_data = function(self)
 		assert(stuff.type_id.id_to_name[self.type]:match("value_str"), "used get_str_data on a feature that isn't value_str")
@@ -710,7 +737,15 @@ function loadCurrentMenu()
 			end
 		end
 		self.real_str_data = numberedTable or stringTable
+		if self.real_value+1 > #self.real_str_data then
+			self.real_value = #self.real_str_data-1
+		end
 		if self.feats then
+			for k, v in pairs(self.table_value) do
+				if v+1 > #self.real_str_data then
+					self.table_value[k] = #self.real_str_data-1
+				end
+			end
 			for k, v in pairs(self.feats) do
 				v.real_str_data = stringTable
 			end
@@ -1155,6 +1190,13 @@ function loadCurrentMenu()
 		end
 
 		local feat = stuff.feature_by_id[id]
+
+		if feat.thread then
+			if not menu.has_thread_finished(feat.thread) then
+				menu.delete_thread(feat.thread)
+			end
+		end
+
 		local parent
 		if feat.parent_id ~= 0 or bool_ps then
 			parent = bool_ps and stuff.feature_by_id[feat.ps_parent_id] or stuff.feature_by_id[feat.parent_id]
