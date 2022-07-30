@@ -36,10 +36,11 @@ menu.create_thread(function()
 	if responseCode == 200 then
 		githubVer = githubVer:gsub("[\r\n]", "")
 		if githubVer ~= version then
+			local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.5+0.5
 			local strings = {
 				version_compare = "\nCurrent Version:"..version.."\nLatest Version:"..githubVer,
-				version_compare_x_offset = v2(-scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, 1).x/graphics.get_screen_width(), 0),
-				new_ver_x_offset = v2(-scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", 1).x/graphics.get_screen_width(), 0),
+				version_compare_x_offset = v2(-scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, text_size).x/graphics.get_screen_width(), 0),
+				new_ver_x_offset = v2(-scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", text_size).x/graphics.get_screen_width(), 0),
 			}
 			strings.changelog_rc, strings.changelog = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CHANGELOG.txt")
 			if strings.changelog_rc == 200 then
@@ -47,9 +48,8 @@ menu.create_thread(function()
 			else
 				strings.changelog = ""
 			end
-			strings.changelog_x_offset = v2(-scriptdraw.get_text_size(strings.changelog, 1).x/graphics.get_screen_width(), 0)
+			strings.changelog_x_offset = v2(-scriptdraw.get_text_size(strings.changelog, text_size).x/graphics.get_screen_width(), 0)
 			local stringV2size = v2(2, 2)
-			local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.5+0.5
 			while true do
 				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", strings.new_ver_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
 				scriptdraw.draw_text(strings.version_compare, strings.version_compare_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
