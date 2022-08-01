@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.9.1"
+local version = "1.6.9.2"
 local loadCurrentMenu
 
 -- Version check
@@ -136,6 +136,7 @@ function loadCurrentMenu()
 			scripts = utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\"
 		},
 		hotkeys = {},
+		hotkey_cooldowns = {},
 		hotkeys_to_vk = {},
 		char_codes = {
 			["ENTER"] = 0x0D,
@@ -435,6 +436,8 @@ function loadCurrentMenu()
 	stuff.hotkeys = gltw.read("hotkeys", stuff.path.hotkeys, nil, true) or {}
 	stuff.hierarchy_key_to_hotkey = {}
 	for k, v in pairs(stuff.hotkeys) do
+		stuff.hotkey_cooldowns[k] = 0
+
 		local string_to_vk = {}
 		for char in k:gmatch("%|*([^%|]+)%|*") do
 			string_to_vk[#string_to_vk+1] = stuff.char_codes[char]
@@ -885,7 +888,7 @@ function loadCurrentMenu()
 	function func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback, playerFeat)
 		assert((type(nameOfFeat) == "string"), "invalid name in add_feature")
 		assert((type(TypeOfFeat) == "string") and stuff.type_id.name_to_id[TypeOfFeat], "invalid type in add_feature")
-		assert(((type(parentOfFeat) == "string") or (type(parentOfFeat) == "number")) or not parentOfFeat, "invalid parent id in add_feature")
+		assert((type(parentOfFeat) == "number") or not parentOfFeat, "invalid parent id in add_feature")
 		assert((type(functionCallback) == "function") or not functionCallback, "invalid function in add_feature")
 		if not parentOfFeat then
 			parentOfFeat = 0
@@ -906,7 +909,7 @@ function loadCurrentMenu()
 			if currentParent then
 				assert(currentParent.type == 2048, "parent is not a parent feature")
 			else
-				error("parent is not valid "..((stuff.player_feature_by_id[parentOfFeat] and not playerFeat) and "using player feature as parent for a local feature" or (stuff.feature_by_id[parentOfFeat] and playerFeat and "using local parent for player feature")))
+				error("parent is not valid "..((stuff.player_feature_by_id[parentOfFeat] and not playerFeat) and "using player feature as parent for a local feature" or (stuff.feature_by_id[parentOfFeat] and playerFeat and "using local parent for player feature") or "parent does not exist"))
 			end
 		end
 		if currentParent.hierarchy_key then
@@ -2010,7 +2013,8 @@ function loadCurrentMenu()
 		while true do
 			if native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not stuff.menuData.chatBoxOpen then
 				for k, v in pairs(stuff.hotkeys) do
-					if func.get_key(table.unpack(stuff.hotkeys_to_vk[k])):is_down() and (not (func.get_key(0x10):is_down() or func.get_key(0x11):is_down() or func.get_key(0x12):is_down()) or not (k:match("NOMOD"))) then
+					local hotkey = func.get_key(table.unpack(stuff.hotkeys_to_vk[k]))
+					if hotkey:is_down() and (not (func.get_key(0x10):is_down() or func.get_key(0x11):is_down() or func.get_key(0x12):is_down()) or not (k:match("NOMOD"))) and utils.time_ms() > stuff.hotkey_cooldowns[k] then
 						for k, v in pairs(stuff.hotkeys[k]) do
 							if stuff.hotkey_feature_hierarchy_keys[k] then
 								for k, v in pairs(stuff.hotkey_feature_hierarchy_keys[k]) do
@@ -2028,7 +2032,13 @@ function loadCurrentMenu()
 								end
 							end
 						end
-						system.wait(250)
+						if stuff.hotkey_cooldowns[k] == 0 then
+							stuff.hotkey_cooldowns[k] = utils.time_ms() + 500
+						else
+							stuff.hotkey_cooldowns[k] = utils.time_ms() + 100
+						end
+					elseif not hotkey:is_down() then
+						stuff.hotkey_cooldowns[k] = 0
 					end
 				end
 			end
