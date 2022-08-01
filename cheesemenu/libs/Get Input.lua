@@ -1,7 +1,15 @@
 --Made by GhostOne
 
 local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
-local gginput = {indicator_timer = utils.time_ms() + 750, indicator = false}
+local gginput = {
+	indicator_timer = utils.time_ms() + 750,
+	indicator = false,
+	drawStuff = {
+		concatString = "",
+		cachedTableLength = 0,
+		cached_text_width = 0,
+	}
+}
 gginput.char_codes = {
     {
 		[0x30] = {"0", ")"},
@@ -278,22 +286,23 @@ gginput.char_codes = {
     end ]]
 
     function gginput.draw_input(inputTable, bg_color, inputbox_color, outline_color, text_color, tableOfPos_Size)
-		local string = table.concat(inputTable.string)
-		if gginput.indicator then
-			string = string:sub(1, inputTable.cursor-1).."_"..string:sub(inputTable.cursor+1, #string)
+		if #inputTable.string ~= gginput.cachedTableLength then
+			gginput.drawStuff.string = table.concat(inputTable.string)
+			gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
+			gginput.drawStuff.cachedTableLength = #inputTable.string
 		end
-		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.6+0.2
+		if gginput.indicator then
+			gginput.drawStuff.string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
+		end
 
 		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.backround_size, bg_color) -- background
 		cheeseUtils.draw_outline(tableOfPos_Size.middle_pos, tableOfPos_Size.outline_size, outline_color, 2)
 		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.inputBox_size, inputbox_color) -- inputBox
-		scriptdraw.draw_text(string, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, text_size, text_color, 0)
-		tableOfPos_Size.title_pos.x = -scriptdraw.get_text_size(inputTable.title, 1.2).x/graphics.get_screen_width()
-		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, text_size+0.4, 0xDC000000 | (text_color & 0xFFFFFF), 0)
+		scriptdraw.draw_text(gginput.drawStuff.string, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, text_color, 0)
+		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size+0.4, 0xDC000000 | (text_color & 0xFFFFFF), 0)
 
-		local text_width = scriptdraw.get_text_size(table.concat(inputTable.string, "", 1, inputTable.cursor):gsub(" ", "."), text_size).x/graphics.get_screen_width()*2
-		tableOfPos_Size.underscore_pos.x = -0.4609375 + text_width + 0.0015625
-		scriptdraw.draw_text("_", tableOfPos_Size.underscore_pos, tableOfPos_Size.backround_size, text_size, 0x64000000 | (text_color & 0xFFFFFF), 0)
+		tableOfPos_Size.underscore_pos.x = -0.4609375 + gginput.drawStuff.cached_text_width + 0.0015625
+		scriptdraw.draw_text("_", tableOfPos_Size.underscore_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, 0x64000000 | (text_color & 0xFFFFFF), 0)
     end
 
 	gginput.tableOfPos_Size = {
@@ -306,6 +315,7 @@ gginput.char_codes = {
 		title_pos = v2(0, 0.10555554),
 	}
 	function gginput.draw_thread(inputTable)
+		gginput.tableOfPos_Size.title_pos.x = -scriptdraw.get_text_size(inputTable.title, gginput.drawStuff.text_size+0.4).x/graphics.get_screen_width()
 		while true do
 			for i = 0, 357 do
 				controls.disable_control_action(0, i, true)
@@ -513,6 +523,8 @@ gginput.char_codes = {
 
 		gginput.paste(default, inputTable)
 
+		gginput.drawStuff.text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.6+0.2
+
 		local drawThread = menu.create_thread(gginput.draw_thread, inputTable)
 		while gginput.get_key(0x0D):is_down() do
 			system.wait()
@@ -550,6 +562,10 @@ gginput.char_codes = {
 		menu.set_menu_can_navigate(true)
 		inputTable.string = table.concat(inputTable.string)
 		inputTable.state = success and 0 or 2
+
+		gginput.string = ""
+		gginput.cached_text_width = 0
+		gginput.cachedTableLength = 0
 
 		return inputTable.state, success and inputTable.string or nil
 	end
