@@ -2,6 +2,6 @@ Memoizing v2s thanks to kektram (should reduce stutters)
 Fixed 3 pixel toggle outlines
 Disable hotkeys when input box is open
 Fixed hotkeys not getting set correctly after changing them midway of setting
-v1.6.9.2
-a few improvements in get input
-each hotkey gets its own cooldown, no more missing hotkeys when holding another
+v1.6.9.3
+If Trusted Mode > Http isn't on it'll load now
+A few improvements to value features
