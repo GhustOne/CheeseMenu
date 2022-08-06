@@ -24,69 +24,78 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.9.2"
+local version = "1.6.9.3"
 local loadCurrentMenu
+local httpTrustedOff
 
 -- Version check
-menu.create_thread(function()
-	local vercheckKeys = {ctrl = MenuKey(), space = MenuKey(), enter = MenuKey(), rshift = MenuKey()}
-	vercheckKeys.ctrl:push_vk(0x11); vercheckKeys.space:push_vk(0x20); vercheckKeys.enter:push_vk(0x0D); vercheckKeys.rshift:push_vk(0xA1)
+if menu.is_trusted_mode_enabled(1 << 3) and menu.is_trusted_mode_enabled(1 << 2) then
+	menu.create_thread(function()
+		local vercheckKeys = {ctrl = MenuKey(), space = MenuKey(), enter = MenuKey(), rshift = MenuKey()}
+		vercheckKeys.ctrl:push_vk(0x11); vercheckKeys.space:push_vk(0x20); vercheckKeys.enter:push_vk(0x0D); vercheckKeys.rshift:push_vk(0xA1)
 
-	local responseCode, githubVer = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/VERSION.txt")
-	if responseCode == 200 then
-		githubVer = githubVer:gsub("[\r\n]", "")
-		if githubVer ~= version then
-			local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.5+0.5
-			local strings = {
-				version_compare = "\nCurrent Version:"..version.."\nLatest Version:"..githubVer,
-				version_compare_x_offset = v2(-scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, text_size).x/graphics.get_screen_width(), 0),
-				new_ver_x_offset = v2(-scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", text_size).x/graphics.get_screen_width(), 0),
-			}
-			strings.changelog_rc, strings.changelog = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CHANGELOG.txt")
-			if strings.changelog_rc == 200 then
-				strings.changelog = "\n\n\nChangelog:\n"..strings.changelog
-			else
-				strings.changelog = ""
-			end
-			strings.changelog_x_offset = v2(-scriptdraw.get_text_size(strings.changelog, text_size).x/graphics.get_screen_width(), 0)
-			local stringV2size = v2(2, 2)
-			while true do
-				scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", strings.new_ver_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
-				scriptdraw.draw_text(strings.version_compare, strings.version_compare_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
-				scriptdraw.draw_text(strings.changelog, strings.changelog_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
-				if vercheckKeys.ctrl:is_down() or vercheckKeys.space:is_down() then
-					loadCurrentMenu()
-					break
-				elseif vercheckKeys.enter:is_down() or vercheckKeys.rshift:is_down() then
-					local responseCode, autoupdater = web.get([[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CMAutoUpdater.lua]])
-					if responseCode == 200 then
-						autoupdater = load(autoupdater)
-						menu.create_thread(function()
-							menu.notify("Update started, please wait...", "Cheese Menu")
-							local status = autoupdater()
-							if status then
-								if type(status) == "string" then
-									menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "Cheese Menu", 5, 0x0000FF)
-								else
-									menu.notify("Update successful", "Cheese Menu", 4, 0x00FF00)
-									dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
-								end
-							else
-								menu.notify("Download for updated files failed, current files have not been replaced.", "Cheese Menu", 5, 0x0000FF)
-							end
-						end, nil)
-						break
-					else
-						menu.notify("Getting Updater failed. Check your connection and try downloading manually.", "Cheese Menu", 5, 0x0000FF)
-					end
+		local responseCode, githubVer = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/VERSION.txt")
+		if responseCode == 200 then
+			githubVer = githubVer:gsub("[\r\n]", "")
+			if githubVer ~= version then
+				local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.5+0.5
+				local strings = {
+					version_compare = "\nCurrent Version:"..version.."\nLatest Version:"..githubVer,
+					version_compare_x_offset = v2(-scriptdraw.get_text_size("\nCurrent Version:"..version.."\nLatest Version:"..githubVer, text_size).x/graphics.get_screen_width(), 0),
+					new_ver_x_offset = v2(-scriptdraw.get_text_size("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", text_size).x/graphics.get_screen_width(), 0),
+				}
+				strings.changelog_rc, strings.changelog = web.get("https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CHANGELOG.txt")
+				if strings.changelog_rc == 200 then
+					strings.changelog = "\n\n\nChangelog:\n"..strings.changelog
+				else
+					strings.changelog = ""
 				end
-				system.wait(0)
+				strings.changelog_x_offset = v2(-scriptdraw.get_text_size(strings.changelog, text_size).x/graphics.get_screen_width(), 0)
+				local stringV2size = v2(2, 2)
+				while true do
+					scriptdraw.draw_text("New version available. Press CTRL or SPACE to skip or press ENTER or RIGHT SHIFT to update.", strings.new_ver_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
+					scriptdraw.draw_text(strings.version_compare, strings.version_compare_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
+					scriptdraw.draw_text(strings.changelog, strings.changelog_x_offset, stringV2size, text_size, 0xFF0CB4F4, 2)
+					if vercheckKeys.ctrl:is_down() or vercheckKeys.space:is_down() then
+						loadCurrentMenu()
+						break
+					elseif vercheckKeys.enter:is_down() or vercheckKeys.rshift:is_down() then
+						local responseCode, autoupdater = web.get([[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CMAutoUpdater.lua]])
+						if responseCode == 200 then
+							autoupdater = load(autoupdater)
+							menu.create_thread(function()
+								menu.notify("Update started, please wait...", "Cheese Menu")
+								local status = autoupdater()
+								if status then
+									if type(status) == "string" then
+										menu.notify("Updating local files failed, one or more of the files could not be opened.\nThere is a high chance the files got corrupted, please redownload the menu.", "Cheese Menu", 5, 0x0000FF)
+									else
+										menu.notify("Update successful", "Cheese Menu", 4, 0x00FF00)
+										dofile(utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\cheesemenu.lua")
+									end
+								else
+									menu.notify("Download for updated files failed, current files have not been replaced.", "Cheese Menu", 5, 0x0000FF)
+								end
+							end, nil)
+							break
+						else
+							menu.notify("Getting Updater failed. Check your connection and try downloading manually.", "Cheese Menu", 5, 0x0000FF)
+						end
+					end
+					system.wait(0)
+				end
+			else
+				loadCurrentMenu()
 			end
-		else
-			loadCurrentMenu()
 		end
+	end, nil)
+else
+	if menu.is_trusted_mode_enabled(1 << 2) then
+		httpTrustedOff = true
+	else
+		menu.notify("Trusted mode > Natives has to be on. If you wish for auto updates enable Http too.", "Cheese Menu", 5, 0x0000FF)
 	end
-end, nil)
+end
 
 local features
 local currentMenu
@@ -424,7 +433,7 @@ function loadCurrentMenu()
 	stuff.input = require("cheesemenu.libs.Get Input")
 	require("cheesemenu.libs.GLTW")
 	local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
-	assert(gltw, "GLTW is not found, please reinstall the menu.")
+	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
 
 
 	gltw.read("controls", stuff.path.cheesemenu, stuff.controls, true)
@@ -546,22 +555,11 @@ function loadCurrentMenu()
 				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
 
-				if k:match("value") then
-					if t.real_min then
-						if v < t.real_min then
-							v = t.real_min
-						end
-					else
-						if v < 0 then
-							v = 0
-						end
-					end
-					if t.real_max then
-						if v > t.real_max then
-							v = t.real_max
-						end
+				if stuff.type_id.id_to_name[t.type]:match("value_str") then
+					if v < 0 then
+						v = 0
 					elseif t.real_str_data then
-						if v+1 > #t.real_str_data then
+						if v+1 > #t.real_str_data and #t.real_str_data ~= 0 then
 							v = #t.real_str_data-1
 						end
 					end
@@ -571,17 +569,50 @@ function loadCurrentMenu()
 					v = math.floor(v)
 
 					stuff.rawset(t, "real_"..k, v)
+					if stuff.type_id.id_to_name[t.type]:match("_i") then
+						if not t.real_max then
+							t.real_max = 0
+						end
+						if not t.real_min then
+							t.real_min = 0
+						end
+						if not t.real_mod then
+							t.real_mod = 1
+						end
+						if not t.real_value then
+							t.real_value = 0
+						end
+						stuff.rawset(t, "real_value", t.real_value > t.real_max and t.real_max or t.real_value < t.real_min and t.real_min or t.real_value)
+					end
 					if t["table_"..k] then
+						local is_int = stuff.type_id.id_to_name[t.type]:match("_i") and true or false
 						for i, e in pairs(t["table_"..k]) do
 							t["table_"..k][i] = v
+							if is_int then
+								t["table_value"][i] = t["table_value"][i] > t["table_max"][i] and t["table_max"][i] or t["table_value"][i] < t["table_min"][i] and t["table_min"][i] or t["table_value"][i]
+							end
 						end
 					end
 				elseif stuff.type_id.id_to_name[t.type]:match("_f") then
 					stuff.rawset(t, "real_"..k, v)
+					if not t.real_max then
+						t.real_max = 0
+					end
+					if not t.real_min then
+						t.real_min = 0
+					end
+					if not t.real_mod then
+						t.real_mod = 1
+					end
+					if not t.real_value then
+						t.real_value = 0
+					end
+					stuff.rawset(t, "real_value", t.real_value > t.real_max and t.real_max or t.real_value < t.real_min and t.real_min or t.real_value)
 
 					if t["table_"..k] then
 						for i, e in pairs(t["table_"..k]) do
 							t["table_"..k][i] = v
+							t["table_value"][i] = t["table_value"][i] > t["table_max"][i] and t["table_max"][i] or t["table_value"][i] < t["table_min"][i] and t["table_min"][i] or t["table_value"][i]
 						end
 					end
 				end
@@ -635,30 +666,49 @@ function loadCurrentMenu()
 				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
 
-				if t.real_min then
-					if v < t.real_min then
-						v = t.real_min
-					end
-				else
+				if stuff.type_id.id_to_name[t.type]:match("value_str") then
 					if v < 0 then
 						v = 0
-					end
-				end
-				if t.real_max then
-					if v > t.real_max then
-						v = t.real_max
-					end
-				elseif t.real_str_data then
-					if v+1 > #t.real_str_data then
-						v = #t.real_str_data-1
+					elseif t.real_str_data then
+						if v+1 > #t.real_str_data and #t.real_str_data ~= 0 then
+							v = #t.real_str_data-1
+						end
 					end
 				end
 
 				if stuff.type_id.id_to_name[t.type]:match("_i") or stuff.type_id.id_to_name[t.type]:match("value_str") then
 					v = math.floor(v)
 					t["table_"..k][t.pid] = v
+					if stuff.type_id.id_to_name[t.type]:match("_i") then
+						if not t.real_max then
+							t.real_max = 0
+						end
+						if not t.real_min then
+							t.real_min = 0
+						end
+						if not t.real_mod then
+							t.real_mod = 1
+						end
+						if not t.real_value then
+							t.real_value = 0
+						end
+						t["table_value"][t.pid] = t["table_value"][t.pid] > t["table_max"][t.pid] and t["table_max"][t.pid] or t["table_value"][t.pid] < t["table_min"][t.pid] and t["table_min"][t.pid] or t["table_value"][t.pid]
+					end
 				elseif stuff.type_id.id_to_name[t.type]:match("_f") then
 					t["table_"..k][t.pid] = v
+					if not t.real_max then
+						t.real_max = 0
+					end
+					if not t.real_min then
+						t.real_min = 0
+					end
+					if not t.real_mod then
+						t.real_mod = 1
+					end
+					if not t.real_value then
+						t.real_value = 0
+					end
+					t["table_value"][t.pid] = t["table_value"][t.pid] > t["table_max"][t.pid] and t["table_max"][t.pid] or t["table_value"][t.pid] < t["table_min"][t.pid] and t["table_min"][t.pid] or t["table_value"][t.pid]
 				end
 			elseif k == "data" then
 				t.real_data = v
@@ -938,6 +988,7 @@ function loadCurrentMenu()
 			currentParent[#currentParent].on = false
 		end
 		if TypeOfFeat:match(".*value_str.*") then
+			currentParent[#currentParent].real_str_data = {}
 			if playerFeat then
 				currentParent[#currentParent].table_value = {}
 				for i = 0, 31 do
@@ -945,24 +996,23 @@ function loadCurrentMenu()
 				end
 			end
 			currentParent[#currentParent].value = 0
-			currentParent[#currentParent].real_str_data = {}
 		elseif TypeOfFeat:match(".*value") then
 			if playerFeat then
-				currentParent[#currentParent].table_value = {}
 				currentParent[#currentParent].table_max = {}
 				currentParent[#currentParent].table_min = {}
 				currentParent[#currentParent].table_mod = {}
+				currentParent[#currentParent].table_value = {}
 				for i = 0, 31 do
-					currentParent[#currentParent].table_value[i] = 0
 					currentParent[#currentParent].table_max[i] = 0
 					currentParent[#currentParent].table_min[i] = 0
 					currentParent[#currentParent].table_mod[i] = 1
+					currentParent[#currentParent].table_value[i] = 0
 				end
 			end
-			currentParent[#currentParent].value = 0
 			currentParent[#currentParent].max = 0
 			currentParent[#currentParent].min = 0
 			currentParent[#currentParent].mod = 1
+			currentParent[#currentParent].value = 0
 		end
 		currentParent[#currentParent].hidden = false
 		currentParent[#currentParent]["func"] = functionCallback
@@ -1516,6 +1566,9 @@ function loadCurrentMenu()
 		else
 			stuff.maxDrawScroll = 0
 		end
+		if stuff.drawScroll > stuff.maxDrawScroll then
+			stuff.drawScroll = stuff.maxDrawScroll
+		end
 		if stuff.scroll > #currentMenu - stuff.drawHiddenOffset then
 			stuff.scroll = #currentMenu - stuff.drawHiddenOffset
 		elseif stuff.scroll < 1 and #currentMenu > 0 then
@@ -1807,7 +1860,6 @@ function loadCurrentMenu()
 			stuff.playerIds[pid].name = player.get_player_name(pid)
 			if stuff.playerIds[pid].hidden then
 				stuff.playerIds[pid].hidden = false
-				stuff.playerIds[pid].name = player.get_player_name(pid)
 				func.reset_player_submenu(pid)
 			end
 			system.wait(0)
@@ -2517,4 +2569,7 @@ function loadCurrentMenu()
 	cheeseUIdata = stuff.menuData
 	--
 	func.set_player_feat_parent("Online Players", 0)
+end
+if httpTrustedOff then
+	loadCurrentMenu()
 end
