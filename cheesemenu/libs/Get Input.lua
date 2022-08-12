@@ -232,32 +232,15 @@ gginput.char_codes = {
 
 --Functions
 
-	-- Credits to Proddy for this function
-	gginput.Keys = {}
-	function gginput.get_key(...)
-		local args = {...}
-		assert(#args > 0, "must give at least one key")
-		local ID = table.concat(args, "|")
-		if not gginput.Keys[ID] then
-			local key = MenuKey()
-			for i=1,#args do
-			key:push_vk(args[i])
-			end
-			gginput.Keys[ID] = key
-		end
-
-		return gginput.Keys[ID]
-	end
-
 	function gginput.do_key(key, pressed, funcPressed, ...)
-		if gginput.get_key(key):is_down() and ((utils.time_ms() > pressed[key]) or (pressed[key] == 0)) then
+		if cheeseUtils.get_key(key):is_down() and ((utils.time_ms() > pressed[key]) or (pressed[key] == 0)) then
 			funcPressed(...)
 			if pressed[key] == 0 then
 				pressed[key] = utils.time_ms() + 500
 			else
 				pressed[key] = utils.time_ms() + 30
 			end
-		elseif not gginput.get_key(key):is_down() then
+		elseif not cheeseUtils.get_key(key):is_down() then
 			pressed[key] = 0
 		end
 	end
@@ -330,7 +313,7 @@ gginput.char_codes = {
 	end
 
 	function gginput.disableESC()
-		while gginput.get_key(0x1B):is_down() do
+		while cheeseUtils.get_key(0x1B):is_down() do
 			controls.disable_control_action(0, 200, true)
 			system.wait(0)
 		end
@@ -338,7 +321,7 @@ gginput.char_codes = {
 	end
 
 	function gginput.moveCursorRight(inputTable, moveAmount)
-		if gginput.get_key(0x11):is_down() then
+		if cheeseUtils.get_key(0x11):is_down() then
 			for i = inputTable.cursor+1, #inputTable.string do
 				if inputTable.string[i] == " " then
 					if i == inputTable.cursor+1 then
@@ -363,7 +346,7 @@ gginput.char_codes = {
 		end
 	end
 	function gginput.moveCursorLeft(inputTable, moveAmount)
-		if gginput.get_key(0x11):is_down() then
+		if cheeseUtils.get_key(0x11):is_down() then
 			for i = inputTable.cursor, 2, -1 do
 				if inputTable.string[i] == " " then
 					if i == inputTable.cursor then
@@ -389,7 +372,7 @@ gginput.char_codes = {
 	end
 
 	function gginput.write_char(keyTable, inputTable)
-		if gginput.get_key(0x10):is_down() then
+		if cheeseUtils.get_key(0x10):is_down() then
 			if inputTable.cursor == #inputTable.string then
 				inputTable.string[#inputTable.string+1] = keyTable[2] or keyTable[1]:upper()
 			else
@@ -407,6 +390,7 @@ gginput.char_codes = {
 	end
 
 	function gginput.paste(stringInput, inputTable)
+		stringInput = tostring(stringInput)
 		if inputTable.cursor == #inputTable.string then
 			for char in stringInput:gmatch(".") do
 				if #inputTable.string-1 ~= inputTable.limit then
@@ -448,7 +432,7 @@ gginput.char_codes = {
 	end
 
 	function gginput.delete(inputTable)
-		if gginput.get_key(0x11):is_down() then
+		if cheeseUtils.get_key(0x11):is_down() then
 			local range_start
 			for i = inputTable.cursor, 1, -1 do
 				if inputTable.string[i] == " " then
@@ -494,13 +478,14 @@ gginput.char_codes = {
 		local pressed = {}
 
 		for k, v in pairs(gginput.char_codes[1]) do
-			if gginput.get_key(k):is_down() then
+			if cheeseUtils.get_key(k):is_down() then
 				pressed[k] = utils.time_ms() + 2000
 			else
 				pressed[k] = 0
 			end
 		end
 
+		inputtype = tonumber(inputtype)
 		inputtype = (inputtype <= 5 and inputtype >= 0) and inputtype or 0
 		inputtype = inputtype + 1
 		local charTable = gginput.char_codes[inputtype]
@@ -518,30 +503,30 @@ gginput.char_codes = {
 		inputTable.string = {""}
 		inputTable.state = 1
 		inputTable.cursor = 1
-		inputTable.title = title
-		inputTable.limit = len or 25
+		inputTable.title = tostring(title)
+		inputTable.limit = tonumber(len) or 25
 
 		gginput.paste(default, inputTable)
 
 		gginput.drawStuff.text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.6+0.2
 
 		local drawThread = menu.create_thread(gginput.draw_thread, inputTable)
-		while gginput.get_key(0x0D):is_down() do
+		while cheeseUtils.get_key(0x0D):is_down() do
 			system.wait()
 		end
-		while not (gginput.get_key(0x0D):is_down() or gginput.get_key(0x1B):is_down()) do
+		while not (cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down()) do
 			for k, v in pairs(charTable) do
-				if not gginput.get_key(0x11):is_down() and #inputTable.string-1 ~= len then
+				if not cheeseUtils.get_key(0x11):is_down() and #inputTable.string-1 ~= len then
 					gginput.do_key(k, pressed, gginput.write_char, v, inputTable)
 				end
 			end
 
-			if gginput.get_key(0x11, 0x56):is_down() then
+			if cheeseUtils.get_key(0x11, 0x56):is_down() then
 				gginput.paste(utils.from_clipboard():gsub("[\r\n]", " "):gsub(pasteCheck, ""), inputTable)
-				while gginput.get_key(0x11, 0x56):is_down() do
+				while cheeseUtils.get_key(0x11, 0x56):is_down() do
 					system.wait()
 				end
-			elseif gginput.get_key(0x11, 0x43):is_down() then
+			elseif cheeseUtils.get_key(0x11, 0x43):is_down() then
 				utils.to_clipboard(table.concat(inputTable.string))
 			end
 
@@ -553,8 +538,8 @@ gginput.char_codes = {
 
 		gginput.disableESC()
 
-		local success = gginput.get_key(0x0D):is_down()
-		while gginput.get_key(0x0D):is_down() do
+		local success = cheeseUtils.get_key(0x0D):is_down()
+		while cheeseUtils.get_key(0x0D):is_down() do
 			system.wait(0)
 		end
 		menu.delete_thread(drawThread)
