@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.9.3"
+local version = "1.6.9.4
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -1300,32 +1300,14 @@ function loadCurrentMenu()
 		return stuff.player_feature_by_id[id]
 	end
 
-
-	-- Huge thanks to Proddy for this function and for telling me of ways to improve this script
-	stuff.Keys = {}
-	function func.get_key(...)
-	    local args = {...}
-	    assert(#args > 0, "must give at least one key")
-	    local ID = table.concat(args, "|")
-	    if not stuff.Keys[ID] then
-	        local key = MenuKey()
-	        for i=1,#args do
-	           key:push_vk(args[i])
-	        end
-	        stuff.Keys[ID] = key
-	    end
-
-	    return stuff.Keys[ID]
-	end
-
 	function func.do_key(time, key, doLoopedFunction, functionToDo)
-		if func.get_key(key):is_down() then
+		if cheeseUtils.get_key(key):is_down() then
 			functionToDo()
 			local timer = utils.time_ms() + time
-			while timer > utils.time_ms() and func.get_key(key):is_down() do
+			while timer > utils.time_ms() and cheeseUtils.get_key(key):is_down() do
 				system.wait(0)
 			end
-			while timer < utils.time_ms() and func.get_key(key):is_down() do
+			while timer < utils.time_ms() and cheeseUtils.get_key(key):is_down() do
 				if doLoopedFunction then
 					functionToDo()
 				end
@@ -1683,11 +1665,11 @@ function loadCurrentMenu()
 		local current_key
 		local excludedkeys = {}
 		while not keyTable[1] do
-			if func.get_key(0x1B):is_down() then
+			if cheeseUtils.get_key(0x1B):is_down() then
 				return "escaped"
 			end
 			for k, v in pairs(stuff.char_codes) do
-				if func.get_key(v):is_down() then
+				if cheeseUtils.get_key(v):is_down() then
 					if v ~= 0x0D or singlekey  then
 						if v ~= 0xA0 and v ~= 0xA1 and v ~= 0xA2 and v ~= 0xA3 and v ~= 0xA4 and v ~= 0xA5 and not singlekey then
 							keyTable[1] = "NOMOD"
@@ -1707,9 +1689,9 @@ function loadCurrentMenu()
 		end
 
 		if not singlekey then
-			while func.get_key(current_key):is_down() do
+			while cheeseUtils.get_key(current_key):is_down() do
 				for k, v in pairs(stuff.char_codes) do
-					if func.get_key(v):is_down() and not excludedkeys[v] and v ~= 0xA0 and v ~= 0xA1 and v ~= 0xA2 and v ~= 0xA3 and v ~= 0xA4 and v ~= 0xA5 then
+					if cheeseUtils.get_key(v):is_down() and not excludedkeys[v] and v ~= 0xA0 and v ~= 0xA1 and v ~= 0xA2 and v ~= 0xA3 and v ~= 0xA4 and v ~= 0xA5 then
 						excludedkeys[v] = true
 						keyTable[#keyTable + 1] = k
 						vkTable[#vkTable+1] = v
@@ -1718,16 +1700,16 @@ function loadCurrentMenu()
 				system.wait(0)
 			end
 
-			while not func.get_key(0x1B):is_down() and not func.get_key(0x0D):is_down() do
+			while not cheeseUtils.get_key(0x1B):is_down() and not cheeseUtils.get_key(0x0D):is_down() do
 				for k, v in pairs(stuff.char_codes) do
-					if func.get_key(v):is_down() then
+					if cheeseUtils.get_key(v):is_down() then
 						return false
 					end
 				end
 				system.wait(0)
 			end
 
-			return func.get_key(0x0D):is_down() or "escaped"
+			return cheeseUtils.get_key(0x0D):is_down() or "escaped"
 		end
 	end
 
@@ -1751,7 +1733,7 @@ function loadCurrentMenu()
 
 		local drawThread = menu.create_thread(func.draw_hotkey, keyTable)
 
-		while func.get_key(stuff.vkcontrols.setHotkey):is_down() do
+		while cheeseUtils.get_key(stuff.vkcontrols.setHotkey):is_down() do
 			system.wait(0)
 		end
 
@@ -1781,7 +1763,7 @@ function loadCurrentMenu()
 		end
 
 		menu.delete_thread(drawThread)
-		while func.get_key(0x0D):is_down() or func.get_key(0x1B):is_down() do -- enter and esc
+		while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() do -- enter and esc
 			controls.disable_control_action(0, 200, true)
 			system.wait(0)
 		end
@@ -1870,7 +1852,7 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.setHotkey, false, function() -- F11
-					if func.get_key(0x10):is_down() and stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
+					if cheeseUtils.get_key(0x10):is_down() and stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
 						stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey][currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hierarchy_key] = nil
 						if not next(stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey]) then
 							stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] = nil
@@ -1878,9 +1860,9 @@ function loadCurrentMenu()
 						currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey = nil
 						gltw.write(stuff.hotkeys, "hotkeys", stuff.path.hotkeys, nil, true)
 						menu.notify("Removed "..currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey")
-					elseif func.get_key(0x11):is_down() then
+					elseif cheeseUtils.get_key(0x11):is_down() then
 						menu.notify(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey is "..(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey or "none"))
-					elseif not func.get_key(0x10, 0x11):is_down() then
+					elseif not cheeseUtils.get_key(0x10, 0x11):is_down() then
 						if stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
 							stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey][currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hierarchy_key] = nil
 						end
@@ -1960,7 +1942,7 @@ function loadCurrentMenu()
 							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
 								currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 							end
-							while func.get_key(stuff.vkcontrols.select):is_down() do
+							while cheeseUtils.get_key(stuff.vkcontrols.select):is_down() do
 								system.wait(0)
 							end
 						elseif stuff.type_id.id_to_name[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type]:match(".*action.*") and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
@@ -2065,8 +2047,8 @@ function loadCurrentMenu()
 		while true do
 			if native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not stuff.menuData.chatBoxOpen then
 				for k, v in pairs(stuff.hotkeys) do
-					local hotkey = func.get_key(table.unpack(stuff.hotkeys_to_vk[k]))
-					if hotkey:is_down() and (not (func.get_key(0x10):is_down() or func.get_key(0x11):is_down() or func.get_key(0x12):is_down()) or not (k:match("NOMOD"))) and utils.time_ms() > stuff.hotkey_cooldowns[k] then
+					local hotkey = cheeseUtils.get_key(table.unpack(stuff.hotkeys_to_vk[k]))
+					if hotkey:is_down() and (not (cheeseUtils.get_key(0x10):is_down() or cheeseUtils.get_key(0x11):is_down() or cheeseUtils.get_key(0x12):is_down()) or not (k:match("NOMOD"))) and utils.time_ms() > stuff.hotkey_cooldowns[k] then
 						for k, v in pairs(stuff.hotkeys[k]) do
 							if stuff.hotkey_feature_hierarchy_keys[k] then
 								for k, v in pairs(stuff.hotkey_feature_hierarchy_keys[k]) do
@@ -2107,10 +2089,12 @@ function loadCurrentMenu()
 		local status, name = input.get("name of ui", "", 25, 0)
 		if status == 0 then
 			func.save_ui(name)
+			stuff.menuData.files.ui[#stuff.menuData.files.ui+1] = name
+			menu_configuration_features.load_ui:set_str_data(stuff.menuData.files.ui)
 		end
 	end)
 
-	menu.add_feature("Load UI", "action_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
+	menu_configuration_features.load_ui = menu.add_feature("Load UI", "action_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
 		func.load_ui(f.str_data[f.value + 1])
 
 		menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
@@ -2161,10 +2145,11 @@ function loadCurrentMenu()
 			end
 		end
 
-	end):set_str_data(stuff.menuData.files.ui)
+	end)
+	menu_configuration_features.load_ui:set_str_data(stuff.menuData.files.ui)
 
 	menu_configuration_features.menuXfeat = menu.add_feature("Menu pos X", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
 				stuff.menuData.x = num/graphics.get_screen_height()
@@ -2179,7 +2164,7 @@ function loadCurrentMenu()
 	menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
 
 	menu_configuration_features.menuYfeat = menu.add_feature("Menu pos Y", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
 				stuff.menuData.y = num/graphics.get_screen_height()
@@ -2258,7 +2243,7 @@ function loadCurrentMenu()
 	for k, v in pairs(stuff.controls) do
 		menu.add_feature(k, "action_value_str", menu_configuration_features.controls.id, function(f)
 			for k, v in pairs(stuff.char_codes) do
-				while func.get_key(v):is_down() do
+				while cheeseUtils.get_key(v):is_down() do
 					system.wait(0)
 				end
 			end
@@ -2285,7 +2270,7 @@ function loadCurrentMenu()
 
 		-- Offset
 		menu_configuration_features.side_window_offsetx = menu.add_feature("X Offset", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					stuff.menuData.side_window.offset.x = num/graphics.get_screen_height()
@@ -2300,7 +2285,7 @@ function loadCurrentMenu()
 		menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
 
 		menu_configuration_features.side_window_offsety = menu.add_feature("Y Offset", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					stuff.menuData.side_window.offset.y = num/graphics.get_screen_height()
@@ -2316,7 +2301,7 @@ function loadCurrentMenu()
 
 		-- Spacing
 		menu_configuration_features.side_window_spacing = menu.add_feature("Spacing", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					stuff.menuData.side_window.spacing = num/graphics.get_screen_height()
@@ -2332,7 +2317,7 @@ function loadCurrentMenu()
 
 		-- Padding
 		menu_configuration_features.side_window_padding = menu.add_feature("Padding", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					stuff.menuData.side_window.padding = num/graphics.get_screen_height()
@@ -2348,7 +2333,7 @@ function loadCurrentMenu()
 
 		-- Width
 		menu_configuration_features.side_window_width = menu.add_feature("Width", "autoaction_value_i", menu_configuration_features.side_window.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					stuff.menuData.side_window.width = num/graphics.get_screen_height()
@@ -2383,7 +2368,7 @@ function loadCurrentMenu()
 	end)
 
 	menu_configuration_features.backgroundoffsetx = menu.add_feature("Background pos X", "autoaction_value_i", menu_configuration_features.backgroundparent.id, function(f)
-		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
 				stuff.menuData.background_sprite.offset.x = num/graphics.get_screen_width()
@@ -2398,7 +2383,7 @@ function loadCurrentMenu()
 	menu_configuration_features.backgroundoffsetx.value = math.floor(stuff.menuData.background_sprite.offset.x*graphics.get_screen_width())
 
 	menu_configuration_features.backgroundoffsety = menu.add_feature("Background pos Y", "autoaction_value_i", menu_configuration_features.backgroundparent.id, function(f)
-		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
 				stuff.menuData.background_sprite.offset.y = num/graphics.get_screen_height()
@@ -2422,7 +2407,7 @@ function loadCurrentMenu()
 	menu_configuration_features.footer = menu.add_feature("Footer", "parent", menu_configuration_features.cheesemenuparent.id)
 
 	menu_configuration_features.footer_size = menu.add_feature("Footer Size", "autoaction_value_i", menu_configuration_features.footer.id, function(f)
-		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
 				stuff.menuData.footer.footer_size = num/graphics.get_screen_height()
@@ -2437,7 +2422,7 @@ function loadCurrentMenu()
 	menu_configuration_features.footer_size.value = math.floor(stuff.menuData.footer.footer_size*graphics.get_screen_height())
 
 	menu_configuration_features.padding = menu.add_feature("Padding", "autoaction_value_i", menu_configuration_features.footer.id, function(f)
-		if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
 				stuff.menuData.footer.padding = num/graphics.get_screen_width()
@@ -2484,7 +2469,7 @@ function loadCurrentMenu()
 		menu_configuration_features[k] = {}
 		local vParent = menu.add_feature(k, "parent", colorParent.id)
 		menu_configuration_features[k].r = menu.add_feature("Red", "autoaction_value_i", vParent.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					f.value = num
@@ -2499,7 +2484,7 @@ function loadCurrentMenu()
 			menu_configuration_features[k].r.value = func.convert_int_to_rgba(v, "r")
 		end
 		menu_configuration_features[k].g = menu.add_feature("Green", "autoaction_value_i", vParent.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					f.value = num
@@ -2514,7 +2499,7 @@ function loadCurrentMenu()
 			menu_configuration_features[k].g.value = func.convert_int_to_rgba(v, "g")
 		end
 		menu_configuration_features[k].b = menu.add_feature("Blue", "autoaction_value_i", vParent.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					f.value = num
@@ -2529,7 +2514,7 @@ function loadCurrentMenu()
 			menu_configuration_features[k].b.value = func.convert_int_to_rgba(v, "b")
 		end
 		menu_configuration_features[k].a = menu.add_feature("Alpha", "autoaction_value_i", vParent.id, function(f)
-			if func.get_key(0x65):is_down() or func.get_key(0x0D):is_down() then
+			if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 				local stat, num = input.get("num", "", 10, 3)
 				if stat == 0 and tonumber(num) then
 					f.value = num
