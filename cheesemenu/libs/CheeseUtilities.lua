@@ -66,4 +66,21 @@ function cheeseUtils.draw_outline(v2pos, v2size, color, thickness)
     )
 end
 
+-- Credit to Proddy for this function
+cheeseUtils.Keys = {}
+function cheeseUtils.get_key(...)
+	local args = {...}
+	assert(#args > 0, "must give at least one key")
+	local ID = table.concat(args, "|")
+	if not cheeseUtils.Keys[ID] then
+		local key = MenuKey()
+		for i=1,#args do
+		   key:push_vk(args[i])
+		end
+		cheeseUtils.Keys[ID] = key
+	end
+
+	return cheeseUtils.Keys[ID]
+end
+
 return cheeseUtils
