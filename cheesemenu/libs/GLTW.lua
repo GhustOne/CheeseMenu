@@ -89,6 +89,7 @@ function gltw.read(name, path, addToTable, overrideError)
 		local readTable = dofile(path..name..".lua")
 		assert(readTable, "file not found")
 		gltw.add_to_table(readTable, addToTable)
+		return readTable
 	else
 		return dofile(path..name..".lua")
 	end

@@ -1386,7 +1386,10 @@ function loadCurrentMenu()
 	end
 	gltw.read("default", stuff.path.ui, stuff.menuData, true)
 	function func.load_ui(name)
-		gltw.read(name, stuff.path.ui, stuff.menuData)
+		local uiTable = gltw.read(name, stuff.path.ui, stuff.menuData)
+		if uiTable then
+			return uiTable.header, uiTable.background_sprite.sprite
+		end
 	end
 
 	stuff.drawFeatParams = {
@@ -2106,7 +2109,15 @@ function loadCurrentMenu()
 	end)
 
 	menu_configuration_features.load_ui = menu.add_feature("Load UI", "action_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
-		func.load_ui(f.str_data[f.value + 1])
+		local header, bgSprite = func.load_ui(f.str_data[f.value + 1])
+		if not header then
+			menu_configuration_features.headerfeat.value = 0
+			menu_configuration_features.headerfeat:toggle()
+		end
+		if not bgSprite then
+			menu_configuration_features.backgroundfeat.value = 0
+			menu_configuration_features.backgroundfeat:toggle()
+		end
 
 		menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
 		menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
