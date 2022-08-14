@@ -2,5 +2,5 @@ Memoizing v2s thanks to kektram (should reduce stutters)
 Fixed 3 pixel toggle outlines
 Disable hotkeys when input box is open
 Fixed hotkeys not getting set correctly after changing them midway of setting
-v1.6.9.4
+v1.6.9.5
 Small improvements

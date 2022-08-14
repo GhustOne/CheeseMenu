@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.9.4"
+local version = "1.6.9.5"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -426,7 +426,7 @@ function loadCurrentMenu()
 		ipTable[2] = ip >> 16 & 255
 		ipTable[3] = ip >> 8 & 255
 		ipTable[4] = ip & 255
-		
+
 		return table.concat(ipTable, ".")
 	end
 
@@ -881,7 +881,7 @@ function loadCurrentMenu()
 		if not self.hidden then
 			local hiddenOffset = 0
 			for k, v in ipairs(parent_of_feat_wanted) do
-				if type(k) == "number" then 
+				if type(k) == "number" then
 					if v.hidden and not (k > self.index) then
 						hiddenOffset = hiddenOffset + 1
 					end
@@ -1136,11 +1136,13 @@ function loadCurrentMenu()
 
 	function func.set_player_feat_parent(nameOfFeat, parentOfFeat, functionToDo)
 		stuff.PlayerParent = func.add_feature(nameOfFeat, "parent", parentOfFeat, functionToDo)
+		local hierarchy_pattern = stuff.PlayerParent.hierarchy_key..".player_"
 		stuff.playerIds = {}
 			for i = 0, 31 do
 				stuff.playerIds[i] = func.add_feature(tostring(player.get_player_name(i)), "parent", stuff.PlayerParent.id)
 				stuff.playerIds[i].pid = i
 				stuff.playerIds[i].hidden = not player.is_player_valid(i)
+				stuff.playerIds[i].hierarchy_key = hierarchy_pattern..i
 			end
 
 		event.add_event_listener("player_join", function(listener)
@@ -1151,8 +1153,10 @@ function loadCurrentMenu()
 		end)
 		event.add_event_listener("player_leave", function(listener)
 			func.reset_player_submenu(listener.player)
-			stuff.playerIds[listener.player].hidden = true
-			stuff.playerIds[listener.player].name = "nil"
+			if not player.is_player_valid(listener.player) then
+				stuff.playerIds[listener.player].hidden = true
+				stuff.playerIds[listener.player].name = "nil"
+			end
 		end)
 		return stuff.PlayerParent
 	end
@@ -1239,6 +1243,9 @@ function loadCurrentMenu()
 		end
 
 		local feat = stuff.feature_by_id[id]
+		if not feat then
+			return false
+		end
 
 		if feat.thread then
 			if not menu.has_thread_finished(feat.thread) then
@@ -1274,6 +1281,10 @@ function loadCurrentMenu()
 
 
 		local feat = stuff.player_feature_by_id[id]
+		if not feat then
+			return false
+		end
+
 		local parent
 		if feat.parent_id ~= 0 then
 			parent = stuff.player_feature_by_id[feat.parent_id]
@@ -1420,7 +1431,7 @@ function loadCurrentMenu()
 			)
 		end
 		if v.type == stuff.type_id.name_to_id["parent"] then
-			
+
 			scriptdraw.draw_text(
 				v["name"],
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + stuff.drawFeatParams.textOffset.x)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
@@ -1429,7 +1440,7 @@ function loadCurrentMenu()
 				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 				0, 0
 			)
-			
+
 			scriptdraw.draw_text(
 				">>",
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + stuff.drawFeatParams.textOffset.x + stuff.menuData.feature_scale.x - 0.02 - (center/graphics.get_screen_width())/2)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
@@ -1439,7 +1450,7 @@ function loadCurrentMenu()
 				0, 0
 			)
 		elseif stringtype:match(".*action.*") then
-			
+
 			scriptdraw.draw_text(
 				v["name"],
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + stuff.drawFeatParams.textOffset.x + offset - (center/graphics.get_screen_width())/2)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
@@ -1449,7 +1460,7 @@ function loadCurrentMenu()
 				0, 0
 			)
 		elseif stringtype:match(".*toggle.*") then
-			
+
 			cheeseUtils.draw_outline(
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + stuff.drawFeatParams.textOffset.x + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
 				cheeseUtils.memoize.v2(0.015625, 0.0277777777778),
@@ -1457,14 +1468,14 @@ function loadCurrentMenu()
 				2
 			)
 			if v.real_on then
-				
+
 				scriptdraw.draw_rect(
 					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + stuff.drawFeatParams.textOffset.x + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
 					cheeseUtils.memoize.v2(0.0140625, 0.025),
 					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a)
 				)
 			end
-			
+
 			scriptdraw.draw_text(
 				v.name,
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + stuff.drawFeatParams.textOffset.x + 0.011328125 - (center/graphics.get_screen_width())/2)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
@@ -1644,7 +1655,7 @@ function loadCurrentMenu()
 		local rect_height = #table_of_lines*text_spacing+0.07125
 		v2pos.y = v2pos.y-(rect_height/2)
 
-		
+
 		scriptdraw.draw_rect(v2pos, cheeseUtils.memoize.v2(rect_width, rect_height), rect_color)
 
 		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
