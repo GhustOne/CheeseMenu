@@ -5,8 +5,7 @@ local gginput = {
 	indicator_timer = utils.time_ms() + 750,
 	indicator = false,
 	drawStuff = {
-		concatString = "",
-		cachedTableLength = 0,
+		cached_table_length = 0,
 		cached_text_width = 0,
 	}
 }
@@ -269,19 +268,21 @@ gginput.char_codes = {
     end ]]
 
     function gginput.draw_input(inputTable, bg_color, inputbox_color, outline_color, text_color, tableOfPos_Size)
-		if #inputTable.string ~= gginput.cachedTableLength then
+		if #inputTable.string ~= gginput.drawStuff.cached_table_length then
 			gginput.drawStuff.string = table.concat(inputTable.string)
+			gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
 			gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
-			gginput.drawStuff.cachedTableLength = #inputTable.string
+			gginput.drawStuff.cached_table_length = #inputTable.string
 		end
-		if gginput.indicator then
+		local drawString = gginput.indicator and gginput.drawStuff.indicator_string or gginput.drawStuff.string
+		--[[ if gginput.indicator then
 			gginput.drawStuff.string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
-		end
+		end ]]
 
 		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.backround_size, bg_color) -- background
 		cheeseUtils.draw_outline(tableOfPos_Size.middle_pos, tableOfPos_Size.outline_size, outline_color, 2)
 		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.inputBox_size, inputbox_color) -- inputBox
-		scriptdraw.draw_text(gginput.drawStuff.string, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, text_color, 0)
+		scriptdraw.draw_text(drawString, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, text_color, 0)
 		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size+0.4, 0xDC000000 | (text_color & 0xFFFFFF), 0)
 
 		tableOfPos_Size.underscore_pos.x = -0.4609375 + gginput.drawStuff.cached_text_width + 0.0015625
@@ -344,6 +345,8 @@ gginput.char_codes = {
 		elseif not (inputTable.cursor >= #inputTable.string) then
 			inputTable.cursor = inputTable.cursor + moveAmount
 		end
+		gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
+		gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
 	end
 	function gginput.moveCursorLeft(inputTable, moveAmount)
 		if cheeseUtils.get_key(0x11):is_down() then
@@ -369,6 +372,8 @@ gginput.char_codes = {
 		elseif not (inputTable.cursor <= 1) then
 			inputTable.cursor = inputTable.cursor - moveAmount
 		end
+		gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
+		gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
 	end
 
 	function gginput.write_char(keyTable, inputTable)
@@ -548,9 +553,10 @@ gginput.char_codes = {
 		inputTable.string = table.concat(inputTable.string)
 		inputTable.state = success and 0 or 2
 
-		gginput.string = ""
-		gginput.cached_text_width = 0
-		gginput.cachedTableLength = 0
+		gginput.drawStuff.string = ""
+		gginput.drawStuff.indicator_string = ""
+		gginput.drawStuff.cached_text_width = 0
+		gginput.drawStuff.cached_table_length = 0
 
 		return inputTable.state, success and inputTable.string or nil
 	end
