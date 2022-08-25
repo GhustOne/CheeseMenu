@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.9.5"
+local version = "1.6.9.6"
 local loadCurrentMenu
 local httpTrustedOff
 
