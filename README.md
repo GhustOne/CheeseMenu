@@ -26,7 +26,7 @@ Any scripts loaded after will be embedded in cheesemenu
 Controls are in Script Features > Cheese Menu > Controls
 
 ## Customizability
-Cheese menu is quite customizable, it allows mutli frame headers, backgrounds and changing just about any color
+Cheese menu is quite customizable, it allows multi frame headers, backgrounds and changing just about any color
 
 If you wish to use multi frame headers I added an example, fps can go below 1 if you want the header to change every now and then
 
