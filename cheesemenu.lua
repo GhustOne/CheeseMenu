@@ -1909,7 +1909,7 @@ function loadCurrentMenu()
 						menu.notify("Removed "..currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey")
 					elseif cheeseUtils.get_key(0x11):is_down() then
 						menu.notify(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey is "..(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey or "none"))
-					elseif not cheeseUtils.get_key(0x10, 0x11):is_down() then
+					elseif not cheeseUtils.get_key(0x10):is_down() and not cheeseUtils.get_key(0x11):is_down() then
 						if stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
 							stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey][currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hierarchy_key] = nil
 						end
@@ -2099,7 +2099,7 @@ function loadCurrentMenu()
 						for k, v in pairs(stuff.hotkeys[k]) do
 							if stuff.hotkey_feature_hierarchy_keys[k] then
 								for k, v in pairs(stuff.hotkey_feature_hierarchy_keys[k]) do
-									if v.on ~= nil then
+									if v.type & 1 == 1 then
 										v.on = not v.on
 										if stuff.hotkey_notifications.toggle then
 											menu.notify("Turned "..v.name.." "..(v.on and "on" or "off"), "Cheese Menu", 3, func.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
