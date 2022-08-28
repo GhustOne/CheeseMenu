@@ -801,7 +801,7 @@ function loadCurrentMenu()
 		end
 		self.real_str_data = numberedTable or stringTable
 		if self.real_value+1 > #self.real_str_data then
-			self.real_value = #self.real_str_data-1
+			self.real_value = #self.real_str_data-1 >= 0 and #self.real_str_data-1 or 0
 		end
 		if self.feats then
 			for k, v in pairs(self.table_value) do
@@ -2210,6 +2210,7 @@ function loadCurrentMenu()
 
 	menu_configuration_features.feature_offset = menu.add_feature("Feature spacing", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		stuff.menuData.feature_offset = f.value/graphics.get_screen_height()
+		menu_configuration_features.maxfeats:toggle()
 	end)
 	menu_configuration_features.feature_offset.max = graphics.get_screen_height()
 	menu_configuration_features.feature_offset.mod = 1
