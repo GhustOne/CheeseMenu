@@ -268,7 +268,8 @@ function loadCurrentMenu()
 			select = "ENTER",
 			back = "BACKSPACE",
 			open = "F4",
-			setHotkey = "F11"
+			setHotkey = "F11",
+			specialKey = "LCONTROL",
 		},
 		vkcontrols = {
 			left = 0x25,
@@ -278,7 +279,8 @@ function loadCurrentMenu()
 			select = 0x0D,
 			back = 0x08,
 			open = 0x73,
-			setHotkey = 0x7A
+			setHotkey = 0x7A,
+			specialKey = 0xA2,
 		},
 		drawScroll = 0,
 		maxDrawScroll = 0,
@@ -1375,6 +1377,21 @@ function loadCurrentMenu()
 		return id_table[name]
 	end
 
+	function func.selector(feat)
+		local originalmenuToggle = stuff.menuData.menuToggle
+		stuff.menuData.menuToggle = false
+		if feat.str_data then
+			local index, _ = cheeseUtils.selector(nil, feat.real_value + 1, feat.str_data)
+			if index then
+				feat.real_value = index - 1
+			end
+			if feat.type >> 10 & 1 ~= 0 then
+				feat:activate_feat_func()
+			end
+		end
+		stuff.menuData.menuToggle = originalmenuToggle
+	end
+
 	function func.save_ui(name)
 		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "loaded_sprites", "files"})
 	end
@@ -1977,7 +1994,9 @@ function loadCurrentMenu()
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.select, true, function() --enter
 					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 11 & 1 == 1 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
+						if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 5 & 1 ~= 0 then
+							menu.create_thread(func.selector, currentMenu[stuff.scroll + stuff.scrollHiddenOffset])
+						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 11 & 1 == 1 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 							stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
 							currentMenu = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
