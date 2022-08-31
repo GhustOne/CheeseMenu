@@ -530,13 +530,15 @@ function loadCurrentMenu()
 		__index = function(t, k)
 			if k == "is_highlighted" then
 				return t == currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+			elseif k == "parent" then
+				return t.type >> 15 & 1 == 0 and func.get_feature(t.parent_id) or func.get_player_feature(t.parent_id)
 			elseif k == "value" or k == "min" or k == "mod" or k == "max" or k == "str_data" or k == "type" or k == "id" or k == "on" or k == "hidden" or k == "data" then
 				if t.playerFeat and k ~= "str_data" and k ~= "type" and k ~= "id" and k ~= "hidden" and k ~= "data" then
 					return stuff.rawget(t, "table_"..k)
 				else
 					return stuff.rawget(t, "real_"..k)
 				end
-			elseif k == "children" and t.type >> 11 & 1 == 1 then
+			elseif k == "children" and t.type >> 11 & 1 ~= 0 then
 				return t:get_children()
 			else
 				return stuff.rawget(t, k)
@@ -559,14 +561,14 @@ function loadCurrentMenu()
 					end
 				end
 			elseif k == "value" or k == "min" or k == "mod" or k == "max" then
-				if k ~= "value" and t.type >> 5 & 1 == 1 then -- value_str
+				if k ~= "value" and t.type >> 5 & 1 ~= 0 then -- value_str
 					error("max, min and mod are readonly for value_str features")
 				end
-				assert(t.type & 136 ~= 0 or t.type >> 5 & 1 == 1, "feat type not supported: "..t.type) -- value_[if], value_str
+				assert(t.type & 136 ~= 0 or t.type >> 5 & 1 ~= 0, "feat type not supported: "..t.type) -- value_[if], value_str
 				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
 
-				if t.type >> 5 & 1 == 1 then -- value_str
+				if t.type >> 5 & 1 ~= 0 then -- value_str
 					if v < 0 then
 						v = 0
 					elseif t.real_str_data then
@@ -576,11 +578,12 @@ function loadCurrentMenu()
 					end
 				end
 
-				if t.type >> 3 & 1 == 1 or t.type >> 5 & 1 == 1 then -- value_str
+				if t.type >> 3 & 1 ~= 0 or t.type >> 5 & 1 ~= 0 then -- value_str
 					v = math.floor(v)
 
 					stuff.rawset(t, "real_"..k, v)
-					if t.type >> 3 & 1 == 1 then
+					if t.type >> 3 & 1 ~= 0 then
+
 						if not t.real_max then
 							t.real_max = 0
 						end
@@ -593,10 +596,11 @@ function loadCurrentMenu()
 						if not t.real_value then
 							t.real_value = 0
 						end
+
 						stuff.rawset(t, "real_value", t.real_value > t.real_max and t.real_max or t.real_value < t.real_min and t.real_min or t.real_value)
 					end
 					if t["table_"..k] then
-						local is_int = t.type >> 3 & 1 == 1 and true or false
+						local is_int = t.type >> 3 & 1 ~= 0 and true or false
 						for i, e in pairs(t["table_"..k]) do
 							t["table_"..k][i] = v
 							if is_int then
@@ -604,8 +608,9 @@ function loadCurrentMenu()
 							end
 						end
 					end
-				elseif t.type >> 7 & 1 == 1 then
+				elseif t.type >> 7 & 1 ~= 0 then
 					stuff.rawset(t, "real_"..k, v)
+
 					if not t.real_max then
 						t.real_max = 0
 					end
@@ -618,6 +623,7 @@ function loadCurrentMenu()
 					if not t.real_value then
 						t.real_value = 0
 					end
+
 					stuff.rawset(t, "real_value", t.real_value > t.real_max and t.real_max or t.real_value < t.real_min and t.real_min or t.real_value)
 
 					if t["table_"..k] then
@@ -650,12 +656,16 @@ function loadCurrentMenu()
 		__index = function(t, k)
 			if k == "is_highlighted" then
 				return t == currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+			elseif k == "parent" then
+				return func.get_player_feature(t.parent_id)
 			elseif k == "str_data" or k == "type" or k == "id" or k == "data" or k == "hidden" then
 				return stuff.rawget(t, "real_"..k)
 			elseif stuff.playerSpecialValues[k] then
 				if t["table_"..k:gsub("real_", "")] then
 					return t["table_"..k:gsub("real_", "")][t.pid]
 				end
+			elseif k == "children" and t.type >> 11 & 1 ~= 0 then
+				return t:get_children()
 			else
 				return stuff.rawget(t, k)
 			end
@@ -664,21 +674,20 @@ function loadCurrentMenu()
 		__newindex = function(t, k, v)
 			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "is_highlighted", "'"..k.."' is read only")
 			if (k == "on" or k == "real_on") and type(v) == "boolean" then
-				print(t.type)
 				t["table_on"][t.pid] = v
 				if v then
 					t:activate_feat_func()
 				end
 			elseif stuff.playerSpecialValues[k] then
 				k = k:gsub("real_", "")
-				if k ~= "value" and t.type >> 5 & 1 == 1 then
+				if k ~= "value" and t.type >> 5 & 1 ~= 0 then
 					error("max, min and mod are readonly for value_str features")
 				end
-				assert(t.type & 136 ~= 0 or t.type >> 5 & 1 == 1, "feat type not supported")
+				assert(t.type & 136 ~= 0 or t.type >> 5 & 1 ~= 0, "feat type not supported")
 				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
 
-				if t.type >> 5 & 1 == 1 then
+				if t.type >> 5 & 1 ~= 0 then
 					if v < 0 then
 						v = 0
 					elseif t.real_str_data then
@@ -688,10 +697,12 @@ function loadCurrentMenu()
 					end
 				end
 
-				if t.type >> 3 & 1 == 1 or t.type >> 5 & 1 == 1 then
+				if t.type >> 3 & 1 ~= 0 or t.type >> 5 & 1 ~= 0 then
 					v = math.floor(v)
 					t["table_"..k][t.pid] = v
-					if t.type >> 3 & 1 == 1 then
+
+					if t.type >> 3 & 1 ~= 0 then
+
 						if not t.real_max then
 							t.real_max = 0
 						end
@@ -704,10 +715,12 @@ function loadCurrentMenu()
 						if not t.real_value then
 							t.real_value = 0
 						end
+
 						t["table_value"][t.pid] = t["table_value"][t.pid] > t["table_max"][t.pid] and t["table_max"][t.pid] or t["table_value"][t.pid] < t["table_min"][t.pid] and t["table_min"][t.pid] or t["table_value"][t.pid]
 					end
-				elseif t.type >> 7 & 1 == 1 then
+				elseif t.type >> 7 & 1 ~= 0 then
 					t["table_"..k][t.pid] = v
+
 					if not t.real_max then
 						t.real_max = 0
 					end
@@ -720,6 +733,7 @@ function loadCurrentMenu()
 					if not t.real_value then
 						t.real_value = 0
 					end
+
 					t["table_value"][t.pid] = t["table_value"][t.pid] > t["table_max"][t.pid] and t["table_max"][t.pid] or t["table_value"][t.pid] < t["table_min"][t.pid] and t["table_min"][t.pid] or t["table_value"][t.pid]
 				end
 			elseif k == "data" then
@@ -785,7 +799,7 @@ function loadCurrentMenu()
 	end ]]
 
 	stuff.get_str_data = function(self)
-		assert(self.type >> 5 & 1 == 1, "used get_str_data on a feature that isn't value_str")
+		assert(self.type >> 5 & 1 ~= 0, "used get_str_data on a feature that isn't value_str")
 		return self.str_data
 	end
 
@@ -818,7 +832,7 @@ function loadCurrentMenu()
 	end
 
 	stuff.toggle = function(self, bool)
-		if self.type & 1 == 1 then
+		if self.type & 1 ~= 0 then
 			if bool ~= nil then
 				self.real_on = bool
 				self:activate_feat_func()
@@ -935,26 +949,19 @@ function loadCurrentMenu()
 		assert((type(TypeOfFeat) == "string") and stuff.type_id.name_to_id[TypeOfFeat], "invalid type in add_feature")
 		assert((type(parentOfFeat) == "number") or not parentOfFeat, "invalid parent id in add_feature")
 		assert((type(functionCallback) == "function") or not functionCallback, "invalid function in add_feature")
-		if not parentOfFeat then
-			parentOfFeat = 0
-		end
+		playerFeat = playerFeat or false
+		parentOfFeat = parentOfFeat or 0
 		TypeOfFeat = TypeOfFeat:gsub("slider", "value_f")
-		local currentParent = features
-		if playerFeat then
-			currentParent = features["OnlinePlayers"]
-		end
+		local currentParent = playerFeat and features["OnlinePlayers"] or features
 
 		local hierarchy_key
 		if parentOfFeat ~= 0 and parentOfFeat then
-			if playerFeat then
-				currentParent = stuff.player_feature_by_id[parentOfFeat]
-			else
-				currentParent = stuff.feature_by_id[parentOfFeat]
-			end
+			currentParent = playerFeat and stuff.player_feature_by_id[parentOfFeat] or stuff.feature_by_id[parentOfFeat]
 			if currentParent then
-				assert(currentParent.type >> 11 & 1 == 1, "parent is not a parent feature")
+				assert(currentParent.type >> 11 & 1 ~= 0, "parent is not a parent feature")
+				assert(currentParent.type >> 15 & 1 ~= 0 == playerFeat, "parent is not valid "..((currentParent.type >> 15 & 1 ~= 0 and not playerFeat) and "using player feature as parent for a local feature" or (currentParent.type >> 15 & 1 == 0 and playerFeat and "using local parent for player feature") or "unknown"))
 			else
-				error("parent is not valid "..((stuff.player_feature_by_id[parentOfFeat] and not playerFeat) and "using player feature as parent for a local feature" or (stuff.feature_by_id[parentOfFeat] and playerFeat and "using local parent for player feature") or "parent does not exist"))
+				error("parent does not exist")
 			end
 		end
 		if currentParent.hierarchy_key then
@@ -963,7 +970,7 @@ function loadCurrentMenu()
 			hierarchy_key = nameOfFeat:gsub("[ %.]", "_")
 		end
 
-		currentParent[#currentParent + 1] = {name = nameOfFeat, real_type = stuff.type_id.name_to_id[TypeOfFeat] | (playerFeat and 1 << 15 or 0), real_id = 0, parent = {id = currentParent.id or 0}, parent_id = currentParent.id or 0, playerFeat = playerFeat, index = #currentParent + 1}
+		currentParent[#currentParent + 1] = {name = nameOfFeat, real_type = stuff.type_id.name_to_id[TypeOfFeat] | (playerFeat and 1 << 15 or 0), real_id = 0, --[[parent = {id = currentParent.id or 0},]] parent_id = currentParent.id or 0, playerFeat = playerFeat, index = #currentParent + 1}
 		local feat = currentParent[#currentParent]
 		feat.activate_feat_func = stuff.activate_feat_func
 		feat.activate_hl_func = stuff.activate_hl_func
@@ -974,7 +981,7 @@ function loadCurrentMenu()
 		feat.select = stuff.select
 		setmetatable(feat, stuff.featMetaTable)
 		feat.thread = 0
-		if feat.real_type & 1 == 1 or feat.real_type >> 9 & 1 == 1 then -- toggle
+		--if feat.real_type & 1 ~= 0 or feat.real_type >> 9 & 1 ~= 0 then -- toggle
 			if playerFeat then
 				feat.table_on = {}
 				for i = 0, 31 do
@@ -982,8 +989,8 @@ function loadCurrentMenu()
 				end
 			end
 			feat.on = false
-		end
-		if feat.real_type >> 5 & 1 == 1 then -- value_str
+		--end
+		if feat.real_type >> 5 & 1 ~= 0 then -- value_str
 			feat.real_str_data = {}
 			if playerFeat then
 				feat.table_value = {}
@@ -992,7 +999,7 @@ function loadCurrentMenu()
 				end
 			end
 			feat.value = 0
-		elseif feat.real_type >> 1 & 1 == 1 then --value any
+		elseif feat.real_type >> 1 & 1 ~= 0 then --value any
 			if playerFeat then
 				feat.table_max = {}
 				feat.table_min = {}
@@ -1091,7 +1098,7 @@ function loadCurrentMenu()
 				if addToTable[k].real_on then
 					addToTable[k].real_on = false
 				end
-				if (v.type or 0) >> 11 & 1 == 1 then
+				if (v.type or 0) >> 11 & 1 ~= 0 then
 					func.add_to_table(getTable[k], addToTable[k], playerid, override)
 				else
 					for i, e in pairs(getTable[k]) do
@@ -1133,13 +1140,15 @@ function loadCurrentMenu()
 	function func.set_player_feat_parent(nameOfFeat, parentOfFeat, functionToDo)
 		stuff.PlayerParent = func.add_feature(nameOfFeat, "parent", parentOfFeat, functionToDo)
 		local hierarchy_pattern = stuff.PlayerParent.hierarchy_key..".player_"
+
 		stuff.playerIds = {}
-			for i = 0, 31 do
-				stuff.playerIds[i] = func.add_feature(tostring(player.get_player_name(i)), "parent", stuff.PlayerParent.id)
-				stuff.playerIds[i].pid = i
-				stuff.playerIds[i].hidden = not player.is_player_valid(i)
-				stuff.playerIds[i].hierarchy_key = hierarchy_pattern..i
-			end
+		for i = 0, 31 do
+			stuff.playerIds[i] = func.add_feature(tostring(player.get_player_name(i)), "parent", stuff.PlayerParent.id)
+			stuff.playerIds[i].pid = i
+			stuff.playerIds[i].hidden = not player.is_player_valid(i)
+			stuff.playerIds[i].hierarchy_key = hierarchy_pattern..i
+			stuff.playerIds[i].real_type = 1 << 15 | stuff.playerIds[i].type
+		end
 
 		event.add_event_listener("player_join", function(listener)
 			system.wait(100)
@@ -1154,6 +1163,7 @@ function loadCurrentMenu()
 				stuff.playerIds[listener.player].name = "nil"
 			end
 		end)
+
 		return stuff.PlayerParent
 	end
 
@@ -1163,7 +1173,7 @@ function loadCurrentMenu()
 			if type(currentParent[k]) == "table" then
 				local feat_type = currentParent[k].type
 				if feat_type then
-					if feat_type >> 1 & 1 == 1 then -- toggle
+					if feat_type >> 1 & 1 ~= 0 then -- toggle
 						currentParent[k].table_value[pid] = currentParent[k].real_value
 						if feat_type & 136 ~= 0 then -- value if
 							currentParent[k].table_min[pid] = currentParent[k].real_min
@@ -1171,7 +1181,7 @@ function loadCurrentMenu()
 							currentParent[k].table_mod[pid] = currentParent[k].real_mod
 						end
 					end
-					if feat_type & 1 == 1 then -- toggle
+					if feat_type & 1 ~= 0 then -- toggle
 						if player.is_player_valid(pid) then
 							currentParent[k].feats[pid].on = currentParent[k].real_on
 						else
@@ -1179,7 +1189,7 @@ function loadCurrentMenu()
 							currentParent[k].table_on[pid] = false
 						end
 					end
-					if feat_type >> 11 & 1 == 1 then -- parent
+					if feat_type >> 11 & 1 ~= 0 then -- parent
 						func.reset_player_submenu(pid, currentParent[k])
 					end
 				end
@@ -1256,7 +1266,7 @@ function loadCurrentMenu()
 			parent = features
 		end
 
-		if feat.type >> 11 & 1 == 1 then
+		if feat.type >> 11 & 1 ~= 0 then
 			func.deleted_or_hidden_parent_check(feat)
 		end
 
@@ -1509,7 +1519,7 @@ function loadCurrentMenu()
 				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 				0, font
 			)
-			if v.type >> 11 & 1 == 1 then
+			if v.type >> 11 & 1 ~= 0 then
 				scriptdraw.draw_text(
 					">>",
 					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding))*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
@@ -1519,7 +1529,7 @@ function loadCurrentMenu()
 					16, font
 				)
 			end
-		elseif v.type & 1 == 1 then -- toggle
+		elseif v.type & 1 ~= 0 then -- toggle
 			cheeseUtils.draw_outline(
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding) + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
 				cheeseUtils.memoize.v2(0.015625, 0.0277777777778),
@@ -1544,9 +1554,9 @@ function loadCurrentMenu()
 			)
 		end
 
-		if v.type >> 1 & 1 == 1 then -- value_i_f_str
+		if v.type >> 1 & 1 ~= 0 then -- value_i_f_str
 			local rounded_value = v.str_data and v.str_data[v.real_value + 1] or v.real_value
-			if v.type >> 7 & 1 == 1 then
+			if v.type >> 7 & 1 ~= 0 then
 				rounded_value = (rounded_value * 10000) + 0.5
 				rounded_value = math.floor(rounded_value)
 				rounded_value = rounded_value / 10000
@@ -1996,7 +2006,7 @@ function loadCurrentMenu()
 					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
 						if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 5 & 1 ~= 0 then
 							menu.create_thread(func.selector, currentMenu[stuff.scroll + stuff.scrollHiddenOffset])
-						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 11 & 1 == 1 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
+						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 11 & 1 ~= 0 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 							stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
 							currentMenu = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
@@ -2013,7 +2023,7 @@ function loadCurrentMenu()
 							end
 						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 1536 ~= 0 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
-						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 1 == 1 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
+						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 1 ~= 0 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on = not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
 						end
@@ -2066,7 +2076,7 @@ function loadCurrentMenu()
 							end
 						end
 						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type then
-							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 10 & 1 == 1 or (currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 3 == 3 and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on) then
+							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 10 & 1 ~= 0 or (currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 3 == 3 and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on) then
 								currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
 							end
 						end
@@ -2096,7 +2106,7 @@ function loadCurrentMenu()
 							end
 						end
 						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type then
-							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 10 & 1 == 1 or (currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 3 == 3 and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on) then
+							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 10 & 1 ~= 0 or (currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 3 == 3 and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on) then
 								currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
 							end
 						end
@@ -2118,7 +2128,7 @@ function loadCurrentMenu()
 						for k, v in pairs(stuff.hotkeys[k]) do
 							if stuff.hotkey_feature_hierarchy_keys[k] then
 								for k, v in pairs(stuff.hotkey_feature_hierarchy_keys[k]) do
-									if v.type & 1 == 1 then
+									if v.type & 1 ~= 0 then
 										v.on = not v.on
 										if stuff.hotkey_notifications.toggle then
 											menu.notify("Turned "..v.name.." "..(v.on and "on" or "off"), "Cheese Menu", 3, func.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
