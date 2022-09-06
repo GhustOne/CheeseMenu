@@ -867,7 +867,7 @@ function loadCurrentMenu()
 			continue = self:func(pidordata, self.data)
 		end
 		if self.on ~= nil and self.type & 1 == 0 then -- not toggle
-			self.on = true
+			self.on = false
 		end
 	end
 
