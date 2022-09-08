@@ -479,7 +479,7 @@ function loadCurrentMenu()
 			stuff.menuData.chatBoxOpen = true
 			local status, gottenInput = stuff.input.get_input(title, default, len, Type)
 
-			stuff.menuData.menuToggle = originalmenuToggle
+			func.toggle_menu(originalmenuToggle)
 			stuff.menuData.chatBoxOpen = false
 			return status, gottenInput
 		end
@@ -1387,6 +1387,13 @@ function loadCurrentMenu()
 		return id_table[name]
 	end
 
+	function func.toggle_menu(bool)
+		stuff.menuData.menuToggle = bool or not stuff.menuData.menuToggle
+		if stuff.menuData.menuToggle then
+			currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+		end
+	end
+
 	function func.selector(feat)
 		local originalmenuToggle = stuff.menuData.menuToggle
 		stuff.menuData.menuToggle = false
@@ -1399,7 +1406,7 @@ function loadCurrentMenu()
 				feat:activate_feat_func()
 			end
 		end
-		stuff.menuData.menuToggle = originalmenuToggle
+		func.toggle_menu(originalmenuToggle)
 	end
 
 	function func.save_ui(name)
@@ -1842,7 +1849,7 @@ function loadCurrentMenu()
 			system.wait(0)
 		end
 		controls.disable_control_action(0, 200, true)
-		stuff.menuData.menuToggle = true
+		func.toggle_menu(true)
 		return response ~= "escaped" and response
 	end
 
@@ -1903,7 +1910,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			func.do_key(500, stuff.vkcontrols.open, false, function() -- F4
-				stuff.menuData.menuToggle = not stuff.menuData.menuToggle
+				func.toggle_menu()
 			end)
 			if currentMenu.hidden or not currentMenu then
 				currentMenu = stuff.previousMenus[#stuff.previousMenus].menu

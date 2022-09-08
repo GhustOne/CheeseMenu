@@ -83,14 +83,30 @@ function cheeseUtils.get_key(...)
 	return cheeseUtils.Keys[ID]
 end
 
+function cheeseUtils.new_reusable_v2(limit)
+	limit = limit or 2
+
+	local counter = 1
+	local v2Table = {}
+	for i = 1, limit do
+		v2Table[i] = v2()
+	end
+
+	return function(x, y)
+		local vector2d = v2Table[counter]
+		counter = counter + 1
+		counter = counter <= limit and counter or 1
+
+		vector2d.x, vector2d.y = x, y
+
+		return vector2d
+	end
+end
+
 -- Selector
 do
 	local textv2 = v2(2, 2)
-	local reused_v2 = v2()
-	local function reuse_v2(x, y)
-		reused_v2.x, reused_v2.y = x, y
-		return reused_v2
-	end
+	local reuse_v2 = cheeseUtils.new_reusable_v2()
 
 	local key = {
 		enter = MenuKey(),
@@ -171,7 +187,7 @@ do
 
 	-- Usage: local index, item = selector("Select Player: ", 2, {"Player 1", "Player 2", "Player 3"})
 	-- if cancelled returned `index` will be false
-	-- items has to be in order and starting from 1
+	-- `items` has to be in order and starting from 1
 	function cheeseUtils.selector(selected_str, index, items)
 		index = tonumber(index) or 1
 		index = index > 1 and index or 1
