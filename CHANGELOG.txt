@@ -1,9 +1,5 @@
-Memoizing v2s thanks to kektram (should reduce stutters)
-Fixed 3 pixel toggle outlines
-Disable hotkeys when input box is open
-Fixed hotkeys not getting set correctly after changing them midway of setting
-v1.6.9.7
-Added:
-Padding
-Text size and Y offset for both feature text and footer
-Font for feature text and footer
+Added Sliders
+Added Individual Padding for each type
+Added value_str list (Ctrl + select key)
+
+Lots of fixes and changes
