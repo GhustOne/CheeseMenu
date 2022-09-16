@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.6.9.7"
+local version = "1.7"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -292,6 +292,11 @@ function loadCurrentMenu()
 			width = 0.2,
 			height = 0.305,
 			border = 0.0013888,
+			slider = {
+				width = 0.2,
+				height = 0.01,
+				heightActive = 0.025,
+			},
 			footer = {
 				footer_y_offset = 0,
 				padding = 0.0078125,
@@ -314,7 +319,12 @@ function loadCurrentMenu()
 			header = "cheese_menu",
 			feature_offset = 0.025,
 			feature_scale = {x = 0.2, y = 0.025},
-			padding = 0.003125,
+			padding = {
+				name = 0.003125,
+				parent = 0.003125,
+				value = 0.048125,
+				slider = 0.003125,
+			},
 			text_size_modifier = 1,
 			text_y_offset = -0.0055555555,
 			color = {},
@@ -345,6 +355,11 @@ function loadCurrentMenu()
 	stuff.menuData.color = {
 		background = {r = 0, g = 0, b = 0, a = 0},
 		sprite = 0xE6FFFFFF,
+		slider_active = {r = 255, g = 200, b = 0, a = 255},
+		slider_background = {r = 0, g = 0, b = 0, a = 160},
+		slider_text = {r = 0, g = 0, b = 0, a = 255},
+		slider_selectedActive = {r = 255, g = 255, b = 255, a = 160},
+		slider_selectedBackground = {r = 255, g = 160, b = 0, a = 180},
 		feature = {r = 255, g = 160, b = 0, a = 170},
 		feature_selected = {r = 0, g = 0, b = 0, a = 200},
 		text_selected = {r = 255, g = 200, b = 0, a = 180},
@@ -411,6 +426,13 @@ function loadCurrentMenu()
 		end
 	}
 	function func.convert_rgba_to_int(r, g, b, a)
+		if type(r) == "table" then
+			local colorTable = r
+			r = colorTable.r or colorTable[1]
+			g = colorTable.g or colorTable[2]
+			b = colorTable.b or colorTable[3]
+			a = colorTable.a or colorTable[4]
+		end
 		if not a then
 			a = 255
 		end
@@ -442,7 +464,7 @@ function loadCurrentMenu()
 	end
 
 	stuff.input = require("cheesemenu.libs.Get Input")
-	require("cheesemenu.libs.GLTW")
+	local gltw = require("cheesemenu.libs.GLTW")
 	local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
 	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
 
@@ -548,11 +570,21 @@ function loadCurrentMenu()
 		__newindex = function(t, k, v)
 			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "is_highlighted", "'"..k.."' is read only")
 			if k == "on" and type(v) == "boolean" then
+				if t.real_on == v then
+					return
+				end
+				--[[ if t.type >> 11 & 1 ~= 0 and t.real_on ~= nil then
+					func.check_scroll(t.index, (t.parent_id > 0 and t.parent or features), not v)
+				end ]]
 				stuff.rawset(t, "real_on", v)
+
 				if t.feats then
-					for i, e in pairs(t.feats) do
-						if player.is_player_valid(i) then
-							t.feats[i].on = v
+					for pid, feat in pairs(t.feats) do
+						if player.is_player_valid(pid) then
+							feat.on = v
+							--[[ if feat.type >> 11 & 1 ~= 0 then
+								func.check_scroll(feat.index, (feat.parent_id > 0 and stuff.feature_by_id[feat.ps_parent_id] or stuff.PlayerParent), not v)
+							end ]]
 						end
 					end
 				else
@@ -564,9 +596,10 @@ function loadCurrentMenu()
 				if k ~= "value" and t.type >> 5 & 1 ~= 0 then -- value_str
 					error("max, min and mod are readonly for value_str features")
 				end
-				assert(t.type & 136 ~= 0 or t.type >> 5 & 1 ~= 0, "feat type not supported: "..t.type) -- value_[if], value_str
-				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
+
+				assert(t.type >> 1 & 1 ~= 0, "feat type not supported: "..t.type) -- value_[if], value_str
+				assert(v, "tried to set "..k.." property to a non-number value")
 
 				if t.type >> 5 & 1 ~= 0 then -- value_str
 					if v < 0 then
@@ -578,12 +611,13 @@ function loadCurrentMenu()
 					end
 				end
 
-				if t.type >> 3 & 1 ~= 0 or t.type >> 5 & 1 ~= 0 then -- value_str
-					v = math.floor(v)
+				if t.type >> 1 & 1 ~= 0 then
+					if t.type >> 3 & 1 ~= 0 or t.type >> 5 & 1 ~= 0 then -- value_str
+						v = math.floor(v)
+					end
 
 					stuff.rawset(t, "real_"..k, v)
-					if t.type >> 3 & 1 ~= 0 then
-
+					if t.type & 140 ~= 0 then -- i|f|slider
 						if not t.real_max then
 							t.real_max = 0
 						end
@@ -597,45 +631,35 @@ function loadCurrentMenu()
 							t.real_value = 0
 						end
 
-						stuff.rawset(t, "real_value", t.real_value > t.real_max and t.real_max or t.real_value < t.real_min and t.real_min or t.real_value)
+						stuff.rawset(t, "real_value", t.real_value >= t.real_max and t.real_max or t.real_value <= t.real_min and t.real_min or t.real_value)
 					end
+
 					if t["table_"..k] then
-						local is_int = t.type >> 3 & 1 ~= 0 and true or false
-						for i, e in pairs(t["table_"..k]) do
+						local is_num = t.type & 140 ~= 0
+						for i = 0, 31 do
 							t["table_"..k][i] = v
-							if is_int then
-								t["table_value"][i] = t["table_value"][i] > t["table_max"][i] and t["table_max"][i] or t["table_value"][i] < t["table_min"][i] and t["table_min"][i] or t["table_value"][i]
+							if is_num then
+								t["table_value"][i] = t["table_value"][i] >= t["table_max"][i] and t["table_max"][i] or t["table_value"][i] <= t["table_min"][i] and t["table_min"][i] or t["table_value"][i]
 							end
-						end
-					end
-				elseif t.type >> 7 & 1 ~= 0 then
-					stuff.rawset(t, "real_"..k, v)
-
-					if not t.real_max then
-						t.real_max = 0
-					end
-					if not t.real_min then
-						t.real_min = 0
-					end
-					if not t.real_mod then
-						t.real_mod = 1
-					end
-					if not t.real_value then
-						t.real_value = 0
-					end
-
-					stuff.rawset(t, "real_value", t.real_value > t.real_max and t.real_max or t.real_value < t.real_min and t.real_min or t.real_value)
-
-					if t["table_"..k] then
-						for i, e in pairs(t["table_"..k]) do
-							t["table_"..k][i] = v
-							t["table_value"][i] = t["table_value"][i] > t["table_max"][i] and t["table_max"][i] or t["table_value"][i] < t["table_min"][i] and t["table_min"][i] or t["table_value"][i]
 						end
 					end
 				end
 			elseif k == "hidden" then
 				assert(type(v) == "boolean", "hidden only accepts booleans")
+				if t.real_hidden == v then
+					return
+				end
+
+				--[[ if t.real_hidden ~= nil then
+					func.check_scroll(t.index, (t.parent_id > 0 and t.parent or features), v)
+				end ]]
+
 				t.real_hidden = v
+				if t.feats then
+					for _, feat in ipairs(t.feats) do
+						feat.hidden = v
+					end
+				end
 				if v then
 					func.deleted_or_hidden_parent_check(t)
 				end
@@ -683,9 +707,10 @@ function loadCurrentMenu()
 				if k ~= "value" and t.type >> 5 & 1 ~= 0 then
 					error("max, min and mod are readonly for value_str features")
 				end
-				assert(t.type & 136 ~= 0 or t.type >> 5 & 1 ~= 0, "feat type not supported")
-				assert(tonumber(v), "tried to set "..k.." property to a non-number value")
 				v = tonumber(v)
+
+				assert(t.type >> 1 & 1 ~= 0, "feat type not supported")
+				assert(v, "tried to set "..k.." property to a non-number value")
 
 				if t.type >> 5 & 1 ~= 0 then
 					if v < 0 then
@@ -697,12 +722,13 @@ function loadCurrentMenu()
 					end
 				end
 
-				if t.type >> 3 & 1 ~= 0 or t.type >> 5 & 1 ~= 0 then
-					v = math.floor(v)
+				if t.type >> 1 & 1 ~= 0 then
+					if t.type >> 3 & 1 ~= 0 or t.type >> 5 & 1 ~= 0 then -- value_i|str
+						v = math.floor(v)
+					end
+
 					t["table_"..k][t.pid] = v
-
-					if t.type >> 3 & 1 ~= 0 then
-
+					if t.type & 140 ~= 0 then -- i|f|slider
 						if not t.real_max then
 							t.real_max = 0
 						end
@@ -716,25 +742,8 @@ function loadCurrentMenu()
 							t.real_value = 0
 						end
 
-						t["table_value"][t.pid] = t["table_value"][t.pid] > t["table_max"][t.pid] and t["table_max"][t.pid] or t["table_value"][t.pid] < t["table_min"][t.pid] and t["table_min"][t.pid] or t["table_value"][t.pid]
+						t["table_value"][t.pid] = t["table_value"][t.pid] >= t["table_max"][t.pid] and t["table_max"][t.pid] or t["table_value"][t.pid] <= t["table_min"][t.pid] and t["table_min"][t.pid] or t["table_value"][t.pid]
 					end
-				elseif t.type >> 7 & 1 ~= 0 then
-					t["table_"..k][t.pid] = v
-
-					if not t.real_max then
-						t.real_max = 0
-					end
-					if not t.real_min then
-						t.real_min = 0
-					end
-					if not t.real_mod then
-						t.real_mod = 1
-					end
-					if not t.real_value then
-						t.real_value = 0
-					end
-
-					t["table_value"][t.pid] = t["table_value"][t.pid] > t["table_max"][t.pid] and t["table_max"][t.pid] or t["table_value"][t.pid] < t["table_min"][t.pid] and t["table_min"][t.pid] or t["table_value"][t.pid]
 				end
 			elseif k == "data" then
 				t.real_data = v
@@ -858,7 +867,7 @@ function loadCurrentMenu()
 	-- function callback ~Thanks to Proddy for telling me that doing function() every time creates a new one and providing examples on how to use menu.create_thread with the function below
 	function stuff.feature_callback(self)
 		local pidordata = self.pid or self.data
-		if self.on ~= nil and self.type & 1 == 0 then -- not toggle
+		if self.on ~= nil and self.type & 2049 == 0 then -- not toggle or parent
 			self.on = true
 		end
 		local continue = self:func(pidordata, self.data)
@@ -866,7 +875,7 @@ function loadCurrentMenu()
 			system.wait(0)
 			continue = self:func(pidordata, self.data)
 		end
-		if self.on ~= nil and self.type & 1 == 0 then -- not toggle
+		if self.on ~= nil and self.type & 2049 == 0 then -- not toggle or parent
 			self.on = false
 		end
 	end
@@ -951,7 +960,7 @@ function loadCurrentMenu()
 		assert((type(functionCallback) == "function") or not functionCallback, "invalid function in add_feature")
 		playerFeat = playerFeat or false
 		parentOfFeat = parentOfFeat or 0
-		TypeOfFeat = TypeOfFeat:gsub("slider", "value_f")
+		--TypeOfFeat = TypeOfFeat:gsub("slider", "value_f")
 		local currentParent = playerFeat and features["OnlinePlayers"] or features
 
 		local hierarchy_key
@@ -985,10 +994,10 @@ function loadCurrentMenu()
 			if playerFeat then
 				feat.table_on = {}
 				for i = 0, 31 do
-					feat.table_on[i] = false
+					feat.table_on[i] = feat.type >> 11 & 1 ~= 0
 				end
 			end
-			feat.on = false
+			feat.on = feat.type >> 11 & 1 ~= 0
 		--end
 		if feat.real_type >> 5 & 1 ~= 0 then -- value_str
 			feat.real_str_data = {}
@@ -1198,6 +1207,29 @@ function loadCurrentMenu()
 	end
 	--end of player feature functions
 
+	function func.check_scroll(index, parent, bool)
+		if index <= stuff.scroll + stuff.scrollHiddenOffset and currentMenu == parent then
+			if bool then
+				--stuff.scroll = stuff.scroll - 1
+				--stuff.scroll = stuff.scroll > 0 and stuff.scroll or 0
+				if #currentMenu - stuff.drawHiddenOffset > 1 and stuff.scroll - 1 > 0 then
+					stuff.scroll = stuff.scroll - 1
+					if stuff.scroll - stuff.drawScroll <= 2 and stuff.drawScroll > 0 then
+						stuff.drawScroll = stuff.drawScroll - 1
+					end
+				end
+			else
+				if #currentMenu - stuff.drawHiddenOffset > 1 then
+					stuff.scroll = stuff.scroll + 1
+					if stuff.scroll - stuff.drawScroll >= (stuff.menuData.max_features - 1) and stuff.drawScroll < stuff.maxDrawScroll then
+						stuff.drawScroll = stuff.drawScroll + 1
+					end
+				end
+				--stuff.scroll = stuff.scroll + 1
+			end
+		end
+	end
+
 	function func.deleted_or_hidden_parent_check(parent, check_hidden_only)
 		if next(stuff.previousMenus) then
 			local parentBeforeDHparent = false
@@ -1272,6 +1304,8 @@ function loadCurrentMenu()
 
 		local index = feat.index
 		table.remove(parent, tonumber(feat.index))
+
+		--func.check_scroll(index, parent, true)
 
 		for i = index, #parent do
 			parent[i].index = i
@@ -1388,7 +1422,7 @@ function loadCurrentMenu()
 	end
 
 	function func.toggle_menu(bool)
-		stuff.menuData.menuToggle = bool or not stuff.menuData.menuToggle
+		stuff.menuData.menuToggle = bool
 		if stuff.menuData.menuToggle then
 			currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 		end
@@ -1414,12 +1448,12 @@ function loadCurrentMenu()
 	end
 
 	function func.load_ui(name)
-		local uiTable = gltw.read(name, stuff.path.ui, stuff.menuData, true)
+		local uiTable = gltw.read(name, stuff.path.ui, stuff.menuData, true, true)
 		if not uiTable then
 			return
 		end
 		if menu_configuration_features then
-			local header, bgSprite = uiTable.header, uiTable.background_sprite.sprite
+			local header, bgSprite = uiTable.header, uiTable.background_sprite and uiTable.background_sprite.sprite or nil
 			if not header then
 				menu_configuration_features.headerfeat.value = 0
 				menu_configuration_features.headerfeat:toggle()
@@ -1436,7 +1470,13 @@ function loadCurrentMenu()
 			menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
 			menu_configuration_features.featYfeat.value = math.floor(stuff.menuData.feature_scale.y*graphics.get_screen_height())
 			menu_configuration_features.feature_offset.value = math.floor(stuff.menuData.feature_offset*graphics.get_screen_height())
-			menu_configuration_features.padding.value = math.floor(stuff.menuData.padding*graphics.get_screen_width())
+			menu_configuration_features.namePadding.value = math.floor(stuff.menuData.padding.name*graphics.get_screen_width())
+			menu_configuration_features.parentPadding.value = math.floor(stuff.menuData.padding.parent*graphics.get_screen_width())
+			menu_configuration_features.valuePadding.value = math.floor(stuff.menuData.padding.value*graphics.get_screen_width())
+			menu_configuration_features.sliderPadding.value = math.floor(stuff.menuData.padding.slider*graphics.get_screen_width())
+			menu_configuration_features.sliderWidth.value = math.floor(stuff.menuData.slider.width*graphics.get_screen_width())
+			menu_configuration_features.sliderHeight.value = math.floor(stuff.menuData.slider.height*graphics.get_screen_height())
+			menu_configuration_features.sliderheightActive.value = math.floor(stuff.menuData.slider.heightActive*graphics.get_screen_height())
 			menu_configuration_features.text_size.value = stuff.menuData.text_size_modifier
 			menu_configuration_features.text_y_offset.value = -math.floor(stuff.menuData.text_y_offset*graphics.get_screen_height())
 			stuff.drawFeatParams.textOffset.y = stuff.menuData.text_y_offset
@@ -1446,7 +1486,7 @@ function loadCurrentMenu()
 			menu_configuration_features.backgroundoffsetx.value = math.floor(stuff.menuData.background_sprite.offset.x*graphics.get_screen_width())
 			menu_configuration_features.backgroundoffsety.value = math.floor(stuff.menuData.background_sprite.offset.y*graphics.get_screen_height())
 			menu_configuration_features.footer_size.value = math.floor(stuff.menuData.footer.footer_size*graphics.get_screen_height())
-			menu_configuration_features.padding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
+			menu_configuration_features.footerPadding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
 			menu_configuration_features.draw_footer.on = stuff.menuData.footer.draw_footer
 			menu_configuration_features.footer_pos_related_to_background.on = stuff.menuData.footer.footer_pos_related_to_background
 			menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
@@ -1478,9 +1518,11 @@ function loadCurrentMenu()
 				end
 			end
 
-			for k, v in pairs(menu_configuration_features.backgroundfeat.str_data) do
-				if v == uiTable.background_sprite.sprite then
-					menu_configuration_features.backgroundfeat.value = k - 1
+			if uiTable.background_sprite then
+				for k, v in pairs(menu_configuration_features.backgroundfeat.str_data) do
+					if v == uiTable.background_sprite.sprite then
+						menu_configuration_features.backgroundfeat.value = k - 1
+					end
 				end
 			end
 		end
@@ -1503,10 +1545,12 @@ function loadCurrentMenu()
 		stuff.drawFeatParams.colorFeature = stuff.menuData.color.feature
 		stuff.drawFeatParams.textSize = textSize
 
+		local is_selected
 		if stuff.scroll == k + stuff.drawScroll then
 			stuff.scrollHiddenOffset = hiddenOffset or stuff.scrollHiddenOffset
 			stuff.drawFeatParams.colorText = stuff.menuData.color.text_selected
 			stuff.drawFeatParams.colorFeature = stuff.menuData.color.feature_selected
+			is_selected = true
 		end
 		if offset == 0 then
 			scriptdraw.draw_rect(
@@ -1520,7 +1564,7 @@ function loadCurrentMenu()
 		if v.type & 1 == 0 then
 			scriptdraw.draw_text(
 				v["name"],
-				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding))*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
+				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name))*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
 				cheeseUtils.memoize.v2(10, 10),
 				stuff.drawFeatParams.textSize,
 				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
@@ -1529,7 +1573,7 @@ function loadCurrentMenu()
 			if v.type >> 11 & 1 ~= 0 then
 				scriptdraw.draw_text(
 					">>",
-					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding))*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
+					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.parent))*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
 					cheeseUtils.memoize.v2(10, 10),
 					stuff.drawFeatParams.textSize,
 					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
@@ -1538,14 +1582,14 @@ function loadCurrentMenu()
 			end
 		elseif v.type & 1 ~= 0 then -- toggle
 			cheeseUtils.draw_outline(
-				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding) + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
+				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
 				cheeseUtils.memoize.v2(0.015625, 0.0277777777778),
 				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 				2
 			)
 			if v.real_on then
 				scriptdraw.draw_rect(
-					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding) + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
+					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
 					cheeseUtils.memoize.v2(0.0140625, 0.025),
 					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a)
 				)
@@ -1553,7 +1597,7 @@ function loadCurrentMenu()
 
 			scriptdraw.draw_text(
 				v.name,
-				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding) + 0.011328125)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
+				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.011328125)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
 				cheeseUtils.memoize.v2(10, 10),
 				stuff.drawFeatParams.textSize,
 				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
@@ -1563,30 +1607,44 @@ function loadCurrentMenu()
 
 		if v.type >> 1 & 1 ~= 0 then -- value_i_f_str
 			local rounded_value = v.str_data and v.str_data[v.real_value + 1] or v.real_value
-			if v.type >> 7 & 1 ~= 0 then
+			if v.type >> 7 & 1 ~= 0 or v.type >> 2 & 1 ~= 0 then
 				rounded_value = (rounded_value * 10000) + 0.5
 				rounded_value = math.floor(rounded_value)
 				rounded_value = rounded_value / 10000
 			end
-			local value_str = "< "..tostring(rounded_value).." >"
-			if v.str_data then
-				local pixel_size = scriptdraw.get_text_size(value_str, 1, font).x
-				local screenWidth = graphics.get_screen_width()
-				if pixel_size/screenWidth > 370/screenWidth then
-					local original_size = stuff.drawFeatParams.textSize
-					stuff.drawFeatParams.textSize = stuff.drawFeatParams.textSize * (370 / pixel_size * 0.8)
-					stuff.drawFeatParams.textSize = math.min(stuff.drawFeatParams.textSize + 0.2, original_size)
+			if v.type >> 2 & 1 ~= 0 then
+				cheeseUtils.draw_slider(
+					cheeseUtils.memoize.v2(
+						(stuff.drawFeatParams.rectPos.x + stuff.menuData.feature_scale.x/2 - stuff.menuData.slider.width/4 - stuff.menuData.padding.slider)*2-1,
+						(stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1
+					),
+					cheeseUtils.memoize.v2(stuff.menuData.slider.width, is_selected and stuff.menuData.slider.heightActive or stuff.menuData.slider.height),
+					v.min, v.max, v.value,
+					is_selected and func.convert_rgba_to_int(stuff.menuData.color.slider_selectedBackground) or func.convert_rgba_to_int(stuff.menuData.color.slider_background),
+					is_selected and func.convert_rgba_to_int(stuff.menuData.color.slider_selectedActive) or func.convert_rgba_to_int(stuff.menuData.color.slider_active),
+					is_selected and func.convert_rgba_to_int(stuff.menuData.color.slider_text) or 0,
+					is_selected)
+			else
+				local value_str = "< "..tostring(rounded_value).." >"
+				if v.str_data then
+					local pixel_size = scriptdraw.get_text_size(value_str, 1, font).x
+					local screenWidth = graphics.get_screen_width()
+					if pixel_size/screenWidth > 370/screenWidth then
+						local original_size = stuff.drawFeatParams.textSize
+						stuff.drawFeatParams.textSize = stuff.drawFeatParams.textSize * (370 / pixel_size * 0.8)
+						stuff.drawFeatParams.textSize = math.min(stuff.drawFeatParams.textSize + 0.2, original_size)
+					end
 				end
-			end
 
-			scriptdraw.draw_text(
-				value_str,
-				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding - 0.045) - scriptdraw.size_pixel_to_rel_x(scriptdraw.get_text_size(value_str, stuff.drawFeatParams.textSize, font).x)/4)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
-				cheeseUtils.memoize.v2(10, 10),
-				stuff.drawFeatParams.textSize,
-				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
-				0, font
-			)
+				scriptdraw.draw_text(
+					value_str,
+					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.value) - scriptdraw.size_pixel_to_rel_x(scriptdraw.get_text_size(value_str, stuff.drawFeatParams.textSize, font).x)/4)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
+					cheeseUtils.memoize.v2(10, 10),
+					stuff.drawFeatParams.textSize,
+					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
+					0, font
+				)
+			end
 		end
 	end
 
@@ -1604,7 +1662,7 @@ function loadCurrentMenu()
 		stuff.drawHiddenOffset = 0
 		for k, v in pairs(currentMenu) do
 			if type(k) == "number" then
-				if v.hidden then
+				if v.hidden or (v.type >> 11 & 1 ~= 0 and not v.on) then
 					stuff.drawHiddenOffset = stuff.drawHiddenOffset + 1
 				end
 			end
@@ -1646,7 +1704,7 @@ function loadCurrentMenu()
 		local text_size = (((graphics.get_screen_width()*graphics.get_screen_height())/3686400)*0.45+0.25) * stuff.menuData.text_size_modifier
 		for k, v in ipairs(currentMenu) do
 			if type(k) == "number" then
-				if v.hidden then
+				if v.hidden or (v.type >> 11 & 1 ~= 0 and not v.on) then
 					hiddenOffset = hiddenOffset + 1
 				elseif k <= stuff.drawScroll + hiddenOffset + stuff.menuData.max_features and k >= stuff.drawScroll + hiddenOffset + 1 then
 					func.draw_feat(k - stuff.drawScroll - hiddenOffset, v, 0, hiddenOffset, text_size)
@@ -1910,7 +1968,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			func.do_key(500, stuff.vkcontrols.open, false, function() -- F4
-				func.toggle_menu()
+				func.toggle_menu(not stuff.menuData.menuToggle)
 			end)
 			if currentMenu.hidden or not currentMenu then
 				currentMenu = stuff.previousMenus[#stuff.previousMenus].menu
@@ -2010,29 +2068,30 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.select, true, function() --enter
-					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 5 & 1 ~= 0 then
-							menu.create_thread(func.selector, currentMenu[stuff.scroll + stuff.scrollHiddenOffset])
-						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 11 & 1 ~= 0 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
-							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+					if feat then
+						if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() and feat.type >> 5 & 1 ~= 0 then
+							menu.create_thread(func.selector, feat)
+						elseif feat.type >> 11 & 1 ~= 0 and not feat.hidden then
+							feat:activate_hl_func()
 							stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
-							currentMenu = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+							currentMenu = feat
 							currentMenu:activate_feat_func()
 							stuff.scroll = 1
 							system.wait(0)
 							stuff.drawScroll = 0
 							stuff.scrollHiddenOffset = 0
-							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-								currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+							if feat then
+								feat:activate_hl_func()
 							end
 							while cheeseUtils.get_key(stuff.vkcontrols.select):is_down() do
 								system.wait(0)
 							end
-						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 1536 ~= 0 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
-							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
-						elseif currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 1 ~= 0 and not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hidden then
-							currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on = not currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on
-							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
+						elseif feat.type & 1536 ~= 0 and not feat.hidden then
+							feat:activate_feat_func()
+						elseif feat.type & 1 ~= 0 and not feat.hidden then
+							feat.real_on = not feat.real_on
+							feat:activate_feat_func()
 						end
 					else
 						system.wait(100)
@@ -2066,25 +2125,26 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.left, true, function() -- left
-					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value then
-							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].str_data then
-								if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value <= 0 then
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value = #currentMenu[stuff.scroll + stuff.scrollHiddenOffset].str_data - 1
+					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+					if feat then
+						if feat.value then
+							if feat.str_data then
+								if feat.value <= 0 then
+									feat.value = #feat.str_data - 1
 								else
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value - 1
+									feat.value = feat.value - 1
 								end
 							else
-								if tonumber(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value) <= currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_min then
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_max
+								if tonumber(feat.value) <= feat.min and feat.type >> 2 & 1 == 0 then
+									feat.value = feat.max
 								else
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].value = tonumber(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value) - currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_mod
+									feat.value = tonumber(feat.value) - feat.mod
 								end
 							end
 						end
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type then
-							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 10 & 1 ~= 0 or (currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 3 == 3 and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on) then
-								currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
+						if feat.type then
+							if feat.type >> 10 & 1 ~= 0 or (feat.type & 3 == 3 and feat.on) then
+								feat:activate_feat_func()
 							end
 						end
 					end
@@ -2096,25 +2156,26 @@ function loadCurrentMenu()
 		while true do
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.right, true, function() -- right
-					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value then
-							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].str_data then
-								if tonumber(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value) >= tonumber(#currentMenu[stuff.scroll + stuff.scrollHiddenOffset].str_data) - 1 then
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value = 0
+					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+					if feat then
+						if feat.value then
+							if feat.str_data then
+								if tonumber(feat.value) >= tonumber(#feat.str_data) - 1 then
+									feat.value = 0
 								else
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value + 1
+									feat.value = feat.value + 1
 								end
 							else
-								if tonumber(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value) >= currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_max then
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_min
+								if tonumber(feat.value) >= feat.max and feat.type >> 2 & 1 == 0 then
+									feat.value = feat.min
 								else
-									currentMenu[stuff.scroll + stuff.scrollHiddenOffset].value = tonumber(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_value) + currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_mod
+									feat.value = tonumber(feat.value) + feat.mod
 								end
 							end
 						end
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type then
-							if currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type >> 10 & 1 ~= 0 or (currentMenu[stuff.scroll + stuff.scrollHiddenOffset].type & 3 == 3 and currentMenu[stuff.scroll + stuff.scrollHiddenOffset].real_on) then
-								currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_feat_func()
+						if feat.type then
+							if feat.type >> 10 & 1 ~= 0 or (feat.type & 3 == 3 and feat.on) then
+								feat:activate_feat_func()
 							end
 						end
 					end
@@ -2172,6 +2233,11 @@ function loadCurrentMenu()
 		local status, name = input.get("name of ui", "", 25, 0)
 		if status == 0 then
 			func.save_ui(name)
+			for _, v in pairs(stuff.menuData.files.ui) do
+				if v == name then
+					return
+				end
+			end
 			stuff.menuData.files.ui[#stuff.menuData.files.ui+1] = name
 			menu_configuration_features.load_ui:set_str_data(stuff.menuData.files.ui)
 		end
@@ -2212,80 +2278,6 @@ function loadCurrentMenu()
 	menu_configuration_features.menuYfeat.min = -graphics.get_screen_height()
 	menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
 
-	menu_configuration_features.maxfeats = menu.add_feature("Max features", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData:set_max_features(f.value)
-	end)
-	menu_configuration_features.maxfeats.max = 50
-	menu_configuration_features.maxfeats.mod = 1
-	menu_configuration_features.maxfeats.min = 1
-	menu_configuration_features.maxfeats.value = math.floor(stuff.menuData.max_features)
-
-	menu_configuration_features.menuWidth = menu.add_feature("Menu width", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData.width = f.value/graphics.get_screen_width()
-	end)
-	menu_configuration_features.menuWidth.max = graphics.get_screen_width()
-	menu_configuration_features.menuWidth.mod = 1
-	menu_configuration_features.menuWidth.min = -graphics.get_screen_width()
-	menu_configuration_features.menuWidth.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
-
-	menu_configuration_features.featXfeat = menu.add_feature("Feature dimensions X", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData.feature_scale.x = f.value/graphics.get_screen_width()
-	end)
-	menu_configuration_features.featXfeat.max = graphics.get_screen_width()
-	menu_configuration_features.featXfeat.mod = 1
-	menu_configuration_features.featXfeat.min = -graphics.get_screen_width()
-	menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
-
-	menu_configuration_features.featYfeat = menu.add_feature("Feature dimensions Y", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData.feature_scale.y = f.value/graphics.get_screen_height()
-	end)
-	menu_configuration_features.featYfeat.max = graphics.get_screen_height()
-	menu_configuration_features.featYfeat.mod = 1
-	menu_configuration_features.featYfeat.min = -graphics.get_screen_height()
-	menu_configuration_features.featYfeat.value = math.floor(stuff.menuData.feature_scale.y*graphics.get_screen_height())
-
-	menu_configuration_features.feature_offset = menu.add_feature("Feature spacing", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData.feature_offset = f.value/graphics.get_screen_height()
-		menu_configuration_features.maxfeats:toggle()
-	end)
-	menu_configuration_features.feature_offset.max = graphics.get_screen_height()
-	menu_configuration_features.feature_offset.mod = 1
-	menu_configuration_features.feature_offset.min = -graphics.get_screen_height()
-	menu_configuration_features.feature_offset.value = math.floor(stuff.menuData.feature_offset*graphics.get_screen_height())
-
-	menu_configuration_features.padding = menu.add_feature("Padding", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData.padding = f.value/graphics.get_screen_width()
-	end)
-	menu_configuration_features.padding.max = graphics.get_screen_width()
-	menu_configuration_features.padding.mod = 1
-	menu_configuration_features.padding.min = -graphics.get_screen_width()
-	menu_configuration_features.padding.value = math.floor(stuff.menuData.padding*graphics.get_screen_width())
-
-	menu_configuration_features.text_size = menu.add_feature("Text Size", "autoaction_value_f", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData.text_size_modifier = f.value
-	end)
-	menu_configuration_features.text_size.max = 5
-	menu_configuration_features.text_size.mod = 0.01
-	menu_configuration_features.text_size.min = 0.1
-	menu_configuration_features.text_size.value = stuff.menuData.text_size_modifier
-
-	menu_configuration_features.text_y_offset = menu.add_feature("Text Y Offset", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.drawFeatParams.textOffset.y = -(f.value/graphics.get_screen_height())
-		stuff.menuData.text_y_offset = -(f.value/graphics.get_screen_height())
-	end)
-	menu_configuration_features.text_y_offset.max = 100
-	menu_configuration_features.text_y_offset.mod = 1
-	menu_configuration_features.text_y_offset.min = -100
-	menu_configuration_features.text_y_offset.value = -math.floor(stuff.menuData.text_y_offset*graphics.get_screen_height())
-
-	menu_configuration_features.border = menu.add_feature("Border", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
-		stuff.menuData.border = f.value/graphics.get_screen_height()
-	end)
-	menu_configuration_features.border.max = graphics.get_screen_height()
-	menu_configuration_features.border.mod = 1
-	menu_configuration_features.border.min = -graphics.get_screen_height()
-	menu_configuration_features.border.value = math.floor(stuff.menuData.border*graphics.get_screen_height())
-
 	menu_configuration_features.headerfeat = menu.add_feature("Header", "autoaction_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
 		if f.str_data[f.value + 1] == "NONE" then
 			stuff.menuData.header = nil
@@ -2294,6 +2286,136 @@ function loadCurrentMenu()
 		end
 	end)
 	menu_configuration_features.headerfeat:set_str_data({"NONE", table.unpack(stuff.menuData.files.headers)})
+
+	menu_configuration_features.layoutParent = menu.add_feature("Layout", "parent", menu_configuration_features.cheesemenuparent.id)
+
+	menu_configuration_features.maxfeats = menu.add_feature("Max features", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData:set_max_features(f.value)
+	end)
+	menu_configuration_features.maxfeats.max = 50
+	menu_configuration_features.maxfeats.mod = 1
+	menu_configuration_features.maxfeats.min = 1
+	menu_configuration_features.maxfeats.value = math.floor(stuff.menuData.max_features)
+
+	menu_configuration_features.menuWidth = menu.add_feature("Menu width", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.width = f.value/graphics.get_screen_width()
+	end)
+	menu_configuration_features.menuWidth.max = graphics.get_screen_width()
+	menu_configuration_features.menuWidth.mod = 1
+	menu_configuration_features.menuWidth.min = -graphics.get_screen_width()
+	menu_configuration_features.menuWidth.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
+
+	menu_configuration_features.featXfeat = menu.add_feature("Feature dimensions X", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.feature_scale.x = f.value/graphics.get_screen_width()
+	end)
+	menu_configuration_features.featXfeat.max = graphics.get_screen_width()
+	menu_configuration_features.featXfeat.mod = 1
+	menu_configuration_features.featXfeat.min = -graphics.get_screen_width()
+	menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
+
+	menu_configuration_features.featYfeat = menu.add_feature("Feature dimensions Y", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.feature_scale.y = f.value/graphics.get_screen_height()
+	end)
+	menu_configuration_features.featYfeat.max = graphics.get_screen_height()
+	menu_configuration_features.featYfeat.mod = 1
+	menu_configuration_features.featYfeat.min = -graphics.get_screen_height()
+	menu_configuration_features.featYfeat.value = math.floor(stuff.menuData.feature_scale.y*graphics.get_screen_height())
+
+	menu_configuration_features.feature_offset = menu.add_feature("Feature spacing", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.feature_offset = f.value/graphics.get_screen_height()
+		menu_configuration_features.maxfeats:toggle()
+	end)
+	menu_configuration_features.feature_offset.max = graphics.get_screen_height()
+	menu_configuration_features.feature_offset.mod = 1
+	menu_configuration_features.feature_offset.min = -graphics.get_screen_height()
+	menu_configuration_features.feature_offset.value = math.floor(stuff.menuData.feature_offset*graphics.get_screen_height())
+
+	menu_configuration_features.text_size = menu.add_feature("Text Size", "autoaction_value_f", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.text_size_modifier = f.value
+	end)
+	menu_configuration_features.text_size.max = 5
+	menu_configuration_features.text_size.mod = 0.01
+	menu_configuration_features.text_size.min = 0.1
+	menu_configuration_features.text_size.value = stuff.menuData.text_size_modifier
+
+	menu_configuration_features.text_y_offset = menu.add_feature("Text Y Offset", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
+		stuff.drawFeatParams.textOffset.y = -(f.value/graphics.get_screen_height())
+		stuff.menuData.text_y_offset = -(f.value/graphics.get_screen_height())
+	end)
+	menu_configuration_features.text_y_offset.max = 100
+	menu_configuration_features.text_y_offset.mod = 1
+	menu_configuration_features.text_y_offset.min = -100
+	menu_configuration_features.text_y_offset.value = -math.floor(stuff.menuData.text_y_offset*graphics.get_screen_height())
+
+	menu_configuration_features.border = menu.add_feature("Border", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.border = f.value/graphics.get_screen_height()
+	end)
+	menu_configuration_features.border.max = graphics.get_screen_height()
+	menu_configuration_features.border.mod = 1
+	menu_configuration_features.border.min = -graphics.get_screen_height()
+	menu_configuration_features.border.value = math.floor(stuff.menuData.border*graphics.get_screen_height())
+
+	-- Padding
+		menu_configuration_features.padding_parent = menu.add_feature("Padding", "parent", menu_configuration_features.layoutParent.id)
+
+			menu_configuration_features.namePadding = menu.add_feature("Name Padding", "autoaction_value_i", menu_configuration_features.padding_parent.id, function(f)
+				stuff.menuData.padding.name = f.value/graphics.get_screen_width()
+			end)
+			menu_configuration_features.namePadding.max = graphics.get_screen_width()
+			menu_configuration_features.namePadding.mod = 1
+			menu_configuration_features.namePadding.min = -graphics.get_screen_width()
+			menu_configuration_features.namePadding.value = math.floor(stuff.menuData.padding.name*graphics.get_screen_width())
+
+			menu_configuration_features.parentPadding = menu.add_feature("Parent Padding", "autoaction_value_i", menu_configuration_features.padding_parent.id, function(f)
+				stuff.menuData.padding.parent = f.value/graphics.get_screen_width()
+			end)
+			menu_configuration_features.parentPadding.max = graphics.get_screen_width()
+			menu_configuration_features.parentPadding.mod = 1
+			menu_configuration_features.parentPadding.min = -graphics.get_screen_width()
+			menu_configuration_features.parentPadding.value = math.floor(stuff.menuData.padding.parent*graphics.get_screen_width())
+
+			menu_configuration_features.valuePadding = menu.add_feature("Value Padding", "autoaction_value_i", menu_configuration_features.padding_parent.id, function(f)
+				stuff.menuData.padding.value = f.value/graphics.get_screen_width()
+			end)
+			menu_configuration_features.valuePadding.max = graphics.get_screen_width()
+			menu_configuration_features.valuePadding.mod = 1
+			menu_configuration_features.valuePadding.min = -graphics.get_screen_width()
+			menu_configuration_features.valuePadding.value = math.floor(stuff.menuData.padding.value*graphics.get_screen_width())
+
+			menu_configuration_features.sliderPadding = menu.add_feature("Slider Padding", "autoaction_value_i", menu_configuration_features.padding_parent.id, function(f)
+				stuff.menuData.padding.slider = f.value/graphics.get_screen_width()
+			end)
+			menu_configuration_features.sliderPadding.max = graphics.get_screen_width()
+			menu_configuration_features.sliderPadding.mod = 1
+			menu_configuration_features.sliderPadding.min = -graphics.get_screen_width()
+			menu_configuration_features.sliderPadding.value = math.floor(stuff.menuData.padding.slider*graphics.get_screen_width())
+
+	-- Slider dimensions
+		menu_configuration_features.slider_parent = menu.add_feature("Slider", "parent", menu_configuration_features.layoutParent.id)
+
+			menu_configuration_features.sliderWidth = menu.add_feature("Slider Width", "autoaction_value_i", menu_configuration_features.slider_parent.id, function(f)
+				stuff.menuData.slider.width = f.value/graphics.get_screen_width()
+			end)
+			menu_configuration_features.sliderWidth.max = graphics.get_screen_width()
+			menu_configuration_features.sliderWidth.mod = 1
+			menu_configuration_features.sliderWidth.min = -graphics.get_screen_width()
+			menu_configuration_features.sliderWidth.value = math.floor(stuff.menuData.slider.width*graphics.get_screen_width())
+
+			menu_configuration_features.sliderHeight = menu.add_feature("Slider Height", "autoaction_value_i", menu_configuration_features.slider_parent.id, function(f)
+				stuff.menuData.slider.height = f.value/graphics.get_screen_height()
+			end)
+			menu_configuration_features.sliderHeight.max = graphics.get_screen_height()
+			menu_configuration_features.sliderHeight.mod = 1
+			menu_configuration_features.sliderHeight.min = -graphics.get_screen_height()
+			menu_configuration_features.sliderHeight.value = math.floor(stuff.menuData.slider.height*graphics.get_screen_height())
+
+			menu_configuration_features.sliderheightActive = menu.add_feature("Slider Height Active", "autoaction_value_i", menu_configuration_features.slider_parent.id, function(f)
+				stuff.menuData.slider.heightActive = f.value/graphics.get_screen_height()
+			end)
+			menu_configuration_features.sliderheightActive.max = graphics.get_screen_height()
+			menu_configuration_features.sliderheightActive.mod = 1
+			menu_configuration_features.sliderheightActive.min = -graphics.get_screen_height()
+			menu_configuration_features.sliderheightActive.value = math.floor(stuff.menuData.slider.heightActive*graphics.get_screen_height())
 
 	-- Controls
 		menu_configuration_features.controls = menu.add_feature("Controls", "parent", menu_configuration_features.cheesemenuparent.id)
@@ -2492,7 +2614,7 @@ function loadCurrentMenu()
 			menu_configuration_features.footer_y_offset.min = -100
 			menu_configuration_features.footer_y_offset.value = math.floor(stuff.menuData.footer.footer_y_offset*graphics.get_screen_height())
 
-			menu_configuration_features.padding = menu.add_feature("Padding", "autoaction_value_i", menu_configuration_features.footer.id, function(f)
+			menu_configuration_features.footerPadding = menu.add_feature("Padding", "autoaction_value_i", menu_configuration_features.footer.id, function(f)
 				if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 					local stat, num = input.get("num", "", 10, 3)
 					if stat == 0 and tonumber(num) then
@@ -2502,10 +2624,10 @@ function loadCurrentMenu()
 				end
 				stuff.menuData.footer.padding = f.value/graphics.get_screen_width()
 			end)
-			menu_configuration_features.padding.max = graphics.get_screen_width()
-			menu_configuration_features.padding.mod = 1
-			menu_configuration_features.padding.min = -graphics.get_screen_width()
-			menu_configuration_features.padding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
+			menu_configuration_features.footerPadding.max = graphics.get_screen_width()
+			menu_configuration_features.footerPadding.mod = 1
+			menu_configuration_features.footerPadding.min = -graphics.get_screen_width()
+			menu_configuration_features.footerPadding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
 
 			menu_configuration_features.draw_footer = menu.add_feature("Draw footer", "toggle", menu_configuration_features.footer.id, function(f)
 				stuff.menuData.footer.draw_footer = f.on

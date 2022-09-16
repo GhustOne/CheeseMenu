@@ -10,11 +10,14 @@ table[]		gltw.read(string name, string path|nil(in same path as lua), table|nil,
 -- if the 4th arg is true the function won't throw an error if the file doesn't exist and will return nil
 ]]
 
-gltw = {}
+local gltw = {}
+local l_next <const> = next
+local l_pairs <const> = function(t)
+	return l_next, t, nil
+end
 
 function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
-	local l_next = next
-	for k, v in pairs(tableTW) do
+	for k, v in l_pairs(tableTW) do
 		if not exclusions[k] then
 			local typeofv = type(v)
 			local index
@@ -40,7 +43,7 @@ end
 function gltw.write(tableTW, name, path, exclusions, exclude_empty)
 	local convertedExclusions = {}
 	if exclusions then
-		for k, v in pairs(exclusions) do
+		for k, v in l_pairs(exclusions) do
 			convertedExclusions[v] = true
 		end
 	end
@@ -61,12 +64,17 @@ function gltw.write(tableTW, name, path, exclusions, exclude_empty)
 	file:close()
 end
 
-function gltw.add_to_table(getTable, addToTable)
+function gltw.add_to_table(getTable, addToTable, typeMatched)
 	assert(type(getTable) == "table" and type(addToTable) == "table", "args have to be tables")
-	for k, v in pairs(getTable) do
+	for k, v in l_pairs(getTable) do
 		if type(v) ~= "table" then
-			addToTable[k] = getTable[k]
+			if typeMatched and (type(getTable[k]) == type(addToTable[k]) or not addToTable[k]) or not typeMatched then
+				addToTable[k] = getTable[k]
+			end
 		else
+			if type(addToTable[k]) ~= "table" and not typeMatched then
+				addToTable[k] = {}
+			end
 			if type(addToTable[k]) == "table" then
 				gltw.add_to_table(getTable[k], addToTable[k])
 			end
@@ -74,11 +82,11 @@ function gltw.add_to_table(getTable, addToTable)
 	end
 end
 
-function gltw.read(name, path, addToTable, overrideError)
+function gltw.read(name, path, addToTable, overrideError, typeMatched)
 	if overrideError and not utils.file_exists(path..name..".lua") then
 		return
 	end
-	
+
 	path = path or ""
 	if type(tableRT) == "string" then
 		name, path = tableRT, name or path
@@ -86,11 +94,12 @@ function gltw.read(name, path, addToTable, overrideError)
 	end
 
 	if addToTable then
-		local readTable = dofile(path..name..".lua")
-		assert(readTable, "file not found")
-		gltw.add_to_table(readTable, addToTable)
+		local readTable = assert(loadfile(path..name..".lua"))()
+		gltw.add_to_table(readTable, addToTable, typeMatched)
 		return readTable
 	else
-		return dofile(path..name..".lua")
+		return loadfile(path..name..".lua")()
 	end
 end
+
+return gltw

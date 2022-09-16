@@ -153,9 +153,7 @@ do
 						stuff.next_selected = 0
 
 						stuff.selected = is_going_up and stuff.selected - 1 or stuff.selected + 1
-
 						selected = stuff.selected
-
 						stuff.move = nil
 					end
 				else
@@ -242,5 +240,25 @@ do
 	end
 end
 --
+
+-- Draw Slider
+do
+	local reuse_v2 = cheeseUtils.new_reusable_v2()
+
+	function cheeseUtils.draw_slider(pos, width, min, max, value, colorBG, colorActive, colorText, draw_value)
+		scriptdraw.draw_rect(pos, width, colorBG)
+		local ActiveWidthX = width.x * ((value - min) / (max - min))
+		scriptdraw.draw_rect(reuse_v2(pos.x - width.x/2 + ActiveWidthX/2, pos.y), reuse_v2(ActiveWidthX , width.y), colorActive)
+
+		if draw_value then
+			local text_size = scriptdraw.get_text_size(tostring(value), 1)
+			local size_correction = width.y*2 / scriptdraw.size_pixel_to_rel_y(text_size.y*2) - 0.12
+			text_size = text_size * size_correction
+			text_size.x = scriptdraw.size_pixel_to_rel_x(text_size.x)
+			text_size.y = scriptdraw.size_pixel_to_rel_y(text_size.y)
+			scriptdraw.draw_text(tostring(value), reuse_v2(pos.x - text_size.x/2, pos.y + text_size.y/2), reuse_v2(2, 2), size_correction, colorText, 0)
+		end
+	end
+end
 
 return cheeseUtils
