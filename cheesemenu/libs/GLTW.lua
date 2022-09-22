@@ -11,12 +11,13 @@ table[]		gltw.read(string name, string path|nil(in same path as lua), table|nil,
 ]]
 
 local gltw = {}
+local type <const> = type
 local l_next <const> = next
 local l_pairs <const> = function(t)
 	return l_next, t, nil
 end
 
-function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
+function gltw.write_table(tableTW, indentation, exclusions, exclude_empty, string_lines)
 	for k, v in l_pairs(tableTW) do
 		if not exclusions[k] then
 			local typeofv = type(v)
@@ -28,40 +29,51 @@ function gltw.write_table(file, tableTW, indentation, exclusions, exclude_empty)
 			end
 
 			if typeofv == "string" then
-				file:write(indentation..index.."[=["..v.."]=],\n")
+				string_lines[#string_lines + 1] = indentation..index.."[=["..v.."]=],"
 			elseif typeofv ~= "function" and typeofv ~= "table" then
-				file:write(indentation..index..tostring(v)..",\n")
+				string_lines[#string_lines + 1] = indentation..index..tostring(v)..","
 			elseif typeofv == "table" and (l_next(v) or not exclude_empty) then
-				file:write(indentation..index.."{\n")
-				gltw.write_table(file, v, indentation.."	", exclusions, exclude_empty)
-				file:write(indentation.."},\n")
+				string_lines[#string_lines + 1] = indentation..index.."{"
+				gltw.write_table(v, indentation.."	", exclusions, exclude_empty, string_lines)
+				string_lines[#string_lines + 1] = indentation.."},"
 			end
 		end
 	end
 end
 
-function gltw.write(tableTW, name, path, exclusions, exclude_empty)
+function gltw.write(tableTW, name, path, exclusions, exclude_empty, compiled)
 	local convertedExclusions = {}
 	if exclusions then
 		for k, v in l_pairs(exclusions) do
 			convertedExclusions[v] = true
 		end
 	end
-
-	name = name or "set a name next time"
 	assert(tableTW, "no table was provided to write for file '"..name.."'")
-	path = path or ""
-	assert(type(name) == "string" and type(path) == "string", "name or path isn't a string")
 
-	local file = io.open(path..name..".lua", "w+")
-	assert(file, "'"..name.."' was not created.")
+	if name then
+		path = path or ""
+		assert(type(name) == "string" and type(path) == "string", "name or path isn't a string")
+	end
 
-	file:write("return {\n")
-	gltw.write_table(file, tableTW, "	", convertedExclusions, exclude_empty)
-	file:write("}")
+	local string_lines = {}
 
-	file:flush()
-	file:close()
+	string_lines[#string_lines + 1] = "return {"
+	gltw.write_table(tableTW, "	", convertedExclusions, exclude_empty, string_lines)
+	string_lines[#string_lines + 1] = "}"
+
+	if name then
+		local file = io.open(path..name..".lua", "wb")
+		assert(file, "'"..name.."' was not created.")
+
+		local stringified = table.concat(string_lines, "\n")
+
+		file:write(compiled and string.dump(load(stringified), true) or stringified)
+
+		file:flush()
+		file:close()
+	end
+
+	return string_lines
 end
 
 function gltw.add_to_table(getTable, addToTable, typeMatched)
@@ -82,7 +94,7 @@ function gltw.add_to_table(getTable, addToTable, typeMatched)
 	end
 end
 
-function gltw.read(name, path, addToTable, overrideError, typeMatched)
+function gltw.read(name, path, addToTable, typeMatched, overrideError)
 	if overrideError and not utils.file_exists(path..name..".lua") then
 		return
 	end
@@ -94,11 +106,11 @@ function gltw.read(name, path, addToTable, overrideError, typeMatched)
 	end
 
 	if addToTable then
-		local readTable = assert(loadfile(path..name..".lua"))()
+		local readTable = assert(loadfile(path..name..".lua", "tb"))()
 		gltw.add_to_table(readTable, addToTable, typeMatched)
 		return readTable
 	else
-		return loadfile(path..name..".lua")()
+		return loadfile(path..name..".lua", "tb")()
 	end
 end
 

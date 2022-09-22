@@ -1,5 +1,7 @@
-Added Sliders
-Added Individual Padding for each type
-Added value_str list (Ctrl + select key)
-
-Lots of fixes and changes
+Moved controls, hotkey notifications, menu pos, player info to one settings file
+Improved highlight function activation
+Sorted Color submenu
+Added Online Player Sort
+Added Custom Trusted Mode for scripts loaded with Proddy's Manager
+Added Proddy's Script Manager (REQUIRED TO LOAD OTHER SCRIPTS)
+in Script Features > Cheese Menu > Proddy's Script Manager

@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.7"
+local version = "1.8"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -138,6 +138,9 @@ function loadCurrentMenu()
 		scroll = 1,
 		scrollHiddenOffset = 0,
 		drawHiddenOffset = 0,
+		trusted_mode = 0,
+		old_selected = 0,
+		player_submenu_sort = 0,
 		previousMenus = {},
 		threads = {},
 		feature_by_id = {},
@@ -148,6 +151,14 @@ function loadCurrentMenu()
 		hotkeys = {},
 		hotkey_cooldowns = {},
 		hotkeys_to_vk = {},
+		table_sort_functions = {
+			[0] = function(a, b) return a.pid < b.pid end,
+			function(a, b) return a.pid > b.pid end,
+			function(a, b) return a.name:lower() < b.name:lower() end,
+			function(a, b) return a.name:lower() > b.name:lower() end,
+			function(a, b) return player.get_player_host_priority(a.pid) < player.get_player_host_priority(b.pid) end,
+			function(a, b) return player.get_player_host_priority(a.pid) > player.get_player_host_priority(b.pid) end
+		},
 		char_codes = {
 			["ENTER"] = 0x0D,
 			["0"] = 0x30,
@@ -469,13 +480,13 @@ function loadCurrentMenu()
 	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
 
 
-	gltw.read("controls", stuff.path.cheesemenu, stuff.controls, true)
+	gltw.read("controls", stuff.path.cheesemenu, stuff.controls, false, true)
 	for k, v in pairs(stuff.controls) do
 		stuff.vkcontrols[k] = stuff.char_codes[v]
 	end
 
-	gltw.read("hotkey notifications", stuff.path.hotkeys, stuff.hotkey_notifications, true)
-	stuff.hotkeys = gltw.read("hotkeys", stuff.path.hotkeys, nil, true) or {}
+	gltw.read("hotkey notifications", stuff.path.hotkeys, stuff.hotkey_notifications, false, true)
+	stuff.hotkeys = gltw.read("hotkeys", stuff.path.hotkeys, nil, false, true) or {}
 	stuff.hierarchy_key_to_hotkey = {}
 	for k, v in pairs(stuff.hotkeys) do
 		stuff.hotkey_cooldowns[k] = 0
@@ -1164,6 +1175,7 @@ function loadCurrentMenu()
 			stuff.playerIds[listener.player].hidden = false
 			stuff.playerIds[listener.player].name = player.get_player_name(listener.player)
 			func.reset_player_submenu(listener.player)
+			table.sort(stuff.PlayerParent, stuff.table_sort_functions[stuff.player_submenu_sort])
 		end)
 		event.add_event_listener("player_leave", function(listener)
 			func.reset_player_submenu(listener.player)
@@ -1171,6 +1183,7 @@ function loadCurrentMenu()
 				stuff.playerIds[listener.player].hidden = true
 				stuff.playerIds[listener.player].name = "nil"
 			end
+			table.sort(stuff.PlayerParent, stuff.table_sort_functions[stuff.player_submenu_sort])
 		end)
 
 		return stuff.PlayerParent
@@ -1179,27 +1192,27 @@ function loadCurrentMenu()
 	function func.reset_player_submenu(pid, currentParent)
 		local currentParent = currentParent or features.OnlinePlayers
 		for k, v in pairs(currentParent) do
-			if type(currentParent[k]) == "table" then
-				local feat_type = currentParent[k].type
+			if type(v) == "table" then
+				local feat_type = v.type
 				if feat_type then
 					if feat_type >> 1 & 1 ~= 0 then -- toggle
-						currentParent[k].table_value[pid] = currentParent[k].real_value
+						v.table_value[pid] = v.real_value
 						if feat_type & 136 ~= 0 then -- value if
-							currentParent[k].table_min[pid] = currentParent[k].real_min
-							currentParent[k].table_max[pid] = currentParent[k].real_max
-							currentParent[k].table_mod[pid] = currentParent[k].real_mod
+							v.table_min[pid] = v.real_min
+							v.table_max[pid] = v.real_max
+							v.table_mod[pid] = v.real_mod
 						end
 					end
 					if feat_type & 1 ~= 0 then -- toggle
 						if player.is_player_valid(pid) then
-							currentParent[k].feats[pid].on = currentParent[k].real_on
+							v.feats[pid].on = v.real_on
 						else
-							currentParent[k].feats[pid].on = false
-							currentParent[k].table_on[pid] = false
+							v.feats[pid].on = false
+							v.table_on[pid] = false
 						end
 					end
 					if feat_type >> 11 & 1 ~= 0 then -- parent
-						func.reset_player_submenu(pid, currentParent[k])
+						func.reset_player_submenu(pid, v)
 					end
 				end
 			end
@@ -1285,9 +1298,19 @@ function loadCurrentMenu()
 			return false
 		end
 
+		if stuff.old_selected == stuff.feature_by_id[id] then
+			stuff.old_selected = nil
+		end
+		stuff.feature_by_id[id] = nil
+
 		if feat.thread then
 			if not menu.has_thread_finished(feat.thread) then
 				menu.delete_thread(feat.thread)
+			end
+		end
+		if feat.hl_thread then
+			if not menu.has_thread_finished(feat.hl_thread) then
+				menu.delete_thread(feat.hl_thread)
 			end
 		end
 
@@ -1324,6 +1347,8 @@ function loadCurrentMenu()
 		if not feat then
 			return false
 		end
+
+		stuff.player_feature_by_id[id] = nil
 
 		local parent
 		if feat.parent_id ~= 0 then
@@ -1443,8 +1468,53 @@ function loadCurrentMenu()
 		func.toggle_menu(originalmenuToggle)
 	end
 
+
+	function func.save_settings()
+		gltw.write({
+			x = stuff.menuData.x,
+			y = stuff.menuData.y,
+			side_window = stuff.menuData.side_window,
+			controls = stuff.controls,
+			hotkey_notifications = stuff.hotkey_notifications,
+			player_submenu_sort = stuff.player_submenu_sort
+		}, "Settings", stuff.path.cheesemenu)
+	end
+
+	function func.load_settings()
+		local settings = gltw.read("Settings", stuff.path.cheesemenu, nil, nil, true)
+		if settings then
+			stuff.menuData.x = settings.x
+			stuff.menuData.y = settings.y
+			stuff.player_submenu_sort = settings.player_submenu_sort
+
+			for k, v in pairs(settings.side_window) do
+				stuff.menuData.side_window[k] = v
+			end
+			for k, v in pairs(settings.hotkey_notifications) do
+				stuff.hotkey_notifications[k] = v
+			end
+			for k, v in pairs(settings.controls) do
+				stuff.controls[k] = v
+			end
+			for k, v in pairs(stuff.controls) do
+				stuff.vkcontrols[k] = stuff.char_codes[v]
+			end
+
+			menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
+			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
+			menu_configuration_features.player_submenu_sort.value = stuff.player_submenu_sort
+			menu_configuration_features.player_submenu_sort:toggle()
+			menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
+			menu_configuration_features.side_window_offsety.value = math.floor(stuff.menuData.side_window.offset.y*graphics.get_screen_height())
+			menu_configuration_features.side_window_spacing.value = math.floor(stuff.menuData.side_window.spacing*graphics.get_screen_height())
+			menu_configuration_features.side_window_padding.value = math.floor(stuff.menuData.side_window.padding*graphics.get_screen_width())
+			menu_configuration_features.side_window_width.value = math.floor(stuff.menuData.side_window.width*graphics.get_screen_width())
+			menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on
+		end
+	end
+
 	function func.save_ui(name)
-		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "loaded_sprites", "files"})
+		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "loaded_sprites", "files", "x", "y", "side_window"})
 	end
 
 	function func.load_ui(name)
@@ -1463,8 +1533,8 @@ function loadCurrentMenu()
 				menu_configuration_features.backgroundfeat:toggle()
 			end
 
-			menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
-			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
+			--[[ menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
+			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height()) ]]
 			menu_configuration_features.maxfeats.value = math.floor(stuff.menuData.max_features)
 			menu_configuration_features.menuWidth.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
 			menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
@@ -1489,12 +1559,12 @@ function loadCurrentMenu()
 			menu_configuration_features.footerPadding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
 			menu_configuration_features.draw_footer.on = stuff.menuData.footer.draw_footer
 			menu_configuration_features.footer_pos_related_to_background.on = stuff.menuData.footer.footer_pos_related_to_background
-			menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
+			--[[ menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
 			menu_configuration_features.side_window_offsety.value = math.floor(stuff.menuData.side_window.offset.y*graphics.get_screen_height())
 			menu_configuration_features.side_window_spacing.value = math.floor(stuff.menuData.side_window.spacing*graphics.get_screen_height())
 			menu_configuration_features.side_window_padding.value = math.floor(stuff.menuData.side_window.padding*graphics.get_screen_width())
 			menu_configuration_features.side_window_width.value = math.floor(stuff.menuData.side_window.width*graphics.get_screen_width())
-			menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on
+			menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on ]]
 			menu_configuration_features.text_font.value = stuff.menuData.fonts.text
 			menu_configuration_features.footer_font.value = stuff.menuData.fonts.footer
 
@@ -1957,6 +2027,15 @@ function loadCurrentMenu()
 						)
 					end
 				end
+				if stuff.old_selected ~= currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+					if type(stuff.old_selected) == "table" then
+						stuff.old_selected:activate_hl_func()
+					end
+					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+						currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+					end
+					stuff.old_selected = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+				end
 				controls.disable_control_action(0, 172, true)
 				controls.disable_control_action(0, 27, true)
 			else
@@ -1978,7 +2057,7 @@ function loadCurrentMenu()
 				stuff.previousMenus[#stuff.previousMenus] = nil
 			end
 			local pid = player.player_id()
-			stuff.playerIds[pid].name = player.get_player_name(pid)
+			stuff.playerIds[pid].name = player.get_player_name(pid).." [Y]"
 			if stuff.playerIds[pid].hidden then
 				stuff.playerIds[pid].hidden = false
 				func.reset_player_submenu(pid)
@@ -2018,7 +2097,7 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.down, true, function() -- downKey
-					local old_scroll = stuff.scroll + stuff.scrollHiddenOffset
+					--[[ local old_scroll = stuff.scroll + stuff.scrollHiddenOffset ]]
 					if stuff.scroll + stuff.drawHiddenOffset >= #currentMenu and #currentMenu - stuff.drawHiddenOffset > 1 then
 						stuff.scroll = 1
 						stuff.drawScroll = 0
@@ -2028,12 +2107,12 @@ function loadCurrentMenu()
 							stuff.drawScroll = stuff.drawScroll + 1
 						end
 					end
-					if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
+					--[[ if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
 						currentMenu[old_scroll]:activate_hl_func()
 						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 						end
-					end
+					end ]]
 				end)
 			end
 		end
@@ -2043,7 +2122,7 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.up, true, function() -- upKey
-					local old_scroll = stuff.scroll + stuff.scrollHiddenOffset
+					--[[ local old_scroll = stuff.scroll + stuff.scrollHiddenOffset ]]
 					if stuff.scroll <= 1 and #currentMenu - stuff.drawHiddenOffset > 1 then
 						stuff.scroll = #currentMenu
 						stuff.drawScroll = stuff.maxDrawScroll
@@ -2053,12 +2132,12 @@ function loadCurrentMenu()
 							stuff.drawScroll = stuff.drawScroll - 1
 						end
 					end
-					if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
+					--[[ if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
 						currentMenu[old_scroll]:activate_hl_func()
 						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 						end
-					end
+					end ]]
 				end)
 			end
 		end
@@ -2073,7 +2152,7 @@ function loadCurrentMenu()
 						if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() and feat.type >> 5 & 1 ~= 0 then
 							menu.create_thread(func.selector, feat)
 						elseif feat.type >> 11 & 1 ~= 0 and not feat.hidden then
-							feat:activate_hl_func()
+							--feat:activate_hl_func()
 							stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
 							currentMenu = feat
 							currentMenu:activate_feat_func()
@@ -2081,9 +2160,9 @@ function loadCurrentMenu()
 							system.wait(0)
 							stuff.drawScroll = 0
 							stuff.scrollHiddenOffset = 0
-							if feat then
+							--[[ if feat then
 								feat:activate_hl_func()
-							end
+							end ]]
 							while cheeseUtils.get_key(stuff.vkcontrols.select):is_down() do
 								system.wait(0)
 							end
@@ -2106,15 +2185,15 @@ function loadCurrentMenu()
 			if stuff.menuData.menuToggle then
 				func.do_key(500, stuff.vkcontrols.back, false, function() --backspace
 					if stuff.previousMenus[#stuff.previousMenus] then
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+						--[[ if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
 							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
-						end
+						end ]]
 						currentMenu = stuff.previousMenus[#stuff.previousMenus].menu
 						stuff.scroll = stuff.previousMenus[#stuff.previousMenus].scroll
 						stuff.drawScroll = stuff.previousMenus[#stuff.previousMenus].drawScroll
 						stuff.scrollHiddenOffset = stuff.previousMenus[#stuff.previousMenus].scrollHiddenOffset
 						stuff.previousMenus[#stuff.previousMenus] = nil
-						currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+						--currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 					end
 				end)
 			end
@@ -2224,15 +2303,22 @@ function loadCurrentMenu()
 		end
 	end, nil)
 	--End of threads
+	menu.notify("Kektram for teaching me lua & sharing neat functions\n\nRimuru for making the first separate ui that helped me in making cheese menu\n\nProddy for showing better ways to do things & sharing Script Manager", "Credits:", 12, 0x00ff00)
 	menu.notify("Controls can be found in\nScript Features > Cheese Menu > Controls", "CheeseMenu by GhostOne\n"..stuff.controls.open.." to open", 6, 0x00ff00)
 
 	menu_configuration_features = {}
-	menu_configuration_features.cheesemenuparent = menu.add_feature("Cheese menu", "parent")
+	menu_configuration_features.cheesemenuparent = menu.add_feature("Cheese Menu", "parent")
+
+	menu.add_feature("Save Settings", "action", menu_configuration_features.cheesemenuparent.id, function()
+		func.save_settings()
+		menu.notify("Settings Saved Successfully", "Cheese Menu", 6, 0x00ff00)
+	end)
 
 	menu.add_feature("Save UI", "action", menu_configuration_features.cheesemenuparent.id, function()
 		local status, name = input.get("name of ui", "", 25, 0)
 		if status == 0 then
 			func.save_ui(name)
+			menu.notify("UI Saved Successfully", "Cheese Menu", 6, 0x00ff00)
 			for _, v in pairs(stuff.menuData.files.ui) do
 				if v == name then
 					return
@@ -2355,6 +2441,14 @@ function loadCurrentMenu()
 	menu_configuration_features.border.min = -graphics.get_screen_height()
 	menu_configuration_features.border.value = math.floor(stuff.menuData.border*graphics.get_screen_height())
 
+	-- Online Player Submenu Sorting
+		menu_configuration_features.player_submenu_sort = menu.add_feature("Online Players Sort:", "autoaction_value_str", menu_configuration_features.layoutParent.id, function(f)
+			table.sort(stuff.PlayerParent, stuff.table_sort_functions[f.value])
+			stuff.player_submenu_sort = f.value
+		end)
+		menu_configuration_features.player_submenu_sort:set_str_data({'PID', 'PID Reversed', 'Alphabetically', 'Alphabetically Reversed', 'Host Priority', 'Host Priority Reversed'})
+		menu_configuration_features.player_submenu_sort.value = stuff.player_submenu_sort
+
 	-- Padding
 		menu_configuration_features.padding_parent = menu.add_feature("Padding", "parent", menu_configuration_features.layoutParent.id)
 
@@ -2419,9 +2513,6 @@ function loadCurrentMenu()
 
 	-- Controls
 		menu_configuration_features.controls = menu.add_feature("Controls", "parent", menu_configuration_features.cheesemenuparent.id)
-			menu.add_feature("Save controls", "action", menu_configuration_features.controls.id, function()
-				gltw.write(stuff.controls, "controls", stuff.path.cheesemenu)
-			end)
 
 			for k, v in pairs(stuff.controls) do
 				menu.add_feature(k, "action_value_str", menu_configuration_features.controls.id, function(f)
@@ -2677,98 +2768,111 @@ function loadCurrentMenu()
 
 			menu.add_feature("Toggle notification", "toggle", menu_configuration_features.hotkeyparent.id, function(f)
 				stuff.hotkey_notifications.toggle = f.on
-				gltw.write(stuff.hotkey_notifications, "hotkey notifications", stuff.path.hotkeys)
 			end).on = stuff.hotkey_notifications.toggle
 			menu.add_feature("Action notification", "toggle", menu_configuration_features.hotkeyparent.id, function(f)
 				stuff.hotkey_notifications.action = f.on
-				gltw.write(stuff.hotkey_notifications, "hotkey notifications", stuff.path.hotkeys)
 			end).on = stuff.hotkey_notifications.action
 
 	-- Colors
 		local colorParent = menu.add_feature("Colors", "parent", menu_configuration_features.cheesemenuparent.id)
-
-			for k, v in pairs(stuff.menuData.color) do
-				menu_configuration_features[k] = {}
-				local vParent = menu.add_feature(k, "parent", colorParent.id)
-
-				menu_configuration_features[k].r = menu.add_feature("Red", "autoaction_value_i", vParent.id, function(f)
-					if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-						local stat, num = input.get("num", "", 10, 3)
-						if stat == 0 and tonumber(num) then
-							f.value = num
-						end
-					end
-					stuff.menuData.color:set_color(k, f.value)
-				end)
-				menu_configuration_features[k].r.max = 255
-				if type(v) == "table" then
-					menu_configuration_features[k].r.value = v.r
-				else
-					menu_configuration_features[k].r.value = func.convert_int_to_rgba(v, "r")
+			do
+				local tempColor = {}
+				for k, v in pairs(stuff.menuData.color) do
+					tempColor[#tempColor+1] = {k, v}
 				end
+				table.sort(tempColor, function(a, b) return a[1] < b[1] end)
 
-				menu_configuration_features[k].g = menu.add_feature("Green", "autoaction_value_i", vParent.id, function(f)
-					if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-						local stat, num = input.get("num", "", 10, 3)
-						if stat == 0 and tonumber(num) then
-							f.value = num
-						end
-					end
-					stuff.menuData.color:set_color(k, nil, f.value)
-				end)
-				menu_configuration_features[k].g.max = 255
-				if type(v) == "table" then
-					menu_configuration_features[k].g.value = v.g
-				else
-					menu_configuration_features[k].g.value = func.convert_int_to_rgba(v, "g")
-				end
+				for _, v in pairs(tempColor) do
+					menu_configuration_features[v[1]] = {}
+					local vParent = menu.add_feature(v[1], "parent", colorParent.id)
 
-				menu_configuration_features[k].b = menu.add_feature("Blue", "autoaction_value_i", vParent.id, function(f)
-					if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-						local stat, num = input.get("num", "", 10, 3)
-						if stat == 0 and tonumber(num) then
-							f.value = num
+					menu_configuration_features[v[1]].r = menu.add_feature("Red", "autoaction_value_i", vParent.id, function(f)
+						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
+							local stat, num = input.get("num", "", 10, 3)
+							if stat == 0 and tonumber(num) then
+								f.value = num
+							end
 						end
+						stuff.menuData.color:set_color(v[1], f.value)
+					end)
+					menu_configuration_features[v[1]].r.max = 255
+					if type(v[2]) == "table" then
+						menu_configuration_features[v[1]].r.value = v[2].r
+					else
+						menu_configuration_features[v[1]].r.value = func.convert_int_to_rgba(v[2], "r")
 					end
-					stuff.menuData.color:set_color(k, nil, nil, f.value)
-				end)
-				menu_configuration_features[k].b.max = 255
-				if type(v) == "table" then
-					menu_configuration_features[k].b.value = v.b
-				else
-					menu_configuration_features[k].b.value = func.convert_int_to_rgba(v, "b")
-				end
 
-				menu_configuration_features[k].a = menu.add_feature("Alpha", "autoaction_value_i", vParent.id, function(f)
-					if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-						local stat, num = input.get("num", "", 10, 3)
-						if stat == 0 and tonumber(num) then
-							f.value = num
+					menu_configuration_features[v[1]].g = menu.add_feature("Green", "autoaction_value_i", vParent.id, function(f)
+						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
+							local stat, num = input.get("num", "", 10, 3)
+							if stat == 0 and tonumber(num) then
+								f.value = num
+							end
 						end
+						stuff.menuData.color:set_color(v[1], nil, f.value)
+					end)
+					menu_configuration_features[v[1]].g.max = 255
+					if type(v[2]) == "table" then
+						menu_configuration_features[v[1]].g.value = v[2].g
+					else
+						menu_configuration_features[v[1]].g.value = func.convert_int_to_rgba(v[2], "g")
 					end
-					stuff.menuData.color:set_color(k, nil, nil, nil, f.value)
-				end)
-				menu_configuration_features[k].a.max = 255
-				if type(v) == "table" then
-					menu_configuration_features[k].a.value = v.a
-				else
-					menu_configuration_features[k].a.value = func.convert_int_to_rgba(v, "a")
+
+					menu_configuration_features[v[1]].b = menu.add_feature("Blue", "autoaction_value_i", vParent.id, function(f)
+						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
+							local stat, num = input.get("num", "", 10, 3)
+							if stat == 0 and tonumber(num) then
+								f.value = num
+							end
+						end
+						stuff.menuData.color:set_color(v[1], nil, nil, f.value)
+					end)
+					menu_configuration_features[v[1]].b.max = 255
+					if type(v[2]) == "table" then
+						menu_configuration_features[v[1]].b.value = v[2].b
+					else
+						menu_configuration_features[v[1]].b.value = func.convert_int_to_rgba(v[2], "b")
+					end
+
+					menu_configuration_features[v[1]].a = menu.add_feature("Alpha", "autoaction_value_i", vParent.id, function(f)
+						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
+							local stat, num = input.get("num", "", 10, 3)
+							if stat == 0 and tonumber(num) then
+								f.value = num
+							end
+						end
+						stuff.menuData.color:set_color(v[1], nil, nil, nil, f.value)
+					end)
+					menu_configuration_features[v[1]].a.max = 255
+					if type(v[2]) == "table" then
+						menu_configuration_features[v[1]].a.value = v[2].a
+					else
+						menu_configuration_features[v[1]].a.value = func.convert_int_to_rgba(v[2], "a")
+					end
 				end
 			end
 
-	-- loading default ui
+	-- loading default ui & settings
 	func.load_ui("default")
+	func.load_settings()
 
 	--changing menu functions to ui functions
+	menu_originals = setmetatable({
+		get_feature_by_hierarchy_key = menu.get_feature_by_hierarchy_key,
+		add_feature = menu.add_feature,
+		add_player_feature = menu.add_player_feature,
+		delete_feature = menu.delete_feature,
+		delete_player_feature = menu.delete_player_feature,
+		get_player_feature = menu.get_player_feature,
+	}, {__newindex = function() end})
 	menu.add_feature = func.add_feature
 	menu.add_player_feature = func.add_player_feature
 	menu.delete_feature = func.delete_feature
 	menu.delete_player_feature = func.delete_player_feature
 	menu.get_player_feature = func.get_player_feature
-	stuff.originals = {get_feature_by_hierarchy_key = menu.get_feature_by_hierarchy_key}
 	menu.get_feature_by_hierarchy_key = function(hierarchy_key)
 		local feat, duplicate
-		feat = stuff.originals.get_feature_by_hierarchy_key(hierarchy_key)
+		feat = menu_originals.get_feature_by_hierarchy_key(hierarchy_key)
 		if feat then
 			return feat
 		else
@@ -2783,6 +2887,50 @@ function loadCurrentMenu()
 	cheeseUIdata = stuff.menuData
 	--
 	func.set_player_feat_parent("Online Players", 0)
+
+	-- Proddy's Script Manager
+		dofile("\\scripts\\cheesemenu\\libs\\Proddy's Script Manager.lua")
+
+		do
+			local trusted_parent = menu_originals.get_feature_by_hierarchy_key("local.script_features.cheese_menu.proddy_s_script_manager.trusted_mode")
+
+			gltw.read("Trusted Flags", stuff.path.cheesemenu, stuff, true, true)
+			menu_originals.add_feature("Save Trusted Flags", "action", trusted_parent.id, function()
+				gltw.write({trusted_mode = stuff.trusted_mode, trusted_mode_notification = stuff.trusted_mode_notification}, "Trusted Flags", stuff.path.cheesemenu, nil, nil, true)
+				menu.notify("Saved Successfully", "Cheese Menu", 2, 0x00ff00)
+			end)
+
+			menu_originals.add_feature("Trusted Flags Notification", "toggle", trusted_parent.id, function(f)
+				stuff.trusted_mode_notification = f.on
+			end).on = stuff.trusted_mode_notification
+
+			local trusted_names = {
+				[0] = "Stats",
+				"Globals / Locals",
+				"Natives",
+				"HTTP",
+				"Memory"
+			}
+
+			for i = 0, 4 do
+				menu_originals.add_feature(trusted_names[i], "toggle", trusted_parent.id, function(f)
+					if f.on then
+						stuff.trusted_mode = stuff.trusted_mode | 1 << i
+					else
+						stuff.trusted_mode = stuff.trusted_mode ~ 1 << i
+					end
+				end).on = stuff.trusted_mode & 1 << i ~= 0
+			end
+
+			menu.is_trusted_mode_enabled = function(flag)
+				if not flag then
+					return stuff.trusted_mode & 7 == 7, stuff.trusted_mode_notification
+				else
+					return stuff.trusted_mode & flag == flag, stuff.trusted_mode_notification
+				end
+			end
+		end
+	--
 end
 if httpTrustedOff then
 	loadCurrentMenu()
