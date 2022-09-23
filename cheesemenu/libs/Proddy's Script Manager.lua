@@ -356,7 +356,22 @@ local limited_functions = {
 	},
 	{
 		namespace = "memory",
-		table = memory
+		table = memory,
+		["get_any"] = true,
+		["get_entity"] = true,
+		["get_ped"] = true,
+		["get_vehicle"] = true,
+		["get_object"] = true,
+		["get_pickup"] = true,
+		["read_u64"] = true,
+		["read_u32"] = true,
+		["read_u16"] = true,
+		["read_u8"] = true,
+		["read_i64"] = true,
+		["read_i32"] = true,
+		["read_i16"] = true,
+		["read_i8"] = true,
+		["read_f32"] = true,
 	},
 }
 
@@ -378,14 +393,14 @@ local modified_functions = {
 
 for k, v in ipairs(limited_functions) do
 	local namespace = v.namespace
-	for name, data in pairs(v[1] and v or v.table) do
-		if type(data) == "bool" or type(data) == "function" then
+	for name, data in pairs(v) do
+		if data == true then
 			modified_functions[namespace][name] = function(...)
 				local is_flag_on, notify = menu.is_trusted_mode_enabled(1 << (k-1))
 				if is_flag_on then
 					return v.table[name](...)
 				elseif notify then
-					menu.notify("Trusted Flag '"..trusted_names[k-1].."' is not enabled.", "Cheese Menu", 5, 0x00ffff)
+					menu.notify("Trusted Flag '"..trusted_names[k-1].."' is not enabled.\nFunction used: "..namespace..'.'..name, "Cheese Menu", 5, 0x00ffff)
 				end
 			end
 		end

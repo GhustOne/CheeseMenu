@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.8"
+local version = "1.8.1"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -2857,8 +2857,9 @@ function loadCurrentMenu()
 	func.load_settings()
 
 	--changing menu functions to ui functions
+	local menu_get_feature_by_hierarchy_key <const> = menu.get_feature_by_hierarchy_key
 	menu_originals = setmetatable({
-		get_feature_by_hierarchy_key = menu.get_feature_by_hierarchy_key,
+		--get_feature_by_hierarchy_key = menu.get_feature_by_hierarchy_key,
 		add_feature = menu.add_feature,
 		add_player_feature = menu.add_player_feature,
 		delete_feature = menu.delete_feature,
@@ -2875,7 +2876,7 @@ function loadCurrentMenu()
 			return
 		end
 		local feat, duplicate
-		feat = menu_originals.get_feature_by_hierarchy_key(hierarchy_key)
+		feat = menu_get_feature_by_hierarchy_key(hierarchy_key)
 		if feat then
 			return feat
 		else
@@ -2892,12 +2893,20 @@ function loadCurrentMenu()
 	func.set_player_feat_parent("Online Players", 0)
 
 	-- Proddy's Script Manager
+		gltw.read("Trusted Flags", stuff.path.cheesemenu, stuff, true, true)
+		menu.is_trusted_mode_enabled = function(flag)
+			if not flag then
+				return stuff.trusted_mode & 7 == 7, stuff.trusted_mode_notification
+			else
+				return stuff.trusted_mode & flag == flag, stuff.trusted_mode_notification
+			end
+		end
+
 		dofile("\\scripts\\cheesemenu\\libs\\Proddy's Script Manager.lua")
 
 		do
-			local trusted_parent = menu_originals.get_feature_by_hierarchy_key("local.script_features.cheese_menu.proddy_s_script_manager.trusted_mode")
+			local trusted_parent = menu_get_feature_by_hierarchy_key("local.script_features.cheese_menu.proddy_s_script_manager.trusted_mode")
 
-			gltw.read("Trusted Flags", stuff.path.cheesemenu, stuff, true, true)
 			menu_originals.add_feature("Save Trusted Flags", "action", trusted_parent.id, function()
 				gltw.write({trusted_mode = stuff.trusted_mode, trusted_mode_notification = stuff.trusted_mode_notification}, "Trusted Flags", stuff.path.cheesemenu, nil, nil, true)
 				menu.notify("Saved Successfully", "Cheese Menu", 2, 0x00ff00)
@@ -2923,14 +2932,6 @@ function loadCurrentMenu()
 						stuff.trusted_mode = stuff.trusted_mode ~ 1 << i
 					end
 				end).on = stuff.trusted_mode & 1 << i ~= 0
-			end
-
-			menu.is_trusted_mode_enabled = function(flag)
-				if not flag then
-					return stuff.trusted_mode & 7 == 7, stuff.trusted_mode_notification
-				else
-					return stuff.trusted_mode & flag == flag, stuff.trusted_mode_notification
-				end
 			end
 		end
 	--
