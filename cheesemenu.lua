@@ -2871,6 +2871,9 @@ function loadCurrentMenu()
 	menu.delete_player_feature = func.delete_player_feature
 	menu.get_player_feature = func.get_player_feature
 	menu.get_feature_by_hierarchy_key = function(hierarchy_key)
+		if string.find(hierarchy_key:lower(), "trusted") then
+			return
+		end
 		local feat, duplicate
 		feat = menu_originals.get_feature_by_hierarchy_key(hierarchy_key)
 		if feat then
