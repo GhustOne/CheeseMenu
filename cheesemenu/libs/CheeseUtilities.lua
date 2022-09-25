@@ -135,7 +135,7 @@ do
 		return false
 	end
 
-	local speed_modifier = 1.5
+	--local speed_modifier = 0.5
 	local function draw_selector(stuff)
 		while true do
 			local selected = stuff.selected
@@ -166,12 +166,13 @@ do
 			end
 
 			local min = selected - 5 >= 1 and selected - 5 or 1
-			local max = selected + 4 <= #stuff.items and selected + 4 or #stuff.items
+			local max = selected + 5 <= #stuff.items and selected + 5 or #stuff.items
 			for i = min, max do
 				if stuff.items[i] then
 					local size = i == selected and 1.3 or 1
 					size = i == stuff.next_selected and size + stuff.size_offset or i == selected and size - stuff.size_offset or size
-					scriptdraw.draw_text(stuff.items[i], reuse_v2(0, 0.005 - 0.08 * (i - selected) + (stuff.offset or 0)), textv2, size / stuff.text_size_rel_to_res, (255 - ((i - selected > 0 and i - selected or -(i - selected)) * 51) << 24 | 0xFFFFFF), 0)
+					local alpha = stuff.move == "up" and math.max(math.floor(255 - math.abs((i - selected) + math.abs(stuff.offset)/0.08)*51), 0) or math.max(math.floor(255 - math.abs((i - selected) - math.abs(stuff.offset)/0.08)*51), 0)
+					scriptdraw.draw_text(stuff.items[i], reuse_v2(0, 0.005 - 0.08 * (i - selected) + (stuff.offset or 0)), textv2, size / stuff.text_size_rel_to_res, (alpha << 24 | 0xFFFFFF), 0)
 				end
 			end
 
@@ -186,7 +187,7 @@ do
 	-- Usage: local index, item = selector("Select Player: ", 2, {"Player 1", "Player 2", "Player 3"})
 	-- if cancelled returned `index` will be false
 	-- `items` has to be in order and starting from 1
-	function cheeseUtils.selector(selected_str, index, items)
+	function cheeseUtils.selector(selected_str, speed, index, items)
 		index = tonumber(index) or 1
 		index = index > 1 and index or 1
 		assert(type(items) == "table", "items should be a table")
@@ -197,8 +198,8 @@ do
 			next_selected = 0,
 			offset = 0,
 			size_offset = 0,
-			offset_step = 0.08/(10/speed_modifier),
-			size_step = 0.3/(10/speed_modifier),
+			offset_step = 0.08/(10/(speed or 1)),
+			size_step = 0.3/(10/(speed or 1)),
 			text_size_rel_to_res = (3686400/(graphics.get_screen_width()*graphics.get_screen_height()))*0.3+0.7,
 		}
 

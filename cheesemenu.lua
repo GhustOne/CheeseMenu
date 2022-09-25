@@ -303,6 +303,7 @@ function loadCurrentMenu()
 			width = 0.2,
 			height = 0.305,
 			border = 0.0013888,
+			selector_speed = 1,
 			slider = {
 				width = 0.2,
 				height = 0.01,
@@ -1457,7 +1458,7 @@ function loadCurrentMenu()
 		local originalmenuToggle = stuff.menuData.menuToggle
 		stuff.menuData.menuToggle = false
 		if feat.str_data then
-			local index, _ = cheeseUtils.selector(nil, feat.real_value + 1, feat.str_data)
+			local index, _ = cheeseUtils.selector(nil, stuff.menuData.selector_speed, feat.real_value + 1, feat.str_data)
 			if index then
 				feat.real_value = index - 1
 			end
@@ -1476,7 +1477,8 @@ function loadCurrentMenu()
 			side_window = stuff.menuData.side_window,
 			controls = stuff.controls,
 			hotkey_notifications = stuff.hotkey_notifications,
-			player_submenu_sort = stuff.player_submenu_sort
+			player_submenu_sort = stuff.player_submenu_sort,
+			selector_speed = stuff.menuData.selector_speed
 		}, "Settings", stuff.path.cheesemenu)
 	end
 
@@ -1485,6 +1487,7 @@ function loadCurrentMenu()
 		if settings then
 			stuff.menuData.x = settings.x
 			stuff.menuData.y = settings.y
+			stuff.menuData.selector_speed = settings.selector_speed
 			stuff.player_submenu_sort = settings.player_submenu_sort
 
 			for k, v in pairs(settings.side_window) do
@@ -1510,11 +1513,12 @@ function loadCurrentMenu()
 			menu_configuration_features.side_window_padding.value = math.floor(stuff.menuData.side_window.padding*graphics.get_screen_width())
 			menu_configuration_features.side_window_width.value = math.floor(stuff.menuData.side_window.width*graphics.get_screen_width())
 			menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on
+			menu_configuration_features.selector_speed.value = stuff.menuData.selector_speed
 		end
 	end
 
 	function func.save_ui(name)
-		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "loaded_sprites", "files", "x", "y", "side_window"})
+		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "loaded_sprites", "files", "x", "y", "side_window", "selector_speed"})
 	end
 
 	function func.load_ui(name)
@@ -2440,6 +2444,14 @@ function loadCurrentMenu()
 	menu_configuration_features.border.mod = 1
 	menu_configuration_features.border.min = -graphics.get_screen_height()
 	menu_configuration_features.border.value = math.floor(stuff.menuData.border*graphics.get_screen_height())
+
+	menu_configuration_features.selector_speed = menu.add_feature("Selector Speed", "autoaction_value_f", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.selector_speed = f.value
+	end)
+	menu_configuration_features.selector_speed.max = 10
+	menu_configuration_features.selector_speed.mod = 0.1
+	menu_configuration_features.selector_speed.min = 0.2
+	menu_configuration_features.selector_speed.value = stuff.menuData.selector_speed
 
 	-- Online Player Submenu Sorting
 		menu_configuration_features.player_submenu_sort = menu.add_feature("Online Players Sort:", "autoaction_value_str", menu_configuration_features.layoutParent.id, function(f)
