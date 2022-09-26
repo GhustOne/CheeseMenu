@@ -5,5 +5,5 @@ Added Online Player Sort
 Added Custom Trusted Mode for scripts loaded with Proddy's Manager
 Added Proddy's Script Manager (REQUIRED TO LOAD OTHER SCRIPTS)
 in Script Features > Cheese Menu > Proddy's Script Manager
-v1.8.1:
-Fixed a bug that caused Trusted mode to not work correctly
+v1.8.2:
+Included Proddy's Script Manager in Auto updater
