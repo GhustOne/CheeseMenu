@@ -7,7 +7,6 @@ local filePaths = {
 	getinput = appdata_path.."\\scripts\\cheesemenu\\libs\\Get Input.lua",
 	cheeseUtils = appdata_path.."\\scripts\\cheesemenu\\libs\\CheeseUtilities.lua",
 	proddysManager = appdata_path.."\\scripts\\cheesemenu\\libs\\Proddy's Script Manager.lua",
-	
 }
 local files = {
 	cheesemenu = [[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu.lua]],
@@ -17,14 +16,23 @@ local files = {
 	proddysManager = [[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/cheesemenu/libs/Proddy's%20Script%20Manager.lua]],
 }
 
+local all_files = 0
+local downloaded_files = 0
 for k, v in pairs(files) do
-	local responseCode, file = web.get(v)
-	if responseCode == 200 then
-		files[k] = file
-	else
-		status = false
-		break
-	end
+	all_files = all_files + 1
+	menu.create_thread(function()
+		local responseCode, file = web.get(v)
+		if responseCode == 200 then
+			files[k] = file
+			downloaded_files = downloaded_files + 1
+		else
+			print("Failed to download: "..v)
+			status = false
+		end
+	end)
+end
+while downloaded_files < all_files and status do
+	system.wait(0)
 end
 
 if status then
@@ -34,7 +42,7 @@ if status then
 			status = "ERROR REPLACING"
 			break
 		end
-        	currentFile:close()
+        currentFile:close()
 	end
 	if status ~= "ERROR REPLACING" then
 		for k, v in pairs(files) do
