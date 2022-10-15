@@ -16,6 +16,7 @@ local l_next <const> = next
 local l_pairs <const> = function(t)
 	return l_next, t, nil
 end
+local ipairs <const> = ipairs
 
 function gltw.write_table(tableTW, indentation, exclusions, exclude_empty, string_lines)
 	for k, v in l_pairs(tableTW) do
@@ -44,7 +45,7 @@ end
 function gltw.write(tableTW, name, path, exclusions, exclude_empty, compiled)
 	local convertedExclusions = {}
 	if exclusions then
-		for k, v in l_pairs(exclusions) do
+		for _, v in ipairs(exclusions) do
 			convertedExclusions[v] = true
 		end
 	end
