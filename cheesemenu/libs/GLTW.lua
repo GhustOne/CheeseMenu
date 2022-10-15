@@ -48,7 +48,7 @@ function gltw.write(tableTW, name, path, exclusions, exclude_empty, compiled)
 			convertedExclusions[v] = true
 		end
 	end
-	assert(tableTW, "no table was provided to write for file '"..name.."'")
+	assert(tableTW, "no table was provided"..(name and " to write for file '"..name.."'" or ""))
 
 	if name then
 		path = path or ""
