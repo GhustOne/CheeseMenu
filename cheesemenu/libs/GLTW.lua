@@ -106,13 +106,11 @@ function gltw.read(name, path, addToTable, typeMatched, overrideError)
 		tableRT = nil
 	end
 
+	local readTable = loadfile(path..name..".lua", "tb")()
 	if addToTable then
-		local readTable = assert(loadfile(path..name..".lua", "tb"))()
 		gltw.add_to_table(readTable, addToTable, typeMatched)
-		return readTable
-	else
-		return loadfile(path..name..".lua", "tb")()
 	end
+	return readTable
 end
 
 return gltw
