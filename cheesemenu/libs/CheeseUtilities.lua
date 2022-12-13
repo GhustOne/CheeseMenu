@@ -262,4 +262,311 @@ do
 	end
 end
 
+-- Use width and height with draw_rect_ext
+do
+	local v2r = cheeseUtils.new_reusable_v2(4)
+	function cheeseUtils.draw_rect_ext_wh(pos, size, color1, color2, color3, color4)
+		local halfWdith, halfHeight = size.x/2, size.y/2
+		local Bottom = pos.y - halfHeight
+		local Top = pos.y + halfHeight
+		local Left = pos.x - halfWdith
+		local Right = pos.x + halfWdith
+		scriptdraw.draw_rect_ext(v2r(Left, Bottom), v2r(Left, Top), v2r(Right, Top), v2r(Right, Bottom), color1, color2, color3, color4)
+	end
+end
+
+-- Side Window
+--[[
+Usage example:
+	local cheeseUtils = require("CheeseUtilities")
+
+	local window_test = cheeseUtils.new_side_window("test_header", v2(0.5, 0.5))
+
+	local firstField = window_test:add_field("left", "right")
+
+	do
+		local timer = utils.time_ms() + 100
+		window_test:add_field("idk", "1"):set_update_function(function(field)
+			if timer < utils.time_ms() then
+				timer = utils.time_ms() + 100
+				local fieldValue = tonumber(field.value)
+				fieldValue = fieldValue + 1
+				if fieldValue > 25 then
+					fieldValue = 1
+				end
+				return fieldValue, fieldValue > 10 and "> 10" or "< 10"
+			end
+		end)
+	end
+
+	window_test:set_position(nil, 0.2)
+
+	window_test:set_rect_color(0xAA000000)
+
+	menu.create_thread(function()
+		while true do
+			window_test:update()
+			window_test:draw()
+			system.wait(0)
+		end
+	end)
+
+	menu.add_feature("hide cheese", "toggle", 0, function(f)
+		if f.on then
+			window_test:remove_field(window_test:get_field_by_name("cheese"))
+			firstField:set_value("right")
+		else
+			window_test:add_field("cheese", "menu", 2)
+			firstField:set_value("cheese enabled")
+		end
+	end).on = true
+]]
+do
+	local function draw_side_window(self)
+		assert(
+			type(self.header_text) == "string"
+			and type(self.fields) == "table"
+			and type(self.pos) == "userdata"
+			and type(self.rect_color) == "number"
+			and type(self.rect_width) == "number"
+			and type(self.text_spacing) == "number"
+			and type(self.text_padding) == "number"
+			and type(self.text_color) == "number",
+			"one or more draw_side_window args were invalid"
+		)
+		local rect_height = (#self.fields-self.hidden_fields)*self.text_spacing - self.text_spacing + self.last_name_height + 0.02 --+0.0083--+(self.header_on and 0.07125 or 0.02)
+		local original_y = self.pos.y--(rect_height/2)
+		local header_y = original_y+self.header_height/2+rect_height/2
+		local hidden_y_offset = 0
+
+
+		scriptdraw.draw_rect(self.pos, cheeseUtils.memoize.v2(self.rect_width, rect_height), self.rect_color)
+		if self.header_on then
+			scriptdraw.draw_rect(cheeseUtils.memoize.v2(self.pos.x, header_y), cheeseUtils.memoize.v2(self.rect_width, self.header_height), self.rect_color)
+		end
+
+		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
+		-- Header text
+		scriptdraw.draw_text(self.header_text, cheeseUtils.memoize.v2(self.pos.x - self.header_text_width/graphics.get_screen_width(), header_y+0.015), cheeseUtils.memoize.v2(2, 2), text_size, self.text_color, 0, 0)
+		-- table_of_lines
+		for id, field in ipairs(self.fields) do
+			if field.hidden then
+				hidden_y_offset = hidden_y_offset + 1
+			else
+				local pos_y = original_y-(id-hidden_y_offset-1)*self.text_spacing+rect_height/2 - self.last_name_height/6 - 0.01 --(self.text_spacing/2.5)
+				scriptdraw.draw_text(field.name, cheeseUtils.memoize.v2(self.pos.x-self.rect_width/2+self.text_padding, pos_y), cheeseUtils.memoize.v2(2, 2), text_size, self.text_color, 0, 2)
+				scriptdraw.draw_text(field.value, cheeseUtils.memoize.v2(self.pos.x+self.rect_width/2-self.text_padding, pos_y), cheeseUtils.memoize.v2(2, 2), text_size, self.text_color, 16, 2)
+			end
+		end
+	end
+
+	-- field functions
+		local function set_name(self, new_name)
+			if new_name then
+				if self.window.fields[#self.window.fields] == self then
+					local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
+					self.window.last_name_height = scriptdraw.size_pixel_to_rel_y(scriptdraw.get_text_size(new_name, text_size, 0).y)
+				end
+				self.fields_by_name[self.name] = nil
+				self.name = tostring(new_name) or ""
+				self.fields_by_name[new_name] = self
+			end
+		end
+
+		local function set_value(self, value)
+			if value then
+				self.value = tostring(value)
+			end
+		end
+
+		local function set_update_function(self, callback)
+			self.update_function = callback
+		end
+
+		local function update_field(self)
+			if self.update_function then
+				local value, name = self:update_function()
+
+				self:set_value(value)
+				self:set_name(name)
+			end
+		end
+
+		local function set_hidden(self, bool)
+			assert(type(bool) == "boolean", "hidden only accepts boolean value")
+			if bool ~= self.hidden then
+				self.hidden = bool
+				self.window.hidden_fields = self.window.hidden_fields + (bool and 1 or -1)
+			end
+		end
+	--
+
+	---@class field
+	---@field name					string
+	---@field value					string
+	---@field set_name				function
+	---@field set_value			 	function
+	---@field set_update_function	function
+	---@field update				function
+
+	---@param name string
+	---@param value string | number
+	---@return field
+	local function add_field(self, name, value, pos)
+		local field = {
+			name = name,
+			value = value,
+			id = pos or #self.fields + 1,
+			fields_by_name = self.fields_by_name,
+			window = self,
+			hidden = false,
+			set_name = set_name,
+			set_value = set_value,
+			set_update_function = set_update_function,
+			update = update_field,
+			set_hidden = set_hidden
+		}
+		if pos then
+			local prevField = (pos - 1 > 0 and self.fields[pos-1] or true)
+			assert(prevField, "Fields have to be in increments of 1, for example (1, 2, 5) will not work")
+			if self.fields[pos] and prevField then
+				table.insert(self.fields, pos, field)
+			elseif prevField then
+				self.fields[pos] = field
+			end
+		else
+			self.fields[#self.fields + 1] = field
+			local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
+			self.last_name_height = scriptdraw.size_pixel_to_rel_y(scriptdraw.get_text_size(name, text_size, 0).y)
+		end
+		self.fields_by_name[name] = field
+
+		return field
+	end
+
+	local function remove_field(self, field)
+		if field and self.fields[field.id] then
+			table.remove(self.fields, field.id)
+			self.fields_by_name[field.name] = nil
+
+			return true
+		end
+
+		return false
+	end
+
+	local function get_field_by_name(self, name)
+		return self.fields_by_name[name]
+	end
+
+	local function update(self)
+		for _, field in pairs(self.fields) do
+			field:update()
+		end
+	end
+
+	local function set_position(self, x, y)
+		self.pos.x = tonumber(x) or self.pos.x
+		self.pos.y = tonumber(y) or self.pos.y
+	end
+
+	local function set_header_text(self, text)
+		text = tostring(text)
+		self.header_text = text
+		self.header_on = text ~= ""
+		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
+		self.header_text_width = scriptdraw.get_text_size(self.header_text, text_size, 0).x
+	end
+
+	local set_functions = {}
+	for _, field in ipairs({'text_padding', 'text_spacing', 'rect_width', 'rect_color', 'text_color'}) do
+		set_functions[field] = function(self, num)
+			num = tonumber(num)
+			assert(num, field.." value has to be a number")
+			self[field] = num
+		end
+	end
+
+	---@class window
+	---@field draw				function
+	---@field update			function
+	---@field add_field			function
+	---@field remove_field		function
+	---@field set_position		function
+	---@field get_field_by_name	function
+	---@field set_text_padding	function
+	---@field set_text_spacing	function
+	---@field set_rect_width	function
+	---@field set_rect_color	function
+	---@field set_text_color	function
+	---@field set_header_text	function
+	---@field set_hidden		function
+	---@field header_text		string
+	---@field fields			table
+	---@field fields_by_name	table
+	---@field pos				v2
+	---@field rect_color		uint32_t
+	---@field rect_width		float
+	---@field text_spacing		float
+	---@field text_padding		float
+	---@field text_color		uint32_t
+
+	---@return window
+	function cheeseUtils.new_side_window(header_text, pos, rect_color, rect_width, text_spacing, text_padding, text_color)
+		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
+
+		local window = {
+			header_text = header_text or "",
+			header_on = header_text ~= "",
+			fields = {},
+			fields_by_name = {},
+			pos = pos or v2(),
+			rect_color = rect_color or 0xFF000000,
+			rect_width = rect_width or 0.2,
+			text_spacing = text_spacing or 0.047,
+			text_padding = text_padding or 0.01,
+			text_color = text_color or 0xFFFFFFFF,
+			header_height = 0.06125,
+			header_text_width = scriptdraw.get_text_size(header_text, text_size, 0).x,
+			hidden_fields = 0,
+		}
+
+		window.draw = draw_side_window
+		window.update = update
+		window.add_field = add_field
+		window.remove_field = remove_field
+		window.set_position = set_position
+		window.get_field_by_name = get_field_by_name
+		window.set_header_text = set_header_text
+		for name, func in pairs(set_functions) do
+			window['set_'..name] = func
+		end
+
+		return window
+	end
+end
+
+
+-- Range Converter
+do
+	local function convert_range(self, value)
+		return self.base_value + (value * self.step)
+	end
+	local Metatable = {__call = convert_range}
+
+	function cheeseUtils.create_range_converter(original_range_min, original_range_max, convert_range_min, convert_range_max)
+		local stuff = {}
+
+		local adjusted_max_original = original_range_max-original_range_min
+		local adjusted_max_convert = convert_range_max-convert_range_min
+
+		stuff.base_value = (0-original_range_min)/adjusted_max_original*adjusted_max_convert+convert_range_min
+		stuff.step = (1-original_range_min)/adjusted_max_original*adjusted_max_convert+convert_range_min - stuff.base_value
+
+		setmetatable(stuff, Metatable)
+
+		return stuff
+	end
+end
+
 return cheeseUtils
