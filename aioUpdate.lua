@@ -1,5 +1,5 @@
 return {
-	["GLTW.lua"] = [=[-- Made by GhostOne
+	["GLTW.lua"] = [==[-- Made by GhostOne
 -- L00naMods "Even if you say L00na is a bitch just put my name in there somewhere"
 -- Ghost's Lua Table Writer
 --[[
@@ -112,7 +112,7 @@ function gltw.read(name, path, addToTable, typeMatched, overrideError)
 end
 
 return gltw
-]=],
+]==],
 	["cheesemenu.lua"] = [=[--Made by GhostOne
 
 --[[
