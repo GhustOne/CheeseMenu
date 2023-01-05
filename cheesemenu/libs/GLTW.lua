@@ -13,13 +13,10 @@ table[]		gltw.read(string name, string path|nil(in same path as lua), table|nil,
 local gltw = {}
 local type <const> = type
 local l_next <const> = next
-local l_pairs <const> = function(t)
-	return l_next, t, nil
-end
 local ipairs <const> = ipairs
 
 function gltw.write_table(tableTW, indentation, exclusions, exclude_empty, string_lines)
-	for k, v in l_pairs(tableTW) do
+	for k, v in l_next, tableTW do
 		if not exclusions[k] then
 			local typeofv = type(v)
 			local index
@@ -79,7 +76,7 @@ end
 
 function gltw.add_to_table(getTable, addToTable, typeMatched)
 	assert(type(getTable) == "table" and type(addToTable) == "table", "args have to be tables")
-	for k, v in l_pairs(getTable) do
+	for k, v in l_next, getTable do
 		if type(v) ~= "table" then
 			if typeMatched and (type(getTable[k]) == type(addToTable[k]) or not addToTable[k]) or not typeMatched then
 				addToTable[k] = getTable[k]
