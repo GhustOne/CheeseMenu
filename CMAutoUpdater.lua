@@ -9,7 +9,7 @@ local filePaths = {
 	["Proddy's Script Manager.lua"] = appdata_path.."\\scripts\\cheesemenu\\libs\\Proddy's Script Manager.lua",
 }
 
-local responseCode, responseBody = web.get([[https://raw.githubusercontent.com/GhustOne/CheeseMenu/dev/aioUpdate.lua]])
+local responseCode, responseBody = web.get([[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/aioUpdate.lua]])
 if responseCode ~= 200 then
 	print("Failed to download update.")
 	status = false
