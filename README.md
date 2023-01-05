@@ -21,7 +21,8 @@ How to install
 1. Download by going to [Releases](https://github.com/GhustOne/CheeseMenu/releases) and downloading cheesemenu.zip on the latest release
 2. Simply put `cheesemenu.lua` and `cheesemenu` folder that are in the downloaded zip in the scripts folder for 2t1 and load it
 
-Any scripts loaded after will be embedded in cheesemenu
+Load other scripts through `Local > Script Features > Cheese Menu > Proddy's Script Manager`. 
+Don't forget to enable trusted mode.
 
 Controls are in Script Features > Cheese Menu > Controls
 
