@@ -569,4 +569,42 @@ do
 	end
 end
 
+-- Text Wrap
+do
+	---@param text string
+	---@param font int
+	---@param scale float
+	---@param relWidth float
+	function cheeseUtils.wrap_text(text, font, scale, relWidth)
+		local spaceSize = scriptdraw.get_text_size(". .", scale, font).x - scriptdraw.get_text_size("..", scale, font).x
+		local lines = {}
+		for line, manualNewLines in text:gmatch("([^\r\n]+)([\r\n]*)") do
+			local newline
+			local lineSize = scriptdraw.get_text_size(line, scale, font)
+
+			if scriptdraw.size_pixel_to_rel_x(lineSize.x) > relWidth then
+				local length = 0
+				newline = {}
+				for word in line:gmatch("[^%s-\\,]+[%s-\\,]*") do
+					local relx = scriptdraw.size_pixel_to_rel_x(scriptdraw.get_text_size(word, scale, font).x)
+					local spaceRelx = word:gsub("%S", "")
+					spaceRelx = scriptdraw.size_pixel_to_rel_x(#spaceRelx*spaceSize)
+					if length + relx > relWidth then
+						newline[#newline+1] = "\n"
+						length = 0
+					end
+					length = length + relx + spaceRelx
+					newline[#newline+1] = word
+				end
+
+				line = table.concat(newline)
+			end
+
+			lines[#lines+1] = line..(manualNewLines or "")
+		end
+
+		return table.concat(lines)
+	end
+end
+
 return cheeseUtils

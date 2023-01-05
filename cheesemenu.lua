@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.8.2"
+local version = "1.9"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -145,6 +145,8 @@ function loadCurrentMenu()
 		threads = {},
 		feature_by_id = {},
 		player_feature_by_id = {},
+		feature_hints = {},
+		player_feature_hints = {},
 		path = {
 			scripts = utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\scripts\\"
 		},
@@ -297,9 +299,10 @@ function loadCurrentMenu()
 		maxDrawScroll = 0,
 		menuData = {
 			menuToggle = false,
+			menuNav = true,
 			chatBoxOpen = false,
-			x = 0.5,
-			y = 0.44652777777,
+			pos_x = 0.5,
+			pos_y = 0.44652777777,
 			width = 0.2,
 			height = 0.305,
 			border = 0.0013888,
@@ -319,7 +322,8 @@ function loadCurrentMenu()
 			},
 			fonts = {
 				text = 0,
-				footer = 0
+				footer = 0,
+				hint = 0
 			},
 			side_window = {
 				on = true,
@@ -328,7 +332,7 @@ function loadCurrentMenu()
 				width = 0.3,
 				padding = 0.01
 			},
-			header = "cheese_menu",
+			header = "cheese_menu.png",
 			feature_offset = 0.025,
 			feature_scale = {x = 0.2, y = 0.025},
 			padding = {
@@ -337,7 +341,10 @@ function loadCurrentMenu()
 				value = 0.048125,
 				slider = 0.003125,
 			},
+			text_size = (((graphics.get_screen_width()*graphics.get_screen_height())/3686400)*0.45+0.25),
 			text_size_modifier = 1,
+			footer_size_modifier = 1,
+			hint_size_modifier = 1,
 			text_y_offset = -0.0055555555,
 			color = {},
 			files = {},
@@ -372,8 +379,14 @@ function loadCurrentMenu()
 		slider_text = {r = 0, g = 0, b = 0, a = 255},
 		slider_selectedActive = {r = 255, g = 255, b = 255, a = 160},
 		slider_selectedBackground = {r = 255, g = 160, b = 0, a = 180},
-		feature = {r = 255, g = 160, b = 0, a = 170},
-		feature_selected = {r = 0, g = 0, b = 0, a = 200},
+		feature_bottomLeft = {r = 255, g = 160, b = 0, a = 170},
+		feature_topLeft = {r = 255, g = 160, b = 0, a = 170},
+		feature_topRight = {r = 255, g = 160, b = 0, a = 170},
+		feature_bottomRight = {r = 255, g = 160, b = 0, a = 170},
+		feature_selected_bottomLeft = {r = 0, g = 0, b = 0, a = 200},
+		feature_selected_topLeft = {r = 0, g = 0, b = 0, a = 200},
+		feature_selected_topRight = {r = 0, g = 0, b = 0, a = 200},
+		feature_selected_bottomRight = {r = 0, g = 0, b = 0, a = 200},
 		text_selected = {r = 255, g = 200, b = 0, a = 180},
 		text = {r = 0, g = 0, b = 0, a = 180},
 		border = {r = 0, g = 0, b = 0, a = 180},
@@ -390,18 +403,21 @@ function loadCurrentMenu()
 	end
 
 	stuff.menuData.background_sprite.fit_size_to_width = function(self)
-		self.size = stuff.menuData.width*graphics.get_screen_width()/scriptdraw.get_sprite_size(func.load_sprite(self.sprite, stuff.path.background, stuff.menuData.background_sprite.loaded_sprites)).x
+		self.size = stuff.menuData.width*graphics.get_screen_width()/scriptdraw.get_sprite_size(func.load_sprite(stuff.path.background..(self.sprite or ""), stuff.menuData.background_sprite.loaded_sprites)).x
 	end
 	stuff.menuData.background_sprite.fit_size_to_height = function(self)
-		self.size = stuff.menuData.height*graphics.get_screen_height()/scriptdraw.get_sprite_size(func.load_sprite(self.sprite, stuff.path.background, stuff.menuData.background_sprite.loaded_sprites)).y
+		self.size = stuff.menuData.height*graphics.get_screen_height()/scriptdraw.get_sprite_size(func.load_sprite(stuff.path.background..(self.sprite or ""), stuff.menuData.background_sprite.loaded_sprites)).y
 	end
 
+	stuff.image_ext = {"gif", "bmp", "jpg", "jpeg", "png", "2t1", "dds"}
 	stuff.menuData.files.headers = {}
-	for k, v in pairs(utils.get_all_files_in_directory(stuff.path.header, "png")) do
-		stuff.menuData.files.headers[#stuff.menuData.files.headers + 1] = v:sub(1, #v - 4)
+	for _, ext in pairs(stuff.image_ext) do
+		for _, image in pairs(utils.get_all_files_in_directory(stuff.path.header, ext)) do
+			stuff.menuData.files.headers[#stuff.menuData.files.headers + 1] = image
+		end
 	end
 	for k, v in pairs(utils.get_all_sub_directories_in_directory(stuff.path.header)) do
-		stuff.menuData.files.headers[#stuff.menuData.files.headers + 1] = v
+		stuff.menuData.files.headers[#stuff.menuData.files.headers + 1] = v..".ogif"
 	end
 
 	stuff.menuData.files.ui = {}
@@ -410,8 +426,10 @@ function loadCurrentMenu()
 	end
 
 	stuff.menuData.files.background = {}
-	for k, v in pairs(utils.get_all_files_in_directory(stuff.path.background, "png")) do
-		stuff.menuData.files.background[k] = v:sub(1, #v - 4)
+	for _, ext in pairs(stuff.image_ext) do
+		for k, v in pairs(utils.get_all_files_in_directory(stuff.path.background, "png")) do
+			stuff.menuData.files.background[k] = v
+		end
 	end
 
 	stuff.menuData_methods = {
@@ -574,8 +592,11 @@ function loadCurrentMenu()
 				end
 			elseif k == "children" and t.type >> 11 & 1 ~= 0 then
 				return t:get_children()
-			else
-				return stuff.rawget(t, k)
+			elseif k == "hint" then
+				local hintTable = t.type >> 15 & 1 ~= 0 and stuff.player_feature_hints or stuff.feature_hints
+				return hintTable[t.id].str
+			--[[ else
+				return stuff.rawget(t, k) ]]
 			end
 		end,
 
@@ -682,6 +703,15 @@ function loadCurrentMenu()
 						t.feats[i].real_data = v
 					end
 				end
+			elseif k == "hint" then
+				local hintTable = t.type >> 15 & 1 ~= 0 and stuff.player_feature_hints or stuff.feature_hints
+				if not v then
+					hintTable[t.id] = nil
+					return
+				end
+				assert(type(v) == "string", "Feat.hint only supports strings")
+				local str = cheeseUtils.wrap_text(v, stuff.menuData.fonts.hint, stuff.menuData.text_size * stuff.menuData.hint_size_modifier, stuff.menuData.width*2-scriptdraw.size_pixel_to_rel_x(25))
+				hintTable[t.id] = {str = str, size = scriptdraw.get_text_size(str, 1, stuff.menuData.fonts.hint), original = v}
 			else
 				stuff.rawset(t, k, v)
 			end
@@ -1327,6 +1357,9 @@ function loadCurrentMenu()
 		end
 
 		local index = feat.index
+		if not bool_ps then
+			stuff.feature_hints[index] = nil
+		end
 		table.remove(parent, tonumber(feat.index))
 
 		--func.check_scroll(index, parent, true)
@@ -1343,6 +1376,7 @@ function loadCurrentMenu()
 			id = id.id
 		end
 
+		stuff.player_feature_hints[id] = nil
 
 		local feat = stuff.player_feature_by_id[id]
 		if not feat then
@@ -1396,19 +1430,18 @@ function loadCurrentMenu()
 		end
 	end
 
-	stuff.image_ext = {"gif", "bmp", "jpg", "jpeg", "png"}
 	stuff.header_ids = {}
-	function func.load_sprite(name, path, id_table)
-		path = path or stuff.path.header
+	function func.load_sprite(path_to_file, id_table)
+		--path = path or stuff.path.header
 		id_table = id_table or stuff.header_ids
-		name = tostring(name)
-		assert(name, "invalid name")
+		path_to_file = tostring(path_to_file)
+		assert(path_to_file, "invalid name")
 
-		name = name:gsub("%.[a-z]+$", "")
+		--name = name:gsub("%.[a-z]+$", "")
 
-		if not id_table[name] then
-			if utils.dir_exists(path..name) then
-				local path = path..name.."\\"
+		if not id_table[path_to_file] then
+			if utils.dir_exists(path_to_file:gsub("%.ogif", "")) and path_to_file:find("%.ogif") then
+				local path = path_to_file:gsub("%.ogif", "").."\\"
 				local images
 
 				for _, v in pairs(stuff.image_ext) do
@@ -1420,15 +1453,15 @@ function loadCurrentMenu()
 					return
 				end
 
-				id_table[name] = {}
+				id_table[path_to_file] = {}
 				for i, e in pairs(images) do
-					id_table[name][i] = {}
-					id_table[name][i].sprite = scriptdraw.register_sprite(path..e)
-					id_table[name][i].delay = e:match("%d+_(%d+)")
+					id_table[path_to_file][i] = {}
+					id_table[path_to_file][i].sprite = scriptdraw.register_sprite(path..e)
+					id_table[path_to_file][i].delay = e:match("%d+_(%d+)")
 				end
 
-				id_table[name].constant_delay = utils.get_all_files_in_directory(path, "txt")[1]
-				if not id_table[name].constant_delay then
+				id_table[path_to_file].constant_delay = utils.get_all_files_in_directory(path, "txt")[1]
+				if not id_table[path_to_file].constant_delay then
 					for k, v in pairs(images) do
 						if not v:match("%d+_(%d+)") then
 							menu.notify("FPS file not found and frames are not in format, create a txt file with the framerate of the gif.\nExample: '25 fps.txt'", "Cheese Menu", 5, 0x0000FF)
@@ -1436,21 +1469,23 @@ function loadCurrentMenu()
 						end
 					end
 				else
-					id_table[name].constant_delay = math.floor(1000 / tonumber(id_table[name].constant_delay:match("(%d*%.*%d+)%s+fps")))
+					id_table[path_to_file].constant_delay = math.floor(1000 / tonumber(id_table[path_to_file].constant_delay:match("(%d*%.*%d+)%s+fps")))
 				end
 
-			elseif utils.file_exists(path..name..".png") then
-				id_table[name] = scriptdraw.register_sprite(path..name..".png")
+			elseif utils.file_exists(path_to_file) then
+				id_table[path_to_file] = scriptdraw.register_sprite(path_to_file)
 			end
 		end
 
-		return id_table[name]
+		return id_table[path_to_file]
 	end
 
 	function func.toggle_menu(bool)
 		stuff.menuData.menuToggle = bool
 		if stuff.menuData.menuToggle then
-			currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+			if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+				currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+			end
 		end
 	end
 
@@ -1469,11 +1504,25 @@ function loadCurrentMenu()
 		func.toggle_menu(originalmenuToggle)
 	end
 
+	function func.rewrap_hint(hintTable, font, padding)
+		hintTable.str = cheeseUtils.wrap_text(hintTable.original, font, stuff.menuData.text_size * stuff.menuData.hint_size_modifier, stuff.menuData.width*2-padding)
+		hintTable.size = scriptdraw.get_text_size(hintTable.str, 1, font)
+	end
+
+	function func.rewrap_hints(font)
+		local padding = scriptdraw.size_pixel_to_rel_x(25)
+		for _, hintTable in pairs(stuff.feature_hints) do
+			func.rewrap_hint(hintTable, font, padding)
+		end
+		for _, hintTable in pairs(stuff.player_feature_hints) do
+			func.rewrap_hint(hintTable, font, padding)
+		end
+	end
 
 	function func.save_settings()
 		gltw.write({
-			x = stuff.menuData.x,
-			y = stuff.menuData.y,
+			x = stuff.menuData.pos_x,
+			y = stuff.menuData.pos_y,
 			side_window = stuff.menuData.side_window,
 			controls = stuff.controls,
 			hotkey_notifications = stuff.hotkey_notifications,
@@ -1485,8 +1534,8 @@ function loadCurrentMenu()
 	function func.load_settings()
 		local settings = gltw.read("Settings", stuff.path.cheesemenu, nil, nil, true)
 		if settings then
-			stuff.menuData.x = settings.x
-			stuff.menuData.y = settings.y
+			stuff.menuData.pos_x = settings.x
+			stuff.menuData.pos_y = settings.y
 			stuff.menuData.selector_speed = settings.selector_speed
 			stuff.player_submenu_sort = settings.player_submenu_sort
 
@@ -1503,8 +1552,8 @@ function loadCurrentMenu()
 				stuff.vkcontrols[k] = stuff.char_codes[v]
 			end
 
-			menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
-			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
+			menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.pos_x*graphics.get_screen_width())
+			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.pos_y*graphics.get_screen_height())
 			menu_configuration_features.player_submenu_sort.value = stuff.player_submenu_sort
 			menu_configuration_features.player_submenu_sort:toggle()
 			menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
@@ -1518,7 +1567,7 @@ function loadCurrentMenu()
 	end
 
 	function func.save_ui(name)
-		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "loaded_sprites", "files", "x", "y", "side_window", "selector_speed"})
+		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "menuNav", "loaded_sprites", "files", "pos_x", "pos_y", "side_window", "selector_speed", "chatBoxOpen"})
 	end
 
 	function func.load_ui(name)
@@ -1537,8 +1586,8 @@ function loadCurrentMenu()
 				menu_configuration_features.backgroundfeat:toggle()
 			end
 
-			--[[ menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
-			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height()) ]]
+			--[[ menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.pos_x*graphics.get_screen_width())
+			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.pos_y*graphics.get_screen_height()) ]]
 			menu_configuration_features.maxfeats.value = math.floor(stuff.menuData.max_features)
 			menu_configuration_features.menuWidth.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
 			menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
@@ -1552,6 +1601,8 @@ function loadCurrentMenu()
 			menu_configuration_features.sliderHeight.value = math.floor(stuff.menuData.slider.height*graphics.get_screen_height())
 			menu_configuration_features.sliderheightActive.value = math.floor(stuff.menuData.slider.heightActive*graphics.get_screen_height())
 			menu_configuration_features.text_size.value = stuff.menuData.text_size_modifier
+			menu_configuration_features.footer_size.value = stuff.menuData.footer_size_modifier
+			menu_configuration_features.hint_size.value = stuff.menuData.hint_size_modifier
 			menu_configuration_features.text_y_offset.value = -math.floor(stuff.menuData.text_y_offset*graphics.get_screen_height())
 			stuff.drawFeatParams.textOffset.y = stuff.menuData.text_y_offset
 			menu_configuration_features.footer_y_offset.value = math.floor(stuff.menuData.footer.footer_y_offset*graphics.get_screen_height())
@@ -1571,18 +1622,23 @@ function loadCurrentMenu()
 			menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on ]]
 			menu_configuration_features.text_font.value = stuff.menuData.fonts.text
 			menu_configuration_features.footer_font.value = stuff.menuData.fonts.footer
+			menu_configuration_features.hint_font.value = stuff.menuData.fonts.hint
+
+			menu_configuration_features.hint_font:toggle()
 
 			for k, v in pairs(stuff.menuData.color) do
-				if type(v) == "table" then
-					menu_configuration_features[k].r.value = v.r
-					menu_configuration_features[k].g.value = v.g
-					menu_configuration_features[k].b.value = v.b
-					menu_configuration_features[k].a.value = v.a
-				else
-					menu_configuration_features[k].r.value = func.convert_int_to_rgba(v, "r")
-					menu_configuration_features[k].g.value = func.convert_int_to_rgba(v, "g")
-					menu_configuration_features[k].b.value = func.convert_int_to_rgba(v, "b")
-					menu_configuration_features[k].a.value = func.convert_int_to_rgba(v, "a")
+				if menu_configuration_features[k] then
+					if type(v) == "table" then
+						menu_configuration_features[k].r.value = v.r
+						menu_configuration_features[k].g.value = v.g
+						menu_configuration_features[k].b.value = v.b
+						menu_configuration_features[k].a.value = v.a
+					else
+						menu_configuration_features[k].r.value = func.convert_int_to_rgba(v, "r")
+						menu_configuration_features[k].g.value = func.convert_int_to_rgba(v, "g")
+						menu_configuration_features[k].b.value = func.convert_int_to_rgba(v, "b")
+						menu_configuration_features[k].a.value = func.convert_int_to_rgba(v, "a")
+					end
 				end
 			end
 
@@ -1603,34 +1659,54 @@ function loadCurrentMenu()
 	end
 
 	stuff.drawFeatParams = {
-		rectPos = v2(stuff.menuData.x, stuff.menuData.y - stuff.menuData.feature_offset/2 + stuff.menuData.border),
+		rectPos = v2(stuff.menuData.pos_x, stuff.menuData.pos_y - stuff.menuData.feature_offset/2 + stuff.menuData.border),
 		textOffset = v2(stuff.menuData.feature_scale.x/2, -0.0055555555),
 		colorText = stuff.menuData.color.text,
-		colorFeature = stuff.menuData.color.feature,
 		textSize = 0,
-		featV2_pos = v2(),
-		featV2_size = v2(),
 	}
-	function func.draw_feat(k, v, offset, hiddenOffset, textSize)
-		stuff.drawFeatParams.rectPos.x = stuff.menuData.x
-		stuff.drawFeatParams.rectPos.y = stuff.menuData.y - stuff.menuData.feature_offset/2 + stuff.menuData.border
+	function func.draw_feat(k, v, offset, hiddenOffset)
+		--[[ stuff.drawFeatParams.rectPos.x = stuff.menuData.pos_x
+		stuff.drawFeatParams.rectPos.y = stuff.menuData.pos_y - stuff.menuData.feature_offset/2 + stuff.menuData.border
 		stuff.drawFeatParams.textOffset.x = stuff.menuData.feature_scale.x/2
+		stuff.drawFeatParams.textSize = textSize ]]
 		stuff.drawFeatParams.colorText = stuff.menuData.color.text
-		stuff.drawFeatParams.colorFeature = stuff.menuData.color.feature
-		stuff.drawFeatParams.textSize = textSize
+		stuff.drawFeatParams.bottomLeft = stuff.menuData.color.feature_bottomLeft
+		stuff.drawFeatParams.topLeft = stuff.menuData.color.feature_topLeft
+		stuff.drawFeatParams.topRight = stuff.menuData.color.feature_topRight
+		stuff.drawFeatParams.bottomRight = stuff.menuData.color.feature_bottomRight
+		local posY = (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1
 
 		local is_selected
 		if stuff.scroll == k + stuff.drawScroll then
 			stuff.scrollHiddenOffset = hiddenOffset or stuff.scrollHiddenOffset
 			stuff.drawFeatParams.colorText = stuff.menuData.color.text_selected
-			stuff.drawFeatParams.colorFeature = stuff.menuData.color.feature_selected
+			stuff.drawFeatParams.bottomLeft = stuff.menuData.color.feature_selected_bottomLeft
+			stuff.drawFeatParams.topLeft = stuff.menuData.color.feature_selected_topLeft
+			stuff.drawFeatParams.topRight = stuff.menuData.color.feature_selected_topRight
+			stuff.drawFeatParams.bottomRight = stuff.menuData.color.feature_selected_bottomRight
 			is_selected = true
 		end
 		if offset == 0 then
-			scriptdraw.draw_rect(
-				cheeseUtils.memoize.v2(stuff.drawFeatParams.rectPos.x*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
+			local memv2 = cheeseUtils.memoize.v2
+			local posX = stuff.drawFeatParams.rectPos.x*2-1
+			--[[ scriptdraw.draw_rect(
+				cheeseUtils.memoize.v2(posX, posY),
 				cheeseUtils.memoize.v2(stuff.menuData.feature_scale.x*2, stuff.menuData.feature_scale.y*2),
 				func.convert_rgba_to_int(stuff.drawFeatParams.colorFeature.r, stuff.drawFeatParams.colorFeature.g, stuff.drawFeatParams.colorFeature.b, stuff.drawFeatParams.colorFeature.a)
+			) ]]
+			local Left = posX - stuff.menuData.feature_scale.x
+			local Right = posX + stuff.menuData.feature_scale.x
+			local Top = posY + stuff.menuData.feature_scale.y
+			local Bottom = posY - stuff.menuData.feature_scale.y
+			scriptdraw.draw_rect_ext(
+				memv2(Left, Bottom),
+				memv2(Left, Top),
+				memv2(Right, Top),
+				memv2(Right, Bottom),
+				func.convert_rgba_to_int(stuff.drawFeatParams.bottomLeft.r, stuff.drawFeatParams.bottomLeft.g, stuff.drawFeatParams.bottomLeft.b, stuff.drawFeatParams.bottomLeft.a),
+				func.convert_rgba_to_int(stuff.drawFeatParams.topLeft.r, stuff.drawFeatParams.topLeft.g, stuff.drawFeatParams.topLeft.b, stuff.drawFeatParams.topLeft.a),
+				func.convert_rgba_to_int(stuff.drawFeatParams.topRight.r, stuff.drawFeatParams.topRight.g, stuff.drawFeatParams.topRight.b, stuff.drawFeatParams.topRight.a),
+				func.convert_rgba_to_int(stuff.drawFeatParams.bottomRight.r, stuff.drawFeatParams.bottomRight.g, stuff.drawFeatParams.bottomRight.b, stuff.drawFeatParams.bottomRight.a)
 			)
 		end
 
@@ -1656,14 +1732,14 @@ function loadCurrentMenu()
 			end
 		elseif v.type & 1 ~= 0 then -- toggle
 			cheeseUtils.draw_outline(
-				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
+				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, posY),
 				cheeseUtils.memoize.v2(0.015625, 0.0277777777778),
 				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 				2
 			)
 			if v.real_on then
 				scriptdraw.draw_rect(
-					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, (stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1),
+					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, posY),
 					cheeseUtils.memoize.v2(0.0140625, 0.025),
 					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a)
 				)
@@ -1690,7 +1766,7 @@ function loadCurrentMenu()
 				cheeseUtils.draw_slider(
 					cheeseUtils.memoize.v2(
 						(stuff.drawFeatParams.rectPos.x + stuff.menuData.feature_scale.x/2 - stuff.menuData.slider.width/4 - stuff.menuData.padding.slider)*2-1,
-						(stuff.drawFeatParams.rectPos.y + (stuff.menuData.feature_offset * k))*-2+1
+						posY
 					),
 					cheeseUtils.memoize.v2(stuff.menuData.slider.width, is_selected and stuff.menuData.slider.heightActive or stuff.menuData.slider.height),
 					v.min, v.max, v.value,
@@ -1724,7 +1800,7 @@ function loadCurrentMenu()
 
 	stuff.draw_current_menu = {frameCounter = 1, time = utils.time_ms() + 33, currentSprite = stuff.menuData.header}
 	function func.draw_current_menu()
-		local sprite = func.load_sprite(stuff.menuData.header)
+		local sprite = func.load_sprite(stuff.path.header..(stuff.menuData.header or ""))
 		if stuff.draw_current_menu.currentSprite ~= stuff.menuData.header then
 			stuff.draw_current_menu.currentSprite = stuff.menuData.header
 			stuff.draw_current_menu.time = 0
@@ -1741,17 +1817,18 @@ function loadCurrentMenu()
 				end
 			end
 		end
-		if stuff.menuData.background_sprite.sprite and func.load_sprite(stuff.menuData.background_sprite.sprite, stuff.path.background) then
+		local background_sprite_path = stuff.path.background..(stuff.menuData.background_sprite.sprite or "")
+		if stuff.menuData.background_sprite.sprite and func.load_sprite(background_sprite_path) then
 			scriptdraw.draw_sprite(
-				func.load_sprite(stuff.menuData.background_sprite.sprite, stuff.path.background),
-				cheeseUtils.memoize.v2((stuff.menuData.x + stuff.menuData.background_sprite.offset.x)*2-1, (stuff.menuData.y+stuff.menuData.background_sprite.offset.y+stuff.menuData.height/2+0.01458)*-2+1),
+				func.load_sprite(background_sprite_path),
+				cheeseUtils.memoize.v2((stuff.menuData.pos_x + stuff.menuData.background_sprite.offset.x)*2-1, (stuff.menuData.pos_y+stuff.menuData.background_sprite.offset.y+stuff.menuData.height/2+0.01458)*-2+1),
 				stuff.menuData.background_sprite.size,
 				0,
 				func.convert_rgba_to_int(255, 255, 255, stuff.menuData.color.background.a)
 			)
 		else
 			scriptdraw.draw_rect(
-				cheeseUtils.memoize.v2(stuff.menuData.x*2-1, (stuff.menuData.y+stuff.menuData.border+stuff.menuData.height/2)*-2+1),
+				cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, (stuff.menuData.pos_y+stuff.menuData.border+stuff.menuData.height/2)*-2+1),
 				cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.height*2),
 				func.convert_rgba_to_int(stuff.menuData.color.background.r, stuff.menuData.color.background.g, stuff.menuData.color.background.b, stuff.menuData.color.background.a)
 			)
@@ -1771,17 +1848,25 @@ function loadCurrentMenu()
 		end
 
 		-- header border
-		scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.x*2-1, (stuff.menuData.y + stuff.menuData.border/2)*-2+1), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), func.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
+		scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, (stuff.menuData.pos_y + stuff.menuData.border/2)*-2+1), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), func.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
 
 		local hiddenOffset = 0
 		local drawnfeats = 0
-		local text_size = (((graphics.get_screen_width()*graphics.get_screen_height())/3686400)*0.45+0.25) * stuff.menuData.text_size_modifier
+		stuff.menuData.text_size = (((graphics.get_screen_width()*graphics.get_screen_height())/3686400)*0.45+0.25) -- * stuff.menuData.text_size_modifier
+
+		stuff.drawFeatParams.rectPos.x = stuff.menuData.pos_x
+		stuff.drawFeatParams.rectPos.y = stuff.menuData.pos_y - stuff.menuData.feature_offset/2 + stuff.menuData.border
+		stuff.drawFeatParams.textOffset.x = stuff.menuData.feature_scale.x/2
+		stuff.drawFeatParams.colorText = stuff.menuData.color.text
+		stuff.drawFeatParams.colorFeature = stuff.menuData.color.feature
+		stuff.drawFeatParams.textSize = stuff.menuData.text_size * stuff.menuData.text_size_modifier
+
 		for k, v in ipairs(currentMenu) do
 			if type(k) == "number" then
 				if v.hidden or (v.type >> 11 & 1 ~= 0 and not v.on) then
 					hiddenOffset = hiddenOffset + 1
 				elseif k <= stuff.drawScroll + hiddenOffset + stuff.menuData.max_features and k >= stuff.drawScroll + hiddenOffset + 1 then
-					func.draw_feat(k - stuff.drawScroll - hiddenOffset, v, 0, hiddenOffset, text_size)
+					func.draw_feat(k - stuff.drawScroll - hiddenOffset, v, 0, hiddenOffset)
 					drawnfeats = drawnfeats + 1
 				end
 			end
@@ -1791,25 +1876,67 @@ function loadCurrentMenu()
 			-- footer border
 			local footer_border_y_pos
 			if stuff.menuData.footer.footer_pos_related_to_background then
-				footer_border_y_pos = (stuff.menuData.y + stuff.menuData.height + stuff.menuData.border*1.5)*-2+1
+				footer_border_y_pos = (stuff.menuData.pos_y + stuff.menuData.height + stuff.menuData.border*1.5)*-2+1
 			else
-				footer_border_y_pos = (stuff.menuData.y + (drawnfeats*stuff.menuData.feature_offset) + stuff.menuData.border*1.5)*-2+1
+				footer_border_y_pos = (stuff.menuData.pos_y + (drawnfeats*stuff.menuData.feature_offset) + stuff.menuData.border*1.5)*-2+1
 			end
-			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.x*2-1, footer_border_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), func.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
+			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, footer_border_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), func.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
 
 			-- footer and text/scroll
+			local footerColor = func.convert_rgba_to_int(stuff.menuData.color.footer.r, stuff.menuData.color.footer.g, stuff.menuData.color.footer.b, stuff.menuData.color.footer.a)
 			local footer_y_pos
 			if stuff.menuData.footer.footer_pos_related_to_background then
-				footer_y_pos = (stuff.menuData.y + stuff.menuData.height + stuff.menuData.border*2 + stuff.menuData.footer.footer_size/2)*-2+1
+				footer_y_pos = (stuff.menuData.pos_y + stuff.menuData.height + stuff.menuData.border*2 + stuff.menuData.footer.footer_size/2)*-2+1
 			else
-				footer_y_pos = (stuff.menuData.y + (drawnfeats*stuff.menuData.feature_offset) + stuff.menuData.border*2 + stuff.menuData.footer.footer_size/2)*-2+1
+				footer_y_pos = (stuff.menuData.pos_y + (drawnfeats*stuff.menuData.feature_offset) + stuff.menuData.border*2 + stuff.menuData.footer.footer_size/2)*-2+1
 			end
-			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.x*2-1, footer_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.footer.footer_size*2), func.convert_rgba_to_int(stuff.menuData.color.footer.r, stuff.menuData.color.footer.g, stuff.menuData.color.footer.b, stuff.menuData.color.footer.a))
+			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, footer_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.footer.footer_size*2), footerColor)
 
+			local footerTextColor = func.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a)
+			local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+			local featHint = feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id] or stuff.feature_hints[feat.id]
+			if featHint then
+				local padding = scriptdraw.size_pixel_to_rel_y(5)
+				local hintStrSize = scriptdraw.size_pixel_to_rel_y(featHint.size.y) * (stuff.menuData.text_size * stuff.menuData.hint_size_modifier)
+				local posY = footer_y_pos - stuff.menuData.border*2 - stuff.menuData.footer.footer_size - padding
+				local textY = posY - padding
+				posY = posY - hintStrSize/2
+
+				local rectHeight = hintStrSize+padding*4
+				--scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, posY+rectHalfHeight/2), cheeseUtils.memoize.v2(stuff.menuData.width*2, rectHalfHeight), func.convert_rgba_to_int(stuff.menuData.color.footer.r, stuff.menuData.color.footer.g, stuff.menuData.color.footer.b, stuff.menuData.color.footer.a))
+				cheeseUtils.draw_rect_ext_wh(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, posY-padding), cheeseUtils.memoize.v2(stuff.menuData.width*2, rectHeight), (footerColor & 0xffffff) | 50 << 24, footerColor, footerColor, (footerColor & 0xffffff) | 50 << 24)
+				scriptdraw.draw_text(
+					featHint.str,
+					cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1 - stuff.menuData.width + padding, textY),
+					cheeseUtils.memoize.v2(stuff.menuData.width+padding*2, 2),
+					stuff.menuData.text_size * stuff.menuData.hint_size_modifier,
+					footerTextColor,
+					0,
+					stuff.menuData.fonts.hint
+				)
+			end
+
+			local footer_size = stuff.menuData.text_size * stuff.menuData.footer_size_modifier
 			local text_y_pos = footer_y_pos + 0.011111111 + stuff.menuData.footer.footer_y_offset
-			scriptdraw.draw_text(tostring(stuff.menuData.footer.footer_text), cheeseUtils.memoize.v2((stuff.menuData.x - stuff.menuData.width/2 + stuff.menuData.footer.padding)*2-1, text_y_pos), cheeseUtils.memoize.v2(2, 2), text_size, func.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a), 0, stuff.menuData.fonts.footer)
+			scriptdraw.draw_text(
+				tostring(stuff.menuData.footer.footer_text),
+				cheeseUtils.memoize.v2((stuff.menuData.pos_x - stuff.menuData.width/2 + stuff.menuData.footer.padding)*2-1, text_y_pos),
+				cheeseUtils.memoize.v2(2, 2),
+				footer_size,
+				footerTextColor,
+				0,
+				stuff.menuData.fonts.footer
+			)
 
-			scriptdraw.draw_text(tostring(stuff.scroll.." / "..(#currentMenu - stuff.drawHiddenOffset)), cheeseUtils.memoize.v2((stuff.menuData.x + stuff.menuData.width/2 - stuff.menuData.footer.padding)*2-1, text_y_pos), cheeseUtils.memoize.v2(2, 2), text_size, func.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a), 16, stuff.menuData.fonts.footer)
+			scriptdraw.draw_text(
+				tostring(stuff.scroll.." / "..(#currentMenu - stuff.drawHiddenOffset)),
+				cheeseUtils.memoize.v2((stuff.menuData.pos_x + stuff.menuData.width/2 - stuff.menuData.footer.padding)*2-1, text_y_pos),
+				cheeseUtils.memoize.v2(2, 2),
+				footer_size,
+				footerTextColor,
+				16,
+				stuff.menuData.fonts.footer
+			)
 		end
 
 		if type(sprite) == "table" then
@@ -1827,7 +1954,8 @@ function loadCurrentMenu()
 			sprite = sprite[stuff.draw_current_menu.frameCounter].sprite
 		end
 		if sprite then
-			scriptdraw.draw_sprite(sprite, cheeseUtils.memoize.v2(stuff.menuData.x * 2 - 1, ((stuff.menuData.y+stuff.menuData.height/2) - (stuff.menuData.height/2 + ((scriptdraw.get_sprite_size(sprite).y*((2.56 * stuff.menuData.width) * (1000 / scriptdraw.get_sprite_size(sprite).x)) / (2560 / graphics.get_screen_width()))/2)/graphics.get_screen_height()))*-2+1), ((2.56 * stuff.menuData.width) * (1000 / scriptdraw.get_sprite_size(sprite).x)) / (2560 / graphics.get_screen_width()), 0, stuff.menuData.color.sprite)
+			local size = ((2.56 * stuff.menuData.width) * (1000 / scriptdraw.get_sprite_size(sprite).x)) / (2560 / graphics.get_screen_width())
+			scriptdraw.draw_sprite(sprite, cheeseUtils.memoize.v2(stuff.menuData.pos_x * 2 - 1, ((stuff.menuData.pos_y+stuff.menuData.height/2) - (stuff.menuData.height/2 + ((scriptdraw.get_sprite_size(sprite).y*size)/2)/graphics.get_screen_height()))*-2+1), size, 0, stuff.menuData.color.sprite)
 		end
 		system.wait(0)
 	end
@@ -1989,7 +2117,7 @@ function loadCurrentMenu()
 
 	--threads
 	menu.create_thread(function()
-		local side_window_pos = v2((stuff.menuData.x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.y + stuff.menuData.side_window.offset.y)*-2+1)
+		local side_window_pos = v2((stuff.menuData.pos_x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.pos_y + stuff.menuData.side_window.offset.y)*-2+1)
 		while true do
 			if stuff.menuData.menuToggle then
 				func.draw_current_menu()
@@ -2010,7 +2138,7 @@ function loadCurrentMenu()
 						end
 					end
 					if pid then
-						side_window_pos.x, side_window_pos.y = (stuff.menuData.x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.y + stuff.menuData.side_window.offset.y)*-2+1
+						side_window_pos.x, side_window_pos.y = (stuff.menuData.pos_x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.pos_y + stuff.menuData.side_window.offset.y)*-2+1
 						native.call(0xBE8CD9BE829BBEBF, player.get_player_ped(stuff.pid), stuff.proofs.bulletProof, stuff.proofs.fireProof, stuff.proofs.explosionProof, stuff.proofs.collisionProof, stuff.proofs.meleeProof, stuff.proofs.steamProof, stuff.proofs.p7, stuff.proofs.drownProof)
 						stuff.player_info[2][2] = player.is_player_god(stuff.pid) and "Yes" or "No"
 						stuff.player_info[3][2] = (stuff.proofs.bulletProof:__tointeger()|stuff.proofs.fireProof:__tointeger()|stuff.proofs.explosionProof:__tointeger()|stuff.proofs.collisionProof:__tointeger()|stuff.proofs.meleeProof:__tointeger()|stuff.proofs.steamProof:__tointeger()|stuff.proofs.p7:__tointeger()|stuff.proofs.drownProof:__tointeger()) == 1 and "Yes" or "No"
@@ -2050,9 +2178,12 @@ function loadCurrentMenu()
 
 	menu.create_thread(function()
 		while true do
-			func.do_key(500, stuff.vkcontrols.open, false, function() -- F4
-				func.toggle_menu(not stuff.menuData.menuToggle)
-			end)
+			stuff.menuData.menuNav = native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not (stuff.menuData.chatBoxOpen or input.is_open() --[[or console.on]])
+			if stuff.menuData.menuNav then
+				func.do_key(500, stuff.vkcontrols.open, false, function() -- F4
+					func.toggle_menu(not stuff.menuData.menuToggle)
+				end)
+			end
 			if currentMenu.hidden or not currentMenu then
 				currentMenu = stuff.previousMenus[#stuff.previousMenus].menu
 				stuff.scroll = stuff.previousMenus[#stuff.previousMenus].scroll
@@ -2072,7 +2203,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			system.wait(0)
-			if stuff.menuData.menuToggle then
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.setHotkey, false, function() -- F11
 					if cheeseUtils.get_key(0x10):is_down() and stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
 						stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey][currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hierarchy_key] = nil
@@ -2099,7 +2230,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			system.wait(0)
-			if stuff.menuData.menuToggle then
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.down, true, function() -- downKey
 					--[[ local old_scroll = stuff.scroll + stuff.scrollHiddenOffset ]]
 					if stuff.scroll + stuff.drawHiddenOffset >= #currentMenu and #currentMenu - stuff.drawHiddenOffset > 1 then
@@ -2124,7 +2255,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			system.wait(0)
-			if stuff.menuData.menuToggle then
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.up, true, function() -- upKey
 					--[[ local old_scroll = stuff.scroll + stuff.scrollHiddenOffset ]]
 					if stuff.scroll <= 1 and #currentMenu - stuff.drawHiddenOffset > 1 then
@@ -2149,7 +2280,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			system.wait(0)
-			if stuff.menuData.menuToggle then
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.select, true, function() --enter
 					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
 					if feat then
@@ -2186,7 +2317,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			system.wait(0)
-			if stuff.menuData.menuToggle then
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.back, false, function() --backspace
 					if stuff.previousMenus[#stuff.previousMenus] then
 						--[[ if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
@@ -2206,7 +2337,7 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		while true do
 			system.wait(0)
-			if stuff.menuData.menuToggle then
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.left, true, function() -- left
 					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
 					if feat then
@@ -2237,7 +2368,7 @@ function loadCurrentMenu()
 	end, nil)
 	menu.create_thread(function()
 		while true do
-			if stuff.menuData.menuToggle then
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.right, true, function() -- right
 					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
 					if feat then
@@ -2272,7 +2403,7 @@ function loadCurrentMenu()
 	--Hotkey thread
 	menu.create_thread(function()
 		while true do
-			if native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not stuff.menuData.chatBoxOpen then
+			if stuff.menuData.menuNav then
 				for k, v in pairs(stuff.hotkeys) do
 					local hotkey = cheeseUtils.get_key(table.unpack(stuff.hotkeys_to_vk[k]))
 					if hotkey:is_down() and (not (cheeseUtils.get_key(0x10):is_down() or cheeseUtils.get_key(0x11):is_down() or cheeseUtils.get_key(0x12):is_down()) or not (k:match("NOMOD"))) and utils.time_ms() > stuff.hotkey_cooldowns[k] then
@@ -2342,31 +2473,31 @@ function loadCurrentMenu()
 		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
-				stuff.menuData.x = num/graphics.get_screen_height()
+				stuff.menuData.pos_x = num/graphics.get_screen_height()
 				f.value = num
 			end
 		end
-		stuff.menuData.x = f.value/graphics.get_screen_width()
+		stuff.menuData.pos_x = f.value/graphics.get_screen_width()
 	end)
 	menu_configuration_features.menuXfeat.max = graphics.get_screen_width()
 	menu_configuration_features.menuXfeat.mod = 1
 	menu_configuration_features.menuXfeat.min = -graphics.get_screen_width()
-	menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.x*graphics.get_screen_width())
+	menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.pos_x*graphics.get_screen_width())
 
 	menu_configuration_features.menuYfeat = menu.add_feature("Menu pos Y", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
 			local stat, num = input.get("num", "", 10, 3)
 			if stat == 0 and tonumber(num) then
-				stuff.menuData.y = num/graphics.get_screen_height()
+				stuff.menuData.pos_y = num/graphics.get_screen_height()
 				f.value = num
 			end
 		end
-		stuff.menuData.y = f.value/graphics.get_screen_height()
+		stuff.menuData.pos_y = f.value/graphics.get_screen_height()
 	end)
 	menu_configuration_features.menuYfeat.max = graphics.get_screen_height()
 	menu_configuration_features.menuYfeat.mod = 1
 	menu_configuration_features.menuYfeat.min = -graphics.get_screen_height()
-	menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.y*graphics.get_screen_height())
+	menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.pos_y*graphics.get_screen_height())
 
 	menu_configuration_features.headerfeat = menu.add_feature("Header", "autoaction_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
 		if f.str_data[f.value + 1] == "NONE" then
@@ -2427,6 +2558,23 @@ function loadCurrentMenu()
 	menu_configuration_features.text_size.mod = 0.01
 	menu_configuration_features.text_size.min = 0.1
 	menu_configuration_features.text_size.value = stuff.menuData.text_size_modifier
+
+	menu_configuration_features.footer_size = menu.add_feature("Footer Text Size", "autoaction_value_f", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.footer_size_modifier = f.value
+	end)
+	menu_configuration_features.footer_size.max = 5
+	menu_configuration_features.footer_size.mod = 0.01
+	menu_configuration_features.footer_size.min = 0.1
+	menu_configuration_features.footer_size.value = stuff.menuData.footer_size_modifier
+
+	menu_configuration_features.hint_size = menu.add_feature("Hint Text Size", "autoaction_value_f", menu_configuration_features.layoutParent.id, function(f)
+		stuff.menuData.hint_size_modifier = f.value
+		func.rewrap_hints(stuff.menuData.fonts.hint)
+	end)
+	menu_configuration_features.hint_size.max = 5
+	menu_configuration_features.hint_size.mod = 0.01
+	menu_configuration_features.hint_size.min = 0.1
+	menu_configuration_features.hint_size.value = stuff.menuData.hint_size_modifier
 
 	menu_configuration_features.text_y_offset = menu.add_feature("Text Y Offset", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
 		stuff.drawFeatParams.textOffset.y = -(f.value/graphics.get_screen_height())
@@ -2775,6 +2923,13 @@ function loadCurrentMenu()
 			menu_configuration_features.footer_font:set_str_data(fontStrData)
 			menu_configuration_features.footer_font.value = stuff.menuData.fonts.footer
 
+			menu_configuration_features.hint_font = menu.add_feature("Hint Font", "autoaction_value_str", menu_configuration_features.fonts.id, function(f)
+				stuff.menuData.fonts.hint = f.value
+				func.rewrap_hints(f.value)
+			end)
+			menu_configuration_features.hint_font:set_str_data(fontStrData)
+			menu_configuration_features.hint_font.value = stuff.menuData.fonts.hint
+
 	-- Hotkeys
 		menu_configuration_features.hotkeyparent = menu.add_feature("Hotkey notifications", "parent", menu_configuration_features.cheesemenuparent.id)
 
@@ -2790,9 +2945,9 @@ function loadCurrentMenu()
 			do
 				local tempColor = {}
 				for k, v in pairs(stuff.menuData.color) do
-					tempColor[#tempColor+1] = {k, v}
+					tempColor[#tempColor+1] = {k, v, sortname = k:gsub("feature_([^s])", "feature_a%1")}
 				end
-				table.sort(tempColor, function(a, b) return a[1] < b[1] end)
+				table.sort(tempColor, function(a, b) return a["sortname"] < b["sortname"] end)
 
 				for _, v in pairs(tempColor) do
 					menu_configuration_features[v[1]] = {}
@@ -2884,7 +3039,7 @@ function loadCurrentMenu()
 	menu.delete_player_feature = func.delete_player_feature
 	menu.get_player_feature = func.get_player_feature
 	menu.get_feature_by_hierarchy_key = function(hierarchy_key)
-		if string.find(hierarchy_key:lower(), "trusted") then
+		if string.find(hierarchy_key:lower(), "trusted") or string.find(hierarchy_key:lower(), "Proddy's Script Manager") then
 			return
 		end
 		local feat, duplicate
@@ -2930,10 +3085,10 @@ function loadCurrentMenu()
 
 			local trusted_names = {
 				[0] = "Stats",
-				"Globals / Locals",
-				"Natives",
-				"HTTP",
-				"Memory"
+				[1] = "Globals / Locals",
+				[2] = "Natives",
+				[3] = "HTTP",
+				[4] = "Memory"
 			}
 
 			for i = 0, 4 do

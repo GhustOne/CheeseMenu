@@ -1,9 +1,6 @@
-Moved controls, hotkey notifications, menu pos, player info to one settings file
-Improved highlight function activation
-Sorted Color submenu
-Added Online Player Sort
-Added Custom Trusted Mode for scripts loaded with Proddy's Manager
-Added Proddy's Script Manager (REQUIRED TO LOAD OTHER SCRIPTS)
-in Script Features > Cheese Menu > Proddy's Script Manager
-v1.8.2:
-Included Proddy's Script Manager in Auto updater
+- Added feature hints
+- Added support for gif, 2t1 and dds headers (old gif folders still work)
+- Added gradient support for features (UIs will have to be edited and resaved)
+- Added customizable sizes for footer text and hint text
+
+- Improved hotkey activation (shouldn't activate when input box is open, will add console later)
