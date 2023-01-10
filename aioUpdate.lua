@@ -5245,14 +5245,14 @@ function gltw.write_table(tableTW, indentation, exclusions, exclude_empty, strin
 			if type(k) == "number" then
 				index = "["..k.."] = "
 			else
-				index = "[\""..k.."\"] = "
+				index = "["..string.format("%q", k).."] = "
 			end
 
 			if typeofv == "string" then
 				string_lines[#string_lines + 1] = indentation..index.."[=["..v.."]=],"
 			elseif typeofv ~= "function" and typeofv ~= "table" then
 				string_lines[#string_lines + 1] = indentation..index..tostring(v)..","
-			elseif typeofv == "table" and (l_next(v) or not exclude_empty) then
+			elseif typeofv == "table" and (exclude_empty and l_next(v) or not exclude_empty) then
 				string_lines[#string_lines + 1] = indentation..index.."{"
 				gltw.write_table(v, indentation.."	", exclusions, exclude_empty, string_lines)
 				string_lines[#string_lines + 1] = indentation.."},"
