@@ -678,13 +678,17 @@ do
 		return controls.is_disabled_control_just_pressed(...) or controls.is_control_just_pressed(...)
 	end
 
+	local function control_is_pressed(...)
+		return controls.is_disabled_control_pressed(...) or controls.is_control_pressed(...)
+	end
+
 	local disableControls = {
 		24,
 		69,
 		92,
 		257,
 		106,
-		trustNatives and 142 or nil,
+		142,
 		1,
 		2,
 	}
@@ -751,7 +755,7 @@ do
 			x = 0 <= x and x <= 1
 			y = 0 <= y and y <= 1
 			self.within_hitbox = x and y
-		elseif controls_get_normal(0, 142) == 0 then
+		elseif not control_is_pressed(0, 142) then
 			self.within_hitbox = false
 		end
 
@@ -915,7 +919,7 @@ do
 	hue_slider.hue = 0
 
 	local hue_gradient = {}
-	local hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(21)
+	local hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(23)
 	for i = 0, 6, 1 do
 		local b, g, r = cheeseUtils.hsv_to_rgb(i*60)
 		local bottom = cheeseUtils.convert_rgba_to_int(r, g, b)
@@ -927,7 +931,7 @@ do
 		hue_y = hue_y + scriptdraw.size_pixel_to_rel_y(42)
 	end
 
-	local hue_size = v2(scriptdraw.size_pixel_to_rel_x(48), scriptdraw.size_pixel_to_rel_y(42))
+	local hue_size = v2(scriptdraw.size_pixel_to_rel_x(48), scriptdraw.size_pixel_to_rel_y(46))
 	hue_slider:set_draw_function(function(slider)
 		for i = 1, 6 do
 			local hue_table = hue_gradient[i]
