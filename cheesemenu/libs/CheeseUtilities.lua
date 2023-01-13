@@ -947,7 +947,7 @@ do
 	local hex = ""
 	local lastIntColor = 0
 	local color_pos = v2((color_picker.pos.x+hue_slider.pos.x/2.4)/2, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(50))
-	local color_size = v2(scriptdraw.size_pixel_to_rel_x(330), 0.08)
+	local color_size = v2(scriptdraw.size_pixel_to_rel_x(330), scriptdraw.size_pixel_to_rel_y(57))
 	local text_pos = v2(color_pos.x+scriptdraw.size_pixel_to_rel_x(10), color_pos.y)
 	function cheeseUtils.pick_color()
 		controls.disable_control_action(0, 200, true)
