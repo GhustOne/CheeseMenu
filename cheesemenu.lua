@@ -1608,10 +1608,10 @@ function loadCurrentMenu()
 						menu_configuration_features[k].b.value = v.b
 						menu_configuration_features[k].a.value = v.a
 					else
-						menu_configuration_features[k].r.value = func.convert_int_to_rgba(v, "r")
-						menu_configuration_features[k].g.value = func.convert_int_to_rgba(v, "g")
-						menu_configuration_features[k].b.value = func.convert_int_to_rgba(v, "b")
-						menu_configuration_features[k].a.value = func.convert_int_to_rgba(v, "a")
+						menu_configuration_features[k].r.value = cheeseUtils.convert_int_to_rgba(v, "r")
+						menu_configuration_features[k].g.value = cheeseUtils.convert_int_to_rgba(v, "g")
+						menu_configuration_features[k].b.value = cheeseUtils.convert_int_to_rgba(v, "b")
+						menu_configuration_features[k].a.value = cheeseUtils.convert_int_to_rgba(v, "a")
 					end
 				end
 			end
@@ -1666,7 +1666,7 @@ function loadCurrentMenu()
 			--[[ scriptdraw.draw_rect(
 				cheeseUtils.memoize.v2(posX, posY),
 				cheeseUtils.memoize.v2(stuff.menuData.feature_scale.x*2, stuff.menuData.feature_scale.y*2),
-				func.convert_rgba_to_int(stuff.drawFeatParams.colorFeature.r, stuff.drawFeatParams.colorFeature.g, stuff.drawFeatParams.colorFeature.b, stuff.drawFeatParams.colorFeature.a)
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorFeature.r, stuff.drawFeatParams.colorFeature.g, stuff.drawFeatParams.colorFeature.b, stuff.drawFeatParams.colorFeature.a)
 			) ]]
 			local Left = posX - stuff.menuData.feature_scale.x
 			local Right = posX + stuff.menuData.feature_scale.x
@@ -1677,10 +1677,10 @@ function loadCurrentMenu()
 				memv2(Left, Top),
 				memv2(Right, Top),
 				memv2(Right, Bottom),
-				func.convert_rgba_to_int(stuff.drawFeatParams.bottomLeft.r, stuff.drawFeatParams.bottomLeft.g, stuff.drawFeatParams.bottomLeft.b, stuff.drawFeatParams.bottomLeft.a),
-				func.convert_rgba_to_int(stuff.drawFeatParams.topLeft.r, stuff.drawFeatParams.topLeft.g, stuff.drawFeatParams.topLeft.b, stuff.drawFeatParams.topLeft.a),
-				func.convert_rgba_to_int(stuff.drawFeatParams.topRight.r, stuff.drawFeatParams.topRight.g, stuff.drawFeatParams.topRight.b, stuff.drawFeatParams.topRight.a),
-				func.convert_rgba_to_int(stuff.drawFeatParams.bottomRight.r, stuff.drawFeatParams.bottomRight.g, stuff.drawFeatParams.bottomRight.b, stuff.drawFeatParams.bottomRight.a)
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.bottomLeft.r, stuff.drawFeatParams.bottomLeft.g, stuff.drawFeatParams.bottomLeft.b, stuff.drawFeatParams.bottomLeft.a),
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.topLeft.r, stuff.drawFeatParams.topLeft.g, stuff.drawFeatParams.topLeft.b, stuff.drawFeatParams.topLeft.a),
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.topRight.r, stuff.drawFeatParams.topRight.g, stuff.drawFeatParams.topRight.b, stuff.drawFeatParams.topRight.a),
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.bottomRight.r, stuff.drawFeatParams.bottomRight.g, stuff.drawFeatParams.bottomRight.b, stuff.drawFeatParams.bottomRight.a)
 			)
 		end
 
@@ -1691,7 +1691,7 @@ function loadCurrentMenu()
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name))*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
 				cheeseUtils.memoize.v2(10, 10),
 				stuff.drawFeatParams.textSize,
-				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 				0, font
 			)
 			if v.type >> 11 & 1 ~= 0 then
@@ -1700,7 +1700,7 @@ function loadCurrentMenu()
 					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.parent))*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
 					cheeseUtils.memoize.v2(10, 10),
 					stuff.drawFeatParams.textSize,
-					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
+					cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 					16, font
 				)
 			end
@@ -1708,14 +1708,14 @@ function loadCurrentMenu()
 			cheeseUtils.draw_outline(
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, posY),
 				cheeseUtils.memoize.v2(0.015625, 0.0277777777778),
-				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 				2
 			)
 			if v.real_on then
 				scriptdraw.draw_rect(
 					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.00390625)*2-1, posY),
 					cheeseUtils.memoize.v2(0.0140625, 0.025),
-					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a)
+					cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a)
 				)
 			end
 
@@ -1724,7 +1724,7 @@ function loadCurrentMenu()
 				cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x - (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.name) + 0.011328125)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
 				cheeseUtils.memoize.v2(10, 10),
 				stuff.drawFeatParams.textSize,
-				func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
+				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 				0, font
 			)
 		end
@@ -1744,9 +1744,9 @@ function loadCurrentMenu()
 					),
 					cheeseUtils.memoize.v2(stuff.menuData.slider.width, is_selected and stuff.menuData.slider.heightActive or stuff.menuData.slider.height),
 					v.min, v.max, v.value,
-					is_selected and func.convert_rgba_to_int(stuff.menuData.color.slider_selectedBackground) or func.convert_rgba_to_int(stuff.menuData.color.slider_background),
-					is_selected and func.convert_rgba_to_int(stuff.menuData.color.slider_selectedActive) or func.convert_rgba_to_int(stuff.menuData.color.slider_active),
-					is_selected and func.convert_rgba_to_int(stuff.menuData.color.slider_text) or 0,
+					is_selected and cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_selectedBackground) or cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_background),
+					is_selected and cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_selectedActive) or cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_active),
+					is_selected and cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_text) or 0,
 					is_selected)
 			else
 				local value_str = "< "..tostring(rounded_value).." >"
@@ -1765,7 +1765,7 @@ function loadCurrentMenu()
 					cheeseUtils.memoize.v2((stuff.drawFeatParams.rectPos.x + (stuff.drawFeatParams.textOffset.x - stuff.menuData.padding.value) - scriptdraw.size_pixel_to_rel_x(scriptdraw.get_text_size(value_str, stuff.drawFeatParams.textSize, font).x)/4)*2-1, (stuff.drawFeatParams.rectPos.y + stuff.drawFeatParams.textOffset.y + (stuff.menuData.feature_offset * k))*-2+1),
 					cheeseUtils.memoize.v2(10, 10),
 					stuff.drawFeatParams.textSize,
-					func.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
+					cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 					0, font
 				)
 			end
@@ -1798,13 +1798,13 @@ function loadCurrentMenu()
 				cheeseUtils.memoize.v2((stuff.menuData.pos_x + stuff.menuData.background_sprite.offset.x)*2-1, (stuff.menuData.pos_y+stuff.menuData.background_sprite.offset.y+stuff.menuData.height/2+0.01458)*-2+1),
 				stuff.menuData.background_sprite.size,
 				0,
-				func.convert_rgba_to_int(255, 255, 255, stuff.menuData.color.background.a)
+				cheeseUtils.convert_rgba_to_int(255, 255, 255, stuff.menuData.color.background.a)
 			)
 		else
 			scriptdraw.draw_rect(
 				cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, (stuff.menuData.pos_y+stuff.menuData.border+stuff.menuData.height/2)*-2+1),
 				cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.height*2),
-				func.convert_rgba_to_int(stuff.menuData.color.background.r, stuff.menuData.color.background.g, stuff.menuData.color.background.b, stuff.menuData.color.background.a)
+				cheeseUtils.convert_rgba_to_int(stuff.menuData.color.background.r, stuff.menuData.color.background.g, stuff.menuData.color.background.b, stuff.menuData.color.background.a)
 			)
 		end
 		if #currentMenu - stuff.drawHiddenOffset >= stuff.menuData.max_features  then
@@ -1822,7 +1822,7 @@ function loadCurrentMenu()
 		end
 
 		-- header border
-		scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, (stuff.menuData.pos_y + stuff.menuData.border/2)*-2+1), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), func.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
+		scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, (stuff.menuData.pos_y + stuff.menuData.border/2)*-2+1), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), cheeseUtils.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
 
 		local hiddenOffset = 0
 		local drawnfeats = 0
@@ -1854,10 +1854,10 @@ function loadCurrentMenu()
 			else
 				footer_border_y_pos = (stuff.menuData.pos_y + (drawnfeats*stuff.menuData.feature_offset) + stuff.menuData.border*1.5)*-2+1
 			end
-			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, footer_border_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), func.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
+			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, footer_border_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.border*2), cheeseUtils.convert_rgba_to_int(stuff.menuData.color.border.r, stuff.menuData.color.border.g, stuff.menuData.color.border.b, stuff.menuData.color.border.a))
 
 			-- footer and text/scroll
-			local footerColor = func.convert_rgba_to_int(stuff.menuData.color.footer.r, stuff.menuData.color.footer.g, stuff.menuData.color.footer.b, stuff.menuData.color.footer.a)
+			local footerColor = cheeseUtils.convert_rgba_to_int(stuff.menuData.color.footer.r, stuff.menuData.color.footer.g, stuff.menuData.color.footer.b, stuff.menuData.color.footer.a)
 			local footer_y_pos
 			if stuff.menuData.footer.footer_pos_related_to_background then
 				footer_y_pos = (stuff.menuData.pos_y + stuff.menuData.height + stuff.menuData.border*2 + stuff.menuData.footer.footer_size/2)*-2+1
@@ -1866,7 +1866,7 @@ function loadCurrentMenu()
 			end
 			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, footer_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.footer.footer_size*2), footerColor)
 
-			local footerTextColor = func.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a)
+			local footerTextColor = cheeseUtils.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a)
 			local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
 			local featHint = feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id] or stuff.feature_hints[feat.id]
 			if featHint then
@@ -1877,7 +1877,7 @@ function loadCurrentMenu()
 				posY = posY - hintStrSize/2
 
 				local rectHeight = hintStrSize+padding*4
-				--scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, posY+rectHalfHeight/2), cheeseUtils.memoize.v2(stuff.menuData.width*2, rectHalfHeight), func.convert_rgba_to_int(stuff.menuData.color.footer.r, stuff.menuData.color.footer.g, stuff.menuData.color.footer.b, stuff.menuData.color.footer.a))
+				--scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, posY+rectHalfHeight/2), cheeseUtils.memoize.v2(stuff.menuData.width*2, rectHalfHeight), cheeseUtils.convert_rgba_to_int(stuff.menuData.color.footer.r, stuff.menuData.color.footer.g, stuff.menuData.color.footer.b, stuff.menuData.color.footer.a))
 				cheeseUtils.draw_rect_ext_wh(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, posY-padding), cheeseUtils.memoize.v2(stuff.menuData.width*2, rectHeight), (footerColor & 0xffffff) | 50 << 24, footerColor, footerColor, (footerColor & 0xffffff) | 50 << 24)
 				scriptdraw.draw_text(
 					featHint.str,
@@ -2127,9 +2127,9 @@ function loadCurrentMenu()
 							stuff.player_info.name,
 							stuff.player_info,
 							side_window_pos,
-							func.convert_rgba_to_int(stuff.menuData.color.side_window.r, stuff.menuData.color.side_window.g, stuff.menuData.color.side_window.b, stuff.menuData.color.side_window.a),
+							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window.r, stuff.menuData.color.side_window.g, stuff.menuData.color.side_window.b, stuff.menuData.color.side_window.a),
 							stuff.menuData.side_window.width, stuff.menuData.side_window.spacing, stuff.menuData.side_window.padding,
-							func.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a)
+							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a)
 						)
 					end
 				end
@@ -2387,12 +2387,12 @@ function loadCurrentMenu()
 									if v.type & 1 ~= 0 then
 										v.on = not v.on
 										if stuff.hotkey_notifications.toggle then
-											menu.notify("Turned "..v.name.." "..(v.on and "on" or "off"), "Cheese Menu", 3, func.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+											menu.notify("Turned "..v.name.." "..(v.on and "on" or "off"), "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
 										end
 									else
 										v:activate_feat_func()
 										if stuff.hotkey_notifications.action then
-											menu.notify("Activated "..v.name, "Cheese Menu", 3, func.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+											menu.notify("Activated "..v.name, "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
 										end
 									end
 								end
@@ -2655,7 +2655,7 @@ function loadCurrentMenu()
 							system.wait(0)
 						end
 					end
-					menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, func.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+					menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
 					local disablethread = menu.create_thread(stuff.disable_all_controls, nil)
 					local stringkey, vk = func.get_hotkey({}, {}, true)
 					if stringkey ~= "escaped" then
@@ -2940,7 +2940,7 @@ function loadCurrentMenu()
 					if type(v[2]) == "table" then
 						menu_configuration_features[v[1]].r.value = v[2].r
 					else
-						menu_configuration_features[v[1]].r.value = func.convert_int_to_rgba(v[2], "r")
+						menu_configuration_features[v[1]].r.value = cheeseUtils.convert_int_to_rgba(v[2], "r")
 					end
 
 					menu_configuration_features[v[1]].g = menu.add_feature("Green", "autoaction_value_i", vParent.id, function(f)
@@ -2956,7 +2956,7 @@ function loadCurrentMenu()
 					if type(v[2]) == "table" then
 						menu_configuration_features[v[1]].g.value = v[2].g
 					else
-						menu_configuration_features[v[1]].g.value = func.convert_int_to_rgba(v[2], "g")
+						menu_configuration_features[v[1]].g.value = cheeseUtils.convert_int_to_rgba(v[2], "g")
 					end
 
 					menu_configuration_features[v[1]].b = menu.add_feature("Blue", "autoaction_value_i", vParent.id, function(f)
@@ -2972,7 +2972,7 @@ function loadCurrentMenu()
 					if type(v[2]) == "table" then
 						menu_configuration_features[v[1]].b.value = v[2].b
 					else
-						menu_configuration_features[v[1]].b.value = func.convert_int_to_rgba(v[2], "b")
+						menu_configuration_features[v[1]].b.value = cheeseUtils.convert_int_to_rgba(v[2], "b")
 					end
 
 					menu_configuration_features[v[1]].a = menu.add_feature("Alpha", "autoaction_value_i", vParent.id, function(f)
@@ -2988,7 +2988,7 @@ function loadCurrentMenu()
 					if type(v[2]) == "table" then
 						menu_configuration_features[v[1]].a.value = v[2].a
 					else
-						menu_configuration_features[v[1]].a.value = func.convert_int_to_rgba(v[2], "a")
+						menu_configuration_features[v[1]].a.value = cheeseUtils.convert_int_to_rgba(v[2], "a")
 					end
 				end
 			end
