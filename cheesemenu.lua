@@ -103,6 +103,10 @@ local func
 local stuff
 local menu_configuration_features
 function loadCurrentMenu()
+	local gltw = require("cheesemenu.libs.GLTW")
+	local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
+	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
+
 	features = {OnlinePlayers = {}}
 	currentMenu = features
 	func = {}
@@ -370,6 +374,7 @@ function loadCurrentMenu()
 			end
 		end
 	}
+	stuff.input = require("cheesemenu.libs.Get Input")
 
 	stuff.menuData.color = {
 		background = {r = 0, g = 0, b = 0, a = 0},
@@ -441,7 +446,7 @@ function loadCurrentMenu()
 					if type(self[colorName]) == "table" then
 						colors[k] = self[colorName][k]
 					else
-						colors[k] = func.convert_int_to_rgba(self[colorName], k)
+						colors[k] = cheeseUtils.convert_int_to_rgba(self[colorName], k)
 					end
 				end
 			end
@@ -455,32 +460,7 @@ function loadCurrentMenu()
 			end
 		end
 	}
-	function func.convert_rgba_to_int(r, g, b, a)
-		if type(r) == "table" then
-			local colorTable = r
-			r = colorTable.r or colorTable[1]
-			g = colorTable.g or colorTable[2]
-			b = colorTable.b or colorTable[3]
-			a = colorTable.a or colorTable[4]
-		end
-		if not a then
-			a = 255
-		end
-		assert(r and g and b, "one or more of the r, g, b values is invalid")
-		assert((a <= 255 and a >= 0) and (b <= 255 and b >= 0) and (g <= 255 and g >= 0) and (r <= 255 and r >= 0), "rgba values cannot be more than 255 or less than 0")
-		return (a << 24) + (b << 16) + (g << 8) + r
-	end
 
-	stuff.conversionValues = {a = 24, b = 16, g = 8, r = 0}
-	function func.convert_int_to_rgba(...)
-		local int, val1, val2, val3, val4 = ...
-		local values = {val1, val2, val3, val4}
-
-		for k, v in pairs(values) do
-			values[k] = int >> stuff.conversionValues[v] & 0xff
-		end
-		return table.unpack(values)
-	end
 	setmetatable(stuff.menuData.color, {__index = stuff.menuData_methods})
 
 	function func.convert_int_ip(ip)
@@ -492,12 +472,6 @@ function loadCurrentMenu()
 
 		return table.concat(ipTable, ".")
 	end
-
-	stuff.input = require("cheesemenu.libs.Get Input")
-	local gltw = require("cheesemenu.libs.GLTW")
-	local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
-	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
-
 
 	gltw.read("controls", stuff.path.cheesemenu, stuff.controls, false, true)
 	for k, v in pairs(stuff.controls) do
