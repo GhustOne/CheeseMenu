@@ -47,6 +47,6 @@ Hotkeys will be saved automatically
 - Kektram - for teaching me the basics of lua, I only started because of him.
 also providing neat functions and telling me of ways to optimize my code
 
-- Proddy - telling me about bad habits in lua and helping even though he hates the concept of cheesemenu & sharing Script Manager
+- Proddy - sharing Script Manager & telling me about bad habits in lua and helping even though he hates the concept of cheesemenu
 
 - Rimuru - only got the idea because of her UI, learnt some stuff from it too 
