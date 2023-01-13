@@ -883,6 +883,7 @@ end
 		until status == 0
 ]]
 do
+	local alpha_slider
 	local hue_slider
 	local color_picker = cheeseUtils.mouse.xy_slider(
 		v2(),
@@ -903,10 +904,11 @@ do
 		local val = 1 - slider.value.y
 		local sat = 1 - slider.value.x
 		b, g, r = cheeseUtils.hsv_to_rgb(hue, sat, val)
-		slider.color = cheeseUtils.convert_rgba_to_int(r, g, b, 255)
+		slider.color = cheeseUtils.convert_rgba_to_int(r, g, b, (1-alpha_slider.value.x)*255//1)
 		slider.colors[1] = r
 		slider.colors[2] = g
 		slider.colors[3] = b
+		slider.colors[4] = (1-alpha_slider.value.x)*255//1
 
 		scriptdraw.draw_circle(screen_pos, 0.0125, 0xFFFFFFFF)
 		scriptdraw.draw_circle(screen_pos, 0.01, slider.color)
@@ -946,9 +948,18 @@ do
 
 	local hex = ""
 	local lastIntColor = 0
-	local color_pos = v2((color_picker.pos.x+hue_slider.pos.x/2.4)/2, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(50))
+	local color_pos = v2((color_picker.pos.x+hue_slider.pos.x/2.4)/2, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(60))
 	local color_size = v2(scriptdraw.size_pixel_to_rel_x(330), scriptdraw.size_pixel_to_rel_y(57))
 	local text_pos = v2(color_pos.x+scriptdraw.size_pixel_to_rel_x(10), color_pos.y)
+
+	alpha_slider = cheeseUtils.mouse.horizontal_slider(
+		v2(color_pos.x, color_pos.y+scriptdraw.size_pixel_to_rel_y(45)),
+		v2(scriptdraw.size_pixel_to_rel_x(330), scriptdraw.size_pixel_to_rel_y(15)),
+		v2(scriptdraw.size_pixel_to_rel_x(330), scriptdraw.size_pixel_to_rel_y(5)),
+		0
+	)
+
+	---@return integer status, uint32_t color, int red, int green, int blue, int alpha
 	function cheeseUtils.pick_color()
 		controls.disable_control_action(0, 200, true)
 
@@ -964,15 +975,18 @@ do
 
 		hue_slider:update()
 		color_picker:update()
+		alpha_slider:update()
 		cheeseUtils.mouse.enable(true)
 
 		if cheeseUtils.get_key(0x0D):is_down() then
+			alpha_slider.value.x = 0
 			hue_slider.hue = 0
 			hue_slider.value.y = 0
 			color_picker.value.x = 0
 			color_picker.value.y = 0
 			return 0, color_picker.color, table.unpack(color_picker.colors)
 		elseif cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() then
+			alpha_slider.value.x = 0
 			hue_slider.hue = 0
 			hue_slider.value.y = 0
 			color_picker.value.x = 0
