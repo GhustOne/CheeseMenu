@@ -649,6 +649,14 @@ do
 	end
 end
 
+-- Round Numbers
+function cheeseUtils.round_num(n, digits)
+	n = digits and n * (10 * digits) or n
+	n = n + 0.5
+	n = n // (digits and 10 * digits or 1)
+	return n
+end
+
 -- Hue Saturation Value TO BGR
 ---@return int Blue, int Green, int Red
 function cheeseUtils.hsv_to_rgb(hue, sat, val)
@@ -658,10 +666,42 @@ function cheeseUtils.hsv_to_rgb(hue, sat, val)
 	local rgb = {}
 	for n = 1, 5, 2 do
 		local k = (n + k) % 6
-		rgb[#rgb+1] = math.floor((val - val * sat * math.max(0, math.min(k, 4-k, 1))) * 255)
+		rgb[#rgb+1] = cheeseUtils.round_num((val - val * sat * math.max(0, math.min(k, 4-k, 1))) * 255)
 	end
 
 	return table.unpack(rgb)
+end
+
+-- RGB TO HSV
+---@return number hue, number saturation, number value
+function cheeseUtils.rgb_to_hsv(r, g, b)
+	local max = math.max(r, g, b)
+	local min = math.min(r, g, b)
+
+	local chroma = max - min
+	local saturation = min < 255 and (chroma > 0 and chroma / max or 1) or 0
+	local value = max / 255
+	local hue = 0
+
+	local sub
+	local num
+	if chroma > 0 then
+		if max == r then
+			sub = g - b
+			num = 0
+		elseif max == g then
+			sub = b - r
+			num = 2
+		elseif max == b then
+			sub = r - g
+			num = 4
+		end
+
+		hue = 60 * (num + sub / chroma)
+		hue = hue < 0 and hue + 360 or hue
+	end
+
+	return hue, saturation, value
 end
 
 -- Mouse Sliders
@@ -683,14 +723,17 @@ do
 	end
 
 	local disableControls = {
+		1,
+		2,
 		24,
 		69,
 		92,
-		257,
 		106,
 		142,
-		1,
-		2,
+		176,
+		257,
+		329,
+		346,
 	}
 
 	local mousev2 = v2()
@@ -699,6 +742,8 @@ do
 		for _, control in ipairs(disableControls) do
 			controls.disable_control_action(0, control, true)
 		end
+		native.call(0x5E6CC07646BBEAB8, player.player_id(), true) -- DISABLE_PLAYER_FIRING
+
 		mousev2.x, mousev2.y = controls_get_normal(0, 239)*2-1, controls_get_normal(0, 240)*-2+1-scriptdraw.size_pixel_to_rel_y(20)
 		if draw then
 			scriptdraw.draw_triangle(
@@ -744,11 +789,11 @@ do
 		scriptdraw.draw_circle(self.v2r(x, y), 0.01, 0xFFFFFFFF)
 	end
 
-	local function update_slider(self)
+	local function update_slider(self, disable_control)
 		self:draw()
 
 		local mouse_x, mouse_y = controls_get_normal(0, 239)*2-1, controls_get_normal(0, 240)*-2+1
-		if control_is_just_pressed(0, 142) then
+		if control_is_just_pressed(0, 142) and not disable_control then
 			local x = self.range.hitbox_x(mouse_x)
 			local y = self.range.hitbox_y(mouse_y)
 
@@ -775,10 +820,17 @@ do
 			end
 
 			self.value.x, self.value.y = x, y
-			return x, y
+			return x or y, y
 		end
 	end
 
+	---@return float x x|y 0, 1
+	---@return float y y|nil 0, 1
+	local function get_value(self)
+		return self.value.x or self.value.y, self.value.y
+	end
+
+	---@return float x, float y
 	local function get_screen_pos(self)
 		local x = (self.type & 1 ~= 0 and self.value.x) and self.range.inverse_x(self.value.x) or self.pos.x -- x screen pos of value
 		local y = (self.type >> 1 & 1 ~= 0 and self.value.y) and self.range.inverse_y(self.value.y) or self.pos.y -- y screen pos of value
@@ -793,6 +845,7 @@ do
 	---@field draw 				function
 	---@field update 			function
 	---@field get_screen_pos  	function
+	---@field get_value  		function
 	---@field within_hitbox		bool
 	---@field pos				v2
 	---@field hitbox			v2
@@ -809,7 +862,7 @@ do
 	---@return 			mouse_slider
 	local function mouse_slider(sType, pos, hitbox, size, default_x, default_y)
 		sType = slider_types[sType]
-		local is_xy = sType & 3 == 3
+		--local is_xy = sType & 3 == 3
 		local stuff = {
 			within_hitbox = false,
 			type = sType,
@@ -827,6 +880,7 @@ do
 			draw = default_draw,
 			update = update_slider,
 			get_screen_pos = get_screen_pos,
+			get_value = get_value,
 		}
 
 		stuff.range['hitbox_x'] = cheeseUtils.create_range_converter(pos.x+hitbox.x/2, pos.x-hitbox.x/2, 0, 1)
@@ -847,7 +901,7 @@ do
 	---@param pos 		v2
 	---@param hitbox	v2
 	---@param size 		v2
-	---@param default_x number|nil 		x|y
+	---@param default_x number|nil 		x
 	function cheeseUtils.mouse.horizontal_slider(pos, hitbox, size, default_x)
 		return mouse_slider("x", pos, hitbox, size, default_x)
 	end
@@ -855,7 +909,7 @@ do
 	---@param pos 		v2
 	---@param hitbox	v2
 	---@param size 		v2
-	---@param default_y number|nil 		x|y
+	---@param default_y number|nil 		y
 	function cheeseUtils.mouse.vertical_slider(pos, hitbox, size, default_y)
 		return mouse_slider("y", pos, hitbox, size, nil, default_y)
 	end
@@ -863,8 +917,8 @@ do
 	---@param pos 		v2
 	---@param hitbox	v2
 	---@param size 		v2
-	---@param default_x number|nil 		x|y
-	---@param default_y number|nil 		x|y
+	---@param default_x number|nil 		x
+	---@param default_y number|nil 		y
 	function cheeseUtils.mouse.xy_slider(pos, hitbox, size, default_x, default_y)
 		return mouse_slider("xy", pos, hitbox, size, default_x, default_y)
 	end
@@ -873,9 +927,9 @@ end
 -- Color Picker
 --[[
 	Example:
-		local status, ABGR, red, green, blue
+		local status, ABGR, red, green, blue, alpha
 		repeat
-			status, ABGR, red, green, blue = cheeseUtils.pick_color()
+			status, ABGR, red, green, blue, alpha = cheeseUtils.pick_color()
 			if status == 2 then
 				return
 			end
@@ -888,8 +942,7 @@ do
 	local color_picker = cheeseUtils.mouse.xy_slider(
 		v2(),
 		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(256)),
-		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(256)),
-		0.5, 0.5
+		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(256))
 	)
 	color_picker:set_draw_function(function(slider)
 		local hue = (1-hue_slider.value.y)*360
@@ -959,13 +1012,38 @@ do
 		0
 	)
 
-	---@return integer status, uint32_t color, int red, int green, int blue, int alpha
-	function cheeseUtils.pick_color()
+	saturation_slider = cheeseUtils.mouse.horizontal_slider(
+		v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw.size_pixel_to_rel_y(15)),
+		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(15)),
+		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(5))
+	)
+
+	value_slider = cheeseUtils.mouse.vertical_slider(
+		v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw.size_pixel_to_rel_x(15), color_picker.pos.y),
+		v2(scriptdraw.size_pixel_to_rel_x(15), scriptdraw.size_pixel_to_rel_y(256)),
+		v2(scriptdraw.size_pixel_to_rel_x(5), scriptdraw.size_pixel_to_rel_y(256))
+	)
+
+	local running = false
+	---@return integer status, uint32_t|nil color, int|nil red, int|nil green, int|nil blue, int|nil alpha
+	function cheeseUtils.pick_color(r, g, b, a)
+		if not running and (r and g and b) then
+			local hue, sat, val = cheeseUtils.rgb_to_hsv(r, g, b)
+			hue_slider.value.y = 1-hue/360
+			color_picker.value.x = 1-sat
+			saturation_slider.value.x = 1-sat
+			color_picker.value.y = 1-val
+			value_slider.value.y = 1-val
+			alpha_slider.value.x = a and 1-a/255 or 255
+		end
+
+		running = true
+
 		controls.disable_control_action(0, 200, true)
 
 		if lastIntColor ~= color_picker.color then
 			local r, g, b = cheeseUtils.convert_int_to_rgba(color_picker.color, "r", "g", "b")
-			local intColor = r << 16 | g << 8 | b 
+			local intColor = r << 16 | g << 8 | b
 			hex = string.format("%X", intColor)
 			hex = "#"..string.rep("0", 6 - #hex)..hex
 		end
@@ -973,12 +1051,23 @@ do
 		scriptdraw.draw_rect(color_pos, color_size, color_picker.color)
 		scriptdraw.draw_text(hex, text_pos, color_size, 1, 0xFFFFFFFF, 2)
 
+		local sat = saturation_slider:update()
+		local val = value_slider:update()
+
+		color_picker.value.x = sat or color_picker.value.x
+		color_picker.value.y = val or color_picker.value.y
+
 		hue_slider:update()
-		color_picker:update()
+		sat, val = color_picker:update()
+
+		saturation_slider.value.x = sat or saturation_slider.value.x
+		value_slider.value.y = val or value_slider.value.y
+
 		alpha_slider:update()
 		cheeseUtils.mouse.enable(true)
 
 		if cheeseUtils.get_key(0x0D):is_down() then
+			running = false
 			alpha_slider.value.x = 0
 			hue_slider.hue = 0
 			hue_slider.value.y = 0
@@ -986,6 +1075,7 @@ do
 			color_picker.value.y = 0
 			return 0, color_picker.color, table.unpack(color_picker.colors)
 		elseif cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() then
+			running = false
 			alpha_slider.value.x = 0
 			hue_slider.hue = 0
 			hue_slider.value.y = 0

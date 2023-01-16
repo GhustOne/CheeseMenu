@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.9"
+local version = "1.9.1"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -304,7 +304,7 @@ function loadCurrentMenu()
 		menuData = {
 			menuToggle = false,
 			menuNav = true,
-			chatBoxOpen = false,
+			inputBoxOpen = false,
 			pos_x = 0.5,
 			pos_y = 0.44652777777,
 			width = 0.2,
@@ -398,7 +398,7 @@ function loadCurrentMenu()
 		footer = {r = 255, g = 160, b = 0, a = 170},
 		footer_text = {r = 0, g = 0, b = 0, a = 180},
 		notifications = {r = 255, g = 200, b = 0, a = 255},
-		side_window = {r = 0, g = 0, b = 0, a = 150},
+		side_window_background = {r = 0, g = 0, b = 0, a = 150},
 		side_window_text = {r = 255, g = 255, b = 255, a = 220}
 	}
 
@@ -441,6 +441,7 @@ function loadCurrentMenu()
 		set_color = function(self, colorName, r, g, b, a)
 			assert(self[colorName], "field "..colorName.." does not exist")
 			local colors = {r = r or false, g = g or false, b = b or false, a = a or false}
+
 			for k, v in pairs(colors) do
 				if not v then
 					if type(self[colorName]) == "table" then
@@ -450,9 +451,11 @@ function loadCurrentMenu()
 					end
 				end
 			end
+
 			for k, v in pairs(colors) do
 				assert(v <= 255 and v >= 0, "attempted to set invalid "..k.." value to field "..colorName)
 			end
+
 			if type(self[colorName]) == "table" then
 				self[colorName] = colors
 			else
@@ -502,11 +505,11 @@ function loadCurrentMenu()
 		function input.get(title, default, len, Type)
 			local originalmenuToggle = stuff.menuData.menuToggle
 			stuff.menuData.menuToggle = false
-			stuff.menuData.chatBoxOpen = true
+			stuff.menuData.inputBoxOpen = true
 			local status, gottenInput = stuff.input.get_input(title, default, len, Type)
 
 			func.toggle_menu(originalmenuToggle)
-			stuff.menuData.chatBoxOpen = false
+			stuff.menuData.inputBoxOpen = false
 			return status, gottenInput
 		end
 	end
@@ -1061,6 +1064,7 @@ function loadCurrentMenu()
 	 	else
 			stuff.hotkey_feature_hierarchy_keys[hierarchy_key] = {feat}
 		end
+		feat.hierarchy_id = #stuff.hotkey_feature_hierarchy_keys[hierarchy_key]
 		if playerFeat then
 			stuff.player_feature_by_id[#stuff.player_feature_by_id+1] = feat
 			feat.real_id = #stuff.player_feature_by_id
@@ -1303,6 +1307,8 @@ function loadCurrentMenu()
 			return false
 		end
 
+		stuff.hotkey_feature_hierarchy_keys[feat.hierarchy_key][feat.hierarchy_id] = nil
+
 		if stuff.old_selected == stuff.feature_by_id[id] then
 			stuff.old_selected = nil
 		end
@@ -1541,7 +1547,7 @@ function loadCurrentMenu()
 	end
 
 	function func.save_ui(name)
-		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "menuNav", "loaded_sprites", "files", "pos_x", "pos_y", "side_window", "selector_speed", "chatBoxOpen"})
+		gltw.write(stuff.menuData, name, stuff.path.ui, {"menuToggle", "menuNav", "loaded_sprites", "files", "pos_x", "pos_y", "side_window", "selector_speed", "inputBoxOpen"})
 	end
 
 	function func.load_ui(name)
@@ -2127,7 +2133,7 @@ function loadCurrentMenu()
 							stuff.player_info.name,
 							stuff.player_info,
 							side_window_pos,
-							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window.r, stuff.menuData.color.side_window.g, stuff.menuData.color.side_window.b, stuff.menuData.color.side_window.a),
+							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_background.r, stuff.menuData.color.side_window_background.g, stuff.menuData.color.side_window_background.b, stuff.menuData.color.side_window_background.a),
 							stuff.menuData.side_window.width, stuff.menuData.side_window.spacing, stuff.menuData.side_window.padding,
 							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a)
 						)
@@ -2152,7 +2158,7 @@ function loadCurrentMenu()
 
 	menu.create_thread(function()
 		while true do
-			stuff.menuData.menuNav = native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not (stuff.menuData.chatBoxOpen or input.is_open() --[[or console.on]])
+			stuff.menuData.menuNav = native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not (stuff.menuData.inputBoxOpen or input.is_open() --[[or console.on]])
 			if stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.open, false, function() -- F4
 					func.toggle_menu(not stuff.menuData.menuToggle)
@@ -2179,22 +2185,23 @@ function loadCurrentMenu()
 			system.wait(0)
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.setHotkey, false, function() -- F11
-					if cheeseUtils.get_key(0x10):is_down() and stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
-						stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey][currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hierarchy_key] = nil
-						if not next(stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey]) then
-							stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] = nil
+					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+					if cheeseUtils.get_key(0x10):is_down() and stuff.hotkeys[feat.hotkey] then
+						stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
+						if not next(stuff.hotkeys[feat.hotkey]) then
+							stuff.hotkeys[feat.hotkey] = nil
 						end
-						currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey = nil
+						feat.hotkey = nil
 						gltw.write(stuff.hotkeys, "hotkeys", stuff.path.hotkeys, nil, true)
-						menu.notify("Removed "..currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey")
+						menu.notify("Removed "..feat.name.."'s hotkey")
 					elseif cheeseUtils.get_key(0x11):is_down() then
-						menu.notify(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey is "..(currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey or "none"))
+						menu.notify(feat.name.."'s hotkey is "..(feat.hotkey or "none"))
 					elseif not cheeseUtils.get_key(0x10):is_down() and not cheeseUtils.get_key(0x11):is_down() then
-						if stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey] then
-							stuff.hotkeys[currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey][currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hierarchy_key] = nil
+						if stuff.hotkeys[feat.hotkey] then
+							stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
 						end
-						if func.start_hotkey_process(currentMenu[stuff.scroll + stuff.scrollHiddenOffset]) then
-							menu.notify("Set "..currentMenu[stuff.scroll + stuff.scrollHiddenOffset].name.."'s hotkey to "..currentMenu[stuff.scroll + stuff.scrollHiddenOffset].hotkey)
+						if func.start_hotkey_process(feat) then
+							menu.notify("Set "..feat.name.."'s hotkey to "..feat.hotkey)
 						end
 					end
 				end)
@@ -2917,6 +2924,71 @@ function loadCurrentMenu()
 	-- Colors
 		local colorParent = menu.add_feature("Colors", "parent", menu_configuration_features.cheesemenuparent.id)
 			do
+				local function input_num(f)
+					if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
+						local stat, num = input.get("num", "", 10, 3)
+						if stat == 0 and tonumber(num) then
+							f.value = num
+						end
+					end
+				end
+
+				local function pick_color(f, data)
+					local original_colors = {
+						r = data.feats.r.value,
+						g = data.feats.g.value,
+						b = data.feats.b.value,
+						a = data.feats.a.value,
+					}
+
+					local menu_color = stuff.menuData.color[data.color_key]
+					local is_table = type(menu_color) == "table"
+
+					stuff.menuData.inputBoxOpen = true
+
+					local status, ABGR, r, g, b, a
+					repeat
+						status, ABGR, r, g, b, a = cheeseUtils.pick_color(original_colors.r, original_colors.g, original_colors.b, original_colors.a)
+
+						if status == 2 then
+							menu.notify("Cancelled", "Cheese Menu", 2, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+
+							for color, val in pairs(original_colors) do
+								data.feats[color].value = val
+								if is_table then
+									menu_color[color] = val
+								end
+							end
+
+							if not is_table then
+								stuff.menuData.color[data.color_key] = cheeseUtils.convert_rgba_to_int(original_colors.r, original_colors.g, original_colors.b, original_colors.a)
+							end
+
+							break
+						end
+
+						data.feats.r.value = r
+						data.feats.g.value = g
+						data.feats.b.value = b
+						data.feats.a.value = a
+
+						if is_table then
+							menu_color.r = r
+							menu_color.g = g
+							menu_color.b = b
+							menu_color.a = a
+						else
+							stuff.menuData.color[data.color_key] = ABGR
+						end
+
+						system.wait(0)
+					until status == 0
+					while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x08):is_down() do
+						system.wait(0)
+					end
+					stuff.menuData.inputBoxOpen = false
+				end
+
 				local tempColor = {}
 				for k, v in pairs(stuff.menuData.color) do
 					tempColor[#tempColor+1] = {k, v, sortname = k:gsub("feature_([^s])", "feature_a%1")}
@@ -2924,72 +2996,43 @@ function loadCurrentMenu()
 				table.sort(tempColor, function(a, b) return a["sortname"] < b["sortname"] end)
 
 				for _, v in pairs(tempColor) do
+					local is_table = type(v[2]) == "table"
+
 					menu_configuration_features[v[1]] = {}
 					local vParent = menu.add_feature(v[1], "parent", colorParent.id)
 
+					menu.add_feature("Pick Color", "action", vParent.id, pick_color).data = {
+						feats = menu_configuration_features[v[1]],
+						color_key = v[1]
+					}
+
 					menu_configuration_features[v[1]].r = menu.add_feature("Red", "autoaction_value_i", vParent.id, function(f)
-						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-							local stat, num = input.get("num", "", 10, 3)
-							if stat == 0 and tonumber(num) then
-								f.value = num
-							end
-						end
+						input_num(f)
 						stuff.menuData.color:set_color(v[1], f.value)
 					end)
 					menu_configuration_features[v[1]].r.max = 255
-					if type(v[2]) == "table" then
-						menu_configuration_features[v[1]].r.value = v[2].r
-					else
-						menu_configuration_features[v[1]].r.value = cheeseUtils.convert_int_to_rgba(v[2], "r")
-					end
+					menu_configuration_features[v[1]].r.value = is_table and v[2].r or cheeseUtils.convert_int_to_rgba(v[2], "r")
 
 					menu_configuration_features[v[1]].g = menu.add_feature("Green", "autoaction_value_i", vParent.id, function(f)
-						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-							local stat, num = input.get("num", "", 10, 3)
-							if stat == 0 and tonumber(num) then
-								f.value = num
-							end
-						end
+						input_num(f)
 						stuff.menuData.color:set_color(v[1], nil, f.value)
 					end)
 					menu_configuration_features[v[1]].g.max = 255
-					if type(v[2]) == "table" then
-						menu_configuration_features[v[1]].g.value = v[2].g
-					else
-						menu_configuration_features[v[1]].g.value = cheeseUtils.convert_int_to_rgba(v[2], "g")
-					end
+					menu_configuration_features[v[1]].g.value = is_table and v[2].g or cheeseUtils.convert_int_to_rgba(v[2], "g")
 
 					menu_configuration_features[v[1]].b = menu.add_feature("Blue", "autoaction_value_i", vParent.id, function(f)
-						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-							local stat, num = input.get("num", "", 10, 3)
-							if stat == 0 and tonumber(num) then
-								f.value = num
-							end
-						end
+						input_num(f)
 						stuff.menuData.color:set_color(v[1], nil, nil, f.value)
 					end)
 					menu_configuration_features[v[1]].b.max = 255
-					if type(v[2]) == "table" then
-						menu_configuration_features[v[1]].b.value = v[2].b
-					else
-						menu_configuration_features[v[1]].b.value = cheeseUtils.convert_int_to_rgba(v[2], "b")
-					end
+					menu_configuration_features[v[1]].b.value = is_table and v[2].b or cheeseUtils.convert_int_to_rgba(v[2], "b")
 
 					menu_configuration_features[v[1]].a = menu.add_feature("Alpha", "autoaction_value_i", vParent.id, function(f)
-						if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-							local stat, num = input.get("num", "", 10, 3)
-							if stat == 0 and tonumber(num) then
-								f.value = num
-							end
-						end
+						input_num(f)
 						stuff.menuData.color:set_color(v[1], nil, nil, nil, f.value)
 					end)
 					menu_configuration_features[v[1]].a.max = 255
-					if type(v[2]) == "table" then
-						menu_configuration_features[v[1]].a.value = v[2].a
-					else
-						menu_configuration_features[v[1]].a.value = cheeseUtils.convert_int_to_rgba(v[2], "a")
-					end
+					menu_configuration_features[v[1]].a.value = is_table and v[2].a or cheeseUtils.convert_int_to_rgba(v[2], "a")
 				end
 			end
 
