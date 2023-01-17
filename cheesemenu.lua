@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.9.2"
+local version = "1.9.3"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -103,10 +103,6 @@ local func
 local stuff
 local menu_configuration_features
 function loadCurrentMenu()
-	local gltw = require("cheesemenu.libs.GLTW")
-	local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
-	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
-
 	features = {OnlinePlayers = {}}
 	currentMenu = features
 	func = {}
@@ -374,7 +370,11 @@ function loadCurrentMenu()
 			end
 		end
 	}
+	cheeseUIdata = stuff.menuData
 	stuff.input = require("cheesemenu.libs.Get Input")
+	local gltw = require("cheesemenu.libs.GLTW")
+	local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
+	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
 
 	stuff.menuData.color = {
 		background = {r = 0, g = 0, b = 0, a = 0},
@@ -2934,6 +2934,9 @@ function loadCurrentMenu()
 				end
 
 				local function pick_color(f, data)
+					while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x08):is_down() or cheeseUtils.get_key(0x1B):is_down() do
+						system.wait(0)
+					end
 					local original_colors = {
 						r = data.feats.r.value,
 						g = data.feats.g.value,
@@ -2943,8 +2946,6 @@ function loadCurrentMenu()
 
 					local menu_color = stuff.menuData.color[data.color_key]
 					local is_table = type(menu_color) == "table"
-
-					stuff.menuData.inputBoxOpen = true
 
 					local status, ABGR, r, g, b, a
 					repeat
@@ -2983,10 +2984,9 @@ function loadCurrentMenu()
 
 						system.wait(0)
 					until status == 0
-					while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x08):is_down() do
+					while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x08):is_down() or cheeseUtils.get_key(0x1B):is_down() do
 						system.wait(0)
 					end
-					stuff.menuData.inputBoxOpen = false
 				end
 
 				local tempColor = {}
@@ -3072,7 +3072,6 @@ function loadCurrentMenu()
 			end
 		end
 	end
-	cheeseUIdata = stuff.menuData
 	--
 	func.set_player_feat_parent("Online Players", 0)
 

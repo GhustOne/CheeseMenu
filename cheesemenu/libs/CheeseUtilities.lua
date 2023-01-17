@@ -1039,7 +1039,11 @@ do
 			alpha_slider.value.x = a and 1-a/255 or 255
 		end
 
+		if cheeseUIdata then
+			cheeseUIdata.inputBoxOpen = true
+		end
 		running = true
+		--menu.set_menu_can_navigate(false)
 
 		controls.disable_control_action(0, 200, true)
 
@@ -1068,27 +1072,27 @@ do
 		alpha_slider:update()
 		cheeseUtils.mouse.enable(true)
 
-		if cheeseUtils.get_key(0x0D):is_down() then
-			running = false
-			alpha_slider.value.x = 0
-			hue_slider.hue = 0
-			hue_slider.value.y = 0
-			color_picker.value.x = 0
-			color_picker.value.y = 0
-			return 0, color_picker.color, table.unpack(color_picker.colors)
-		elseif cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() then
-			running = false
-			alpha_slider.value.x = 0
-			hue_slider.hue = 0
-			hue_slider.value.y = 0
-			color_picker.value.x = 0
-			color_picker.value.y = 0
-			while cheeseUtils.get_key(0x1B):is_down() do
+		if cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() then
+			local success = cheeseUtils.get_key(0x0D):is_down()
+			while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() do
 				controls.disable_control_action(0, 200, true)
 				system.wait(0)
 			end
 			controls.disable_control_action(0, 200, true)
-			return 2
+			if cheeseUIdata then
+				cheeseUIdata.inputBoxOpen = false
+			end
+			running = false
+			--menu.set_menu_can_navigate(true)
+			alpha_slider.value.x = 0
+			hue_slider.hue = 0
+			hue_slider.value.y = 0
+			color_picker.value.x = 0
+			color_picker.value.y = 0
+			if not success then
+				return 2
+			end
+			return 0, color_picker.color, table.unpack(color_picker.colors)
 		end
 
 		return 1, color_picker.color, table.unpack(color_picker.colors)
