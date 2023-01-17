@@ -92,10 +92,12 @@ function cheeseUtils.new_reusable_v2(limit)
 		v2Table[i] = v2()
 	end
 
+	---@param x number
+	---@param y number
+	---@return v2
 	return function(x, y)
-		if not x or not y then
-			return
-		end
+		x = x or 0
+		y = y or 0
 		local vector2d = v2Table[counter]
 		counter = counter + 1
 		counter = counter <= limit and counter or 1

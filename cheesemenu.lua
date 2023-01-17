@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.9.1"
+local version = "1.9.2"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -1874,7 +1874,7 @@ function loadCurrentMenu()
 
 			local footerTextColor = cheeseUtils.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a)
 			local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-			local featHint = feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id] or stuff.feature_hints[feat.id]
+			local featHint = feat and (feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id] or stuff.feature_hints[feat.id])
 			if featHint then
 				local padding = scriptdraw.size_pixel_to_rel_y(5)
 				local hintStrSize = scriptdraw.size_pixel_to_rel_y(featHint.size.y) * (stuff.menuData.text_size * stuff.menuData.hint_size_modifier)

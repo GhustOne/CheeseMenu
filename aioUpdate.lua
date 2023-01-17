@@ -1,4 +1,1507 @@
 return {
+	["Proddy's Script Manager.lua"] = [=[local ScriptName <const> = "Proddy's Script Manager (CheeseMenu)"
+local Version <const> = "2.3.2"
+local Exiting = false
+
+local Paths <const> = {}
+Paths.Root = utils.get_appdata_path("PopstarDevs", "2Take1Menu")
+Paths.Cfg = Paths.Root .. "\\cfg"
+Paths.LogFile = Paths.Root .. "\\" .. ScriptName .. ".log"
+Paths.Scripts = Paths.Root .. "\\scripts"
+
+local og_loadfile <const> = loadfile
+local og__loadfile <const> = _loadfile
+local og_load <const> = load
+local og_pcall <const> = _pcall
+local io_open <const> = io.open
+local os_date <const> = os.date
+local string_format <const> = string.format
+local system_wait <const> = system.wait
+
+local basePrint <const> = print
+local function print(...)
+	basePrint(...)
+	local success, result = og_pcall(function(...)
+		local args = {...}
+		if #args == 0 then
+			return
+		end
+
+		local currTime = os_date("*t")
+		local file <close> = io_open(Paths.LogFile, "a")
+
+		for i=1,#args do
+			file:write(string_format("[%02d-%02d-%02d %02d:%02d:%02d] <%s> %s\n", currTime.year, currTime.month, currTime.day, currTime.hour, currTime.min, currTime.sec, Version, tostring(args[i])))
+		end
+
+		file:close()
+	end, ...)
+	if not success then
+		basePrint("Error writing log: " .. result)
+	end
+end
+
+local notif <const> = menu.notify
+local function notify(msg, colour)
+	notif(msg, ScriptName .. " v" .. Version, nil, colour)
+	print(msg)
+end
+
+if ProddysScriptManager then
+	notify(ScriptName .. " already loaded.", 0xFF50C8F0)
+	return
+end
+
+--notify(ScriptName .. " v" .. Version .. " loading...")
+
+local function CloneTable(obj, seen)
+	if type(obj) ~= 'table' then
+		return obj
+	end
+
+	if seen and seen[obj] then
+		return seen[obj]
+	end
+
+	local s = seen or {}
+	local res = {}
+	s[obj] = res
+
+	for k, v in pairs(obj) do
+		res[CloneTable(k, s)] = CloneTable(v, s)
+	end
+
+	return setmetatable(res, getmetatable(obj)) --Should definitely clone the metatable
+end
+
+local function Trim(s)
+	local n = s:find"%S"
+	return n and s:match(".*%S", n) or ""
+end
+
+local function FileNameWithoutExtension(FileName)
+	local name = FileName:match("(.+)%.")
+	return name or FileName
+end
+
+local ExcludedScripts <const> = {}
+ExcludedScripts["autoexec.lua"] = true
+ExcludedScripts["autoexec.luac"] = true
+ExcludedScripts["cheesemenu.lua"] = true
+ExcludedScripts[debug.getinfo(1, "S").source:sub(Paths.Scripts:len() + 3):lower()] = true
+
+local Settings <const> = {}
+
+function Settings.Save(SettingsFile, SettingsTbl)
+	assert(SettingsFile, "Nil passed for SettingsFile to Settings.Save")
+	assert(type(SettingsTbl) == "table", "Not a table passed for SettingsTbl to Settings.Save")
+	local file <close> = io.open(Paths.Cfg .. "\\" .. SettingsFile .. ".cfg", "w")
+	local keys = {}
+	for k in pairs(SettingsTbl) do
+		keys[#keys + 1] = k
+	end
+	table.sort(keys)
+	for i=1,#keys do
+		file:write(tostring(keys[i]) .. "=" .. tostring(SettingsTbl[keys[i]]) .. "\n")
+	end
+	file:close()
+end
+
+function Settings.Load(SettingsFile, SettingsTbl)
+	assert(SettingsFile, "Nil passed for SettingsFile to Settings.Load")
+	assert(type(SettingsTbl) == "table", "Not a table passed for SettingsTbl to Settings.Load")
+	SettingsFile = Paths.Cfg .. "\\" .. SettingsFile .. ".cfg"
+	if not utils.file_exists(SettingsFile) then
+		return false
+	end
+	for line in io.lines(SettingsFile) do
+		local key, value = line:match("^(.-)=(.-)$")
+		if key and value then
+			local num = tonumber(value)
+			if num then
+				value = num
+			elseif value == "true" then
+				value = true
+			elseif value == "false" then
+				value = false
+			end
+			num = tonumber(key)
+			if num then
+				key = num
+			end
+			SettingsTbl[key] = value
+		end
+	end
+	return true
+end
+
+local FeatType <const> = {
+	[2048] = "parent",
+	[1] = "toggle",
+	[512] = "action",
+	[11] = "value_i",
+	[131] = "value_f",
+	[7] = "slider",
+	[35] = "value_str",
+	[522] = "action_value_i",
+	[642] = "action_value_f",
+	[518] = "action_slider",
+	[546] = "action_value_str",
+	[1034] = "autoaction_value_i",
+	[1154] = "autoaction_value_f",
+	[1030] = "autoaction_slider",
+	[1058] = "autoaction_value_str",
+}
+
+local AutoloadTbl = {}
+Settings.Load(ScriptName, AutoloadTbl)
+
+local LoadedScripts = {}
+
+local add_feature <const> = menu.add_feature
+local add_player_feature <const> = menu.add_player_feature
+local delete_feature <const> = menu.delete_feature
+local delete_player_feature <const> = menu.delete_player_feature
+local create_thread <const> = menu.create_thread
+local delete_thread <const> = menu.delete_thread
+
+local register_script_event_hook <const> = hook.register_script_event_hook
+local remove_script_event_hook <const> = hook.remove_script_event_hook
+local register_net_event_hook <const> = hook.register_net_event_hook
+local remove_net_event_hook <const> = hook.remove_net_event_hook
+
+local add_event_listener <const> = event.add_event_listener
+local remove_event_listener <const> = event.remove_event_listener
+
+local register_command <const> = console.register_command
+local remove_command <const> = console.remove_command
+
+local Parent <const> = menu_originals.add_feature("Proddy's Script Manager", "parent", menu.get_feature_by_hierarchy_key("local.script_features.cheese_menu").id)
+local ParentId <const> = Parent.id
+local FirstChild
+local AutoloadFirstChild
+local FilterFeat
+
+menu_originals.add_feature("Trusted Mode", "parent", ParentId)
+
+local AutoloadParent <const> = menu_originals.add_feature("Manage Autoload Scripts", "parent", ParentId)
+local AutoloadParentId <const> = AutoloadParent.id
+
+local assert <const> = assert
+local error <const> = error
+local type <const> = type
+
+local UnloadScript
+
+local function DeleteFeature(Feat)
+	if Feat then
+		if Feat.type == 2048 then
+			for i=1,Feat.child_count do
+				DeleteFeature(Feat.children[1])
+			end
+		elseif Feat.type == 1 then
+			if Feat.data and type(Feat.data) == "table" and Feat.data.ScriptManager then
+				print("Deleting script: " .. Feat.name)
+				UnloadScript(Feat)
+				print("Deleted script: " .. Feat.name)
+			end
+		end
+		if Feat.activate_feat_func then
+			delete_feature(Feat.id)
+		else
+			menu_originals.delete_feature(Feat.id)
+		end
+	end
+end
+local function DeletePlayerFeature(Feat)
+	delete_player_feature(Feat.id)
+end
+
+UnloadScript = function(f)
+	if Exiting then return end
+	if not f.data or type(f.data) ~= "table" or not f.data.ScriptManager then return end
+
+	print("Unloading script: " .. f.name)
+
+	local success, result = og_pcall(function(data)
+		if data.exits then
+			for k,v in pairs(data.exits) do
+				v({["code"]=69})
+			end
+		end
+
+		if data.features then
+			local ids = {}
+			for k in pairs(data.features) do
+				ids[#ids + 1] = k
+			end
+			table.sort(ids)
+			for i = #ids,1,-1 do
+				DeleteFeature(data.features[ids[i]])
+			end
+		end
+
+		if data.player_features then
+			local ids = {}
+			for k in pairs(data.player_features) do
+				ids[#ids + 1] = k
+			end
+			table.sort(ids)
+			for i = #ids,1,-1 do
+				DeletePlayerFeature(data.player_features[ids[i]])
+			end
+		end
+
+		if data.threads then
+			local ids = {}
+			for k in pairs(data.threads) do
+				ids[#ids + 1] = k
+			end
+			table.sort(ids)
+			for i = #ids,1,-1 do
+				delete_thread(ids[i])
+			end
+		end
+
+		if data.script_hooks then
+			local ids = {}
+			for k in pairs(data.script_hooks) do
+				ids[#ids + 1] = k
+			end
+			table.sort(ids)
+			for i = #ids,1,-1 do
+				remove_script_event_hook(ids[i])
+			end
+		end
+
+		if data.net_hooks then
+			local ids = {}
+			for k in pairs(data.net_hooks) do
+				ids[#ids + 1] = k
+			end
+			table.sort(ids)
+			for i = #ids,1,-1 do
+				remove_net_event_hook(ids[i])
+			end
+		end
+
+		if data.events then
+			for eventName,v in pairs(data.events) do
+				local ids = {}
+				for k in pairs(v) do
+					ids[#ids + 1] = k
+				end
+				table.sort(ids)
+				for i = #ids,1,-1 do
+					remove_event_listener(eventName, ids[i])
+				end
+			end
+		end
+
+		if data.commands then
+			for name in pairs(data.commands) do
+				remove_command(name)
+			end
+		end
+	end, f.data)
+
+	LoadedScripts[f.name] = nil
+	f.data = nil
+	f.on = false
+
+	if success then
+		notify("Unloaded script: " .. f.name, 0xFF00FF00)
+	else
+		notify("Failed to unload script: " .. f.name .. "\n" .. result, 0xFF00FF00)
+	end
+
+	collectgarbage("collect")
+end
+
+-- modified
+local limited_functions = {
+	{
+		namespace = "stats",
+		table = stats,
+		["stat_set_int"] = true,
+		["stat_set_float"] = true,
+		["stat_set_bool"] = true,
+		["stat_set_i64"] = true,
+		["stat_set_u64"] = true,
+		["stat_set_masked_int"] = true,
+		["stat_set_masked_bool"] = true,
+	},
+	{
+		namespace = "script",
+		table = script,
+		["set_global_f"] = true,
+		["set_global_i"] = true,
+		["set_global_s"] = true,
+		["set_local_f"] = true,
+		["set_local_i"] = true,
+		["set_local_s"] = true,
+	},
+	{
+		namespace = "native",
+		table = native,
+		["call"] = true,
+	},
+	{
+		namespace = "web",
+		table = web,
+		["post"] = true,
+		["get"] = true,
+		["request"] = true,
+		["urlencode"] = true,
+		["urldecode"] = true,
+	},
+	{
+		namespace = "memory",
+		table = memory,
+		["get_any"] = true,
+		["get_entity"] = true,
+		["get_ped"] = true,
+		["get_vehicle"] = true,
+		["get_object"] = true,
+		["get_pickup"] = true,
+		["read_u64"] = true,
+		["read_u32"] = true,
+		["read_u16"] = true,
+		["read_u8"] = true,
+		["read_i64"] = true,
+		["read_i32"] = true,
+		["read_i16"] = true,
+		["read_i8"] = true,
+		["read_f32"] = true,
+	},
+}
+
+local trusted_names = {
+	[0] = "Stats",
+	"Globals / Locals",
+	"Natives",
+	"HTTP",
+	"Memory"
+}
+
+local modified_functions = {
+	stats = {},
+	script = {},
+	native = {},
+	web = {},
+	memory = {},
+}
+
+for k, v in ipairs(limited_functions) do
+	local namespace = v.namespace
+	for name, data in pairs(v) do
+		if data == true then
+			modified_functions[namespace][name] = function(...)
+				local is_flag_on, notify = menu.is_trusted_mode_enabled(1 << (k-1))
+				if is_flag_on then
+					return v.table[name](...)
+				elseif notify then
+					menu.notify("Trusted Flag '"..trusted_names[k-1].."' is not enabled.\nFunction used: "..namespace..'.'..name, "Cheese Menu", 5, 0x00ffff)
+				end
+			end
+		end
+	end
+end
+--
+
+local function LoadScript(f)
+	if f.on then
+		if not f.data then
+			local Filename = f.name
+			local Filepath = Paths.Scripts .. "\\" .. Filename
+
+			if not utils.file_exists(Filepath) then
+				notify("Could not find script: " .. Filename,0xFF0000FF)
+				LoadedScripts[f.name] = nil
+				f.data = nil
+				f.on = false
+				return
+			end
+
+			print("Enabling script: " .. f.name)
+			f.data = {}
+			f.data.ScriptManager = true
+			f.data.features = {}
+			f.data.player_features = {}
+			f.data.threads = {}
+			f.data.script_hooks = {}
+			f.data.net_hooks = {}
+			f.data.events = {}
+			f.data.exits = {}
+			f.data.commands = {}
+
+			local env = CloneTable(_G)
+			function env.SetGlobal(Name, Value)
+				assert(type(Name) == "string", "Arg #1 (Name) must be a string")
+
+				_G[Name] = Value
+				for i=FirstChild,Parent.child_count do
+					local feat = Parent.children[i]
+					if feat.data and feat.data.env then
+						feat.data.env[Name] = Value
+					end
+				end
+			end
+
+			for namespace, func_table in pairs(modified_functions) do
+				local env_namespace = env[namespace]
+				for name, func in pairs(func_table) do
+					env_namespace[name] = func
+				end
+			end
+
+			env.cheeseUIdata = cheeseUIdata
+
+			env.menu.add_feature = function(...)
+				local feat = add_feature(...)
+				if feat then
+					f.data.features[feat.id] = feat
+				end
+				return feat
+			end
+			env.menu.add_player_feature = function(...)
+				local feat = add_player_feature(...)
+				if feat then
+					f.data.player_features[feat.id] = feat
+				end
+				return feat
+			end
+			env.menu.delete_feature = function(id)
+				local success = delete_feature(id)
+				if success then
+					f.data.features[id] = nil
+				end
+				return success
+			end
+			env.menu.delete_player_feature = function(id)
+				local success = delete_player_feature(id)
+				if success then
+					f.data.player_features[id] = nil
+				end
+				return success
+			end
+			env.menu.create_thread = function(...)
+				local id = create_thread(...)
+				if id then
+					f.data.threads[id] = true
+				end
+				return id
+			end
+			env.menu.delete_thread = function(id)
+				local success = delete_thread(id)
+				if success then
+					f.data.threads[id] = nil
+				end
+				return success
+			end
+			env.hook.register_script_event_hook = function(...)
+				local id = register_script_event_hook(...)
+				if id then
+					f.data.script_hooks[id] = true
+				end
+				return id
+			end
+			env.hook.remove_script_event_hook = function(id)
+				local success = remove_script_event_hook(id)
+				if success then
+					f.data.script_hooks[id] = nil
+				end
+				return success
+			end
+			env.hook.register_net_event_hook = function(...)
+				local id = register_net_event_hook(...)
+				if id then
+					f.data.net_hooks[id] = true
+				end
+				return id
+			end
+			env.hook.remove_net_event_hook = function(id)
+				local success = remove_net_event_hook(id)
+				if success then
+					f.data.net_hooks[id] = nil
+				end
+				return success
+			end
+			env.event.add_event_listener = function(eventName, callback)
+				local id = add_event_listener(eventName, callback)
+				if id then
+					f.data.events[eventName] = f.data.events[eventName] or {}
+					f.data.events[eventName][id] = true
+					if eventName == "exit" then
+						f.data.exits[id] = callback
+					end
+				end
+				return id
+			end
+			env.event.remove_event_listener = function(eventName, id)
+				local success = remove_event_listener(eventName, id)
+				if success and f.data.events[eventName] then
+					f.data.events[eventName][id] = nil
+					if eventName == "exit" then
+						f.data.exits[id] = nil
+					end
+				end
+				return success
+			end
+			env.console.register_command = function(name, ...)
+				if register_command(name, ...) then
+					f.data.commands[name] = true
+					return true
+				end
+				return false
+			end
+			env.console.remove_command = function(name)
+				if remove_command(name) then
+					for i=FirstChild,Parent.child_count do
+						local feat = Parent.children[i]
+						if feat.data and feat.data.commands then
+							feat.data.commands[name] = nil
+						end
+					end
+					return true
+				end
+				return false
+			end
+			env.load = function(chunk, chunkname, mode, env2)
+				return og_load(chunk, chunkname or "=(load)", mode or "bt", env2 or env)
+			end
+			env.dofile = function(filename)
+				return og__loadfile(filename, "bt", env)()
+			end
+			env.loadfile = function(filename, mode, env2)
+				return og__loadfile(filename, mode or "bt", env2 or env)
+			end
+			env._loadfile = function(filename, mode, env)
+				return og__loadfile(filename, mode or "bt", env or env)
+			end
+			local loaders = {}
+			local loaded = {}
+			env.require = function(Library)
+				assert(Library ~= nil, "You must pass a Library name")
+				assert(type(Library) == "string", "Library name must be a string")
+				if loaders[Library] then
+					local status, result = og_pcall(loaders[Library])
+					if status then
+						if result == nil then
+							return true
+						else
+							loaded[Library] = result
+							return loaded[Library]
+						end
+					end
+				end
+				local libParts = {}
+				for part in Library:gmatch("[^.]+") do
+					libParts[#libParts + 1] = part
+				end
+				local subDirTbl = {}
+				if #libParts > 1 then
+					for i=1,#libParts-1 do
+						subDirTbl[#subDirTbl + 1] = libParts[i]
+					end
+				end
+				local subDir = table.concat(subDirTbl, "/") .. "/"
+				local lib = libParts[#libParts]
+				for rootDir in env.package.path:gmatch("[^;]+") do
+					local path = rootDir:gsub("%?", subDir .. lib)
+					if utils.file_exists(path) then
+						local chunk, err = og__loadfile(path, "bt", env)
+						assert(chunk, "Failed to load \"" .. Library .. "\": " .. tostring(err))
+						local status, result = og_pcall(chunk)
+						assert(status, "Failed to exec  \"" .. Library .. "\": " .. tostring(result))
+						loaders[Library] = chunk
+						if result == nil then
+							return true
+						else
+							loaded[Library] = result
+							return loaded[Library]
+						end
+					end
+				end
+				error("Failed to find library with name \"" .. Library .. "\"")
+			end
+			env.clear_lib_cache = function(Library)
+				if Library then
+					local retVal = loaders[Library] ~= nil and loaded[Library] ~= nil
+					loaders[Library] = nil
+					loaded[Library] = nil
+					return retVal
+				else
+					loaders = {}
+					loaded = {}
+					return true
+				end
+			end
+			env.get_lib_cache = function()
+				local cache = {}
+				for k,v in pairs(loaded) do
+					cache[k] = v
+				end
+				return cache
+			end
+			f.data.env = env
+
+			local chunk, err = og__loadfile(Filepath, "bt", f.data.env)
+			if chunk then
+				local status, result = og_pcall(chunk)
+				if not status then
+					menu.create_thread(UnloadScript, f)
+					notify("Error executing script: " .. Filename .. "\n" .. tostring(result), 0xFF0000FF)
+				else
+					notify("Loaded script: " .. Filename, 0xFF00FF00)
+					LoadedScripts[Filename] = true
+				end
+			else
+				menu.create_thread(UnloadScript, f)
+				notify("Error loading script: " .. Filename .. "\n" .. err, 0xFF0000FF)
+			end
+		end
+	else
+		if f.data then
+			menu.create_thread(UnloadScript, f)
+		end
+	end
+end
+
+local function CaseInsensitiveSort(a, b)
+	return tostring(a):lower() < tostring(b):lower()
+end
+
+local function LoadScripts(feat)
+	if FilterFeat then
+		FilterFeat.data = ""
+		FilterFeat.name = "Filter: <None>"
+	end
+
+	local files = utils.get_all_files_in_directory(Paths.Scripts, "lua")
+	local files2 = {}
+	for i=1,#files do
+		files2[files[i]] = true
+	end
+	local files3 = utils.get_all_files_in_directory(Paths.Scripts, "luac")
+	for i=1,#files3 do
+		if not files2[files3[i]] then
+			files[#files + 1] = files3[i]
+			files2[files3[i]] = true
+		end
+	end
+	table.sort(files, CaseInsensitiveSort)
+	local threads = {}
+	for i=Parent.child_count,FirstChild,-1 do
+		if not files2[Parent.children[i].name] then
+			threads[#threads + 1] = create_thread(DeleteFeature, Parent.children[i])
+		else
+			files2[Parent.children[i].name] = false
+			Parent.children[i].hidden = false
+		end
+	end
+	for i=AutoloadParent.child_count,AutoloadFirstChild,-1 do
+		threads[#threads + 1] = create_thread(DeleteFeature, AutoloadParent.children[i])
+	end
+	local waiting = true
+	while waiting do
+		local running = false
+		for i=1,#threads do
+			running = running or (not menu.has_thread_finished(threads[i]))
+		end
+		waiting = running
+		system_wait(0)
+	end
+	for i=1,#files do
+		if not ExcludedScripts[files[i]:lower()] then
+			if files2[files[i]] then
+				menu_originals.add_feature(files[i], "toggle", ParentId, LoadScript, f)
+			end
+			local autoloadFeat = menu_originals.add_feature(files[i], "value_i", AutoloadParentId)
+			autoloadFeat.min = 1
+			autoloadFeat.max = 999
+			autoloadFeat.mod = 1
+			local val = AutoloadTbl[files[i]]
+			if val then
+				autoloadFeat.value = type(val) == "number" and val or 1
+				autoloadFeat.on = true
+			else
+				autoloadFeat.value = 1
+			end
+		end
+	end
+end
+
+local ExitFeat = menu_originals.add_feature("Exit Listener", "toggle", ParentId, function(f)
+	if not f.on then
+		print("Exit Listener Feat Off")
+		Exiting = true
+	end
+end)
+ExitFeat.hidden = true
+ExitFeat.on = true
+
+local delayFeat
+
+menu_originals.add_feature("Save Autoload Scripts", "action", AutoloadParentId, function(f)
+	AutoloadTbl = {
+		["autoload_delay_between_scripts"] = delayFeat.value
+	}
+	for i=AutoloadFirstChild,AutoloadParent.child_count do
+		local child = AutoloadParent.children[i]
+		if child.on then
+			AutoloadTbl[child.name] = child.value
+		end
+	end
+	Settings.Save(ScriptName, AutoloadTbl)
+	notify("Saved autoload scripts.", 0xFF00FF00)
+end)
+
+delayFeat = menu_originals.add_feature("Delay between scripts (ms)", "action_value_i", AutoloadParentId, function(f)
+	local r, s
+	repeat
+		r, s = input.get("Enter delay", f.value, 4, eInputType.IT_NUM)
+		if r == 2 then return HANDLER_POP end
+		system_wait(0)
+	until r == 0
+
+	local num = tonumber(s)
+	if num and num >= f.min and num <= f.max then
+		f.value = num
+	end
+end)
+delayFeat.min = 0
+delayFeat.max = 1000
+delayFeat.mod = 1
+local delayVal = AutoloadTbl["autoload_delay_between_scripts"]
+if type(delayVal) ~= "number" or delayVal < delayFeat.min then
+	delayVal = delayFeat.min
+elseif delayVal > delayFeat.max then
+	delayVal = delayFeat.max
+end
+delayFeat.value = delayVal
+
+local RefreshFeat <const> = menu_originals.add_feature("Refresh Scripts", "action", ParentId, function(f)
+	LoadScripts(f)
+	notify("Refreshed scripts list.", 0xFF00FF00)
+end)
+
+local function FocusFeat(f)
+	if f.data.parent then
+		f.data.parent:toggle()
+	end
+	f.data:select()
+end
+
+local function ToggleFeat(f)
+	f.data:toggle()
+end
+
+local SearchParentId <const> = menu_originals.add_feature("Search Script Features", "parent", ParentId).id
+menu_originals.add_feature("Filter: <None>", "action", SearchParentId, function(f)
+	local r, s
+	repeat
+		r, s = input.get("Enter search query", f.data, 64, 0)
+		if r == 2 then return HANDLER_POP end
+		system_wait(0)
+	until r == 0
+
+	local threads = {}
+	for i=f.parent.child_count,2,-1 do
+		threads[#threads + 1] = create_thread(DeleteFeature, f.parent.children[i])
+	end
+
+	local waiting = true
+	while waiting do
+		local running = false
+		for i=1,#threads do
+			running = running or (not menu.has_thread_finished(threads[i]))
+		end
+		waiting = running
+		system_wait(0)
+	end
+
+	s = Trim(s)
+	if s:len() == 0 then
+		f.data = ""
+		f.name = "Filter: <None>"
+		return HANDLER_POP
+	end
+
+	local count = 0
+	for i=4,RefreshFeat.parent.child_count do
+		local child = RefreshFeat.parent.children[i]
+		if child.data and child.data.features and type(child.data.features) == "table" then
+			for j=1,#child.data.features do
+				local feat = child.data.features[j]
+				if feat then
+					if feat.name:lower():find(s:lower(), 1, true) then
+						if feat.type == 2048 then
+							menu_originals.add_feature(FileNameWithoutExtension(child.name) .. " | " .. feat.name, "parent", SearchParentId, ToggleFeat).data = feat
+						else
+							menu_originals.add_feature(FileNameWithoutExtension(child.name) .. " | " .. feat.name, "action", SearchParentId, FocusFeat).data = feat
+						end
+						count = count + 1
+					end
+				end
+			end
+		end
+	end
+
+	f.data = s
+	f.name = "Filter: <" .. s .. "> (" .. count .. ")"
+end).data = ""
+
+FilterFeat = menu_originals.add_feature("Filter: <None>", "action", ParentId, function(f)
+	local r, s
+	repeat
+		r, s = input.get("Enter search query", f.data, 64, 0)
+		if r == 2 then return HANDLER_POP end
+		system_wait(0)
+	until r == 0
+
+	s = Trim(s)
+	if s:len() == 0 then
+		f.data = ""
+		f.name = "Filter: <None>"
+		for i=f.parent.child_count,FirstChild,-1 do
+			f.parent.children[i].hidden = false
+		end
+		return HANDLER_POP
+	end
+
+	local count = 0
+	for i=f.parent.child_count,FirstChild,-1 do
+		if f.parent.children[i].name:lower():find(s, 1, true) then
+			f.parent.children[i].hidden = false
+			count = count + 1
+		else
+			f.parent.children[i].hidden = true
+		end
+	end
+
+	f.data = s
+	f.name = "Filter: <" .. s .. "> (" .. count .. ")"
+end)
+FilterFeat.data = ""
+
+ProddysScriptManager = true
+
+create_thread(function(f)
+	FirstChild = Parent.child_count + 1
+	AutoloadFirstChild = AutoloadParent.child_count + 1
+	LoadScripts(f)
+
+	local delay = 0
+	local autoload = {}
+	for k,v in pairs(AutoloadTbl) do
+		if k == "autoload_delay_between_scripts" then
+			if type(v) == "number" and v >= 0 then
+				delay = v
+			end
+		else
+			if type(v) ~= "number" then v = 1 end
+			autoload[v] = autoload[v] or {}
+			autoload[v][#autoload[v] + 1] = k
+		end
+	end
+
+	print("Autoloading with delay: " .. delay)
+
+	if #autoload > 0 then
+		local scripts = {}
+		for i=FirstChild,Parent.child_count do
+			local feat = Parent.children[i]
+			scripts[feat.name] = feat
+		end
+
+		local ids = {}
+		for k in pairs(autoload) do
+			ids[#ids + 1] = k
+		end
+		table.sort(ids)
+
+		for i=1,#ids do
+			local tbl = autoload[ids[i]]
+			for j=1,#tbl do
+				local script = scripts[tbl[j]]
+				if script then
+					system_wait(delay)
+					print("Enabled autoload script: " .. script.name)
+					script.on = true
+				end
+			end
+		end
+	end
+end, RefreshFeat)
+
+--notify(ScriptName .. " v" .. Version .. " loaded.", 0xFF0FF00)]=],
+	["Get Input.lua"] = [=[--Made by GhostOne
+
+local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
+local gginput = {
+	indicator_timer = utils.time_ms() + 750,
+	indicator = false,
+	drawStuff = {
+		cached_table_length = 0,
+		cached_text_width = 0,
+	}
+}
+gginput.char_codes = {
+    {
+		[0x30] = {"0", ")"},
+		[0x31] = {"1", "!"},
+		[0x32] = {"2", "@"},
+		[0x33] = {"3", "#"},
+		[0x34] = {"4", "$"},
+		[0x35] = {"5", "%"},
+		[0x36] = {"6", "^"},
+		[0x37] = {"7", "&"},
+		[0x38] = {"8", "*"},
+		[0x39] = {"9", "("},
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+		[0x60] = {"0", ")"},
+		[0x61] = {"1", "!"},
+		[0x62] = {"2", "@"},
+		[0x63] = {"3", "#"},
+		[0x64] = {"4", "$"},
+		[0x65] = {"5", "%"},
+		[0x66] = {"6", "^"},
+		[0x67] = {"7", "&"},
+		[0x68] = {"8", "*"},
+		[0x69] = {"9", "("},
+		[0x20] = {" "},
+		[0xBA] = {";", ":"},
+		[0xBB] = {"=", "+"},
+		[0xBC] = {",", "<"},
+		[0xBD] = {"-", "_"},
+		[0xBE] = {".", ">"},
+		[0xBF] = {"/", "?"},
+		[0xC0] = {"`", "~"},
+		[0xDB] = {"[", "{"},
+		[0xDC] = {"\\", "|"},
+		[0xDD] = {"]", "}"},
+		[0xDE] = {"\'", "\""},
+		[0x6A] = {"*"},
+		[0x6B] = {"+"},
+		[0x6D] = {"-"},
+		[0x6E] = {"."},
+		[0x6F] = {"/"}
+	},
+	{
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+	},
+	{
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"}
+	},
+	{
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"}
+	},
+	{
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"},
+		[0x6E] = {"."},
+		[0xBE] = {"."},
+	},
+	{
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"},
+		[0x6E] = {"."},
+		[0xBE] = {"."},
+	},
+}
+
+--Functions
+
+	function gginput.do_key(key, pressed, funcPressed, ...)
+		if cheeseUtils.get_key(key):is_down() and ((utils.time_ms() > pressed[key]) or (pressed[key] == 0)) then
+			funcPressed(...)
+			if pressed[key] == 0 then
+				pressed[key] = utils.time_ms() + 500
+			else
+				pressed[key] = utils.time_ms() + 30
+			end
+		elseif not cheeseUtils.get_key(key):is_down() then
+			pressed[key] = 0
+		end
+	end
+
+    --[[ function gginput.draw_outline(v2pos, v2size, color, thickness, reusablePos, reusablePos2)
+        local thickness_y = thickness / graphics.get_screen_height() * 2
+		local thickness_x = thickness / graphics.get_screen_width() * 2
+
+		reusablePos2.x, reusablePos2.y = v2pos.x, v2pos.y
+
+		reusablePos2.y = v2pos.y - (v2size.y/2)
+		reusablePos.x, reusablePos.y = v2size.x + thickness_x, thickness_y
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+
+		reusablePos2.y = v2pos.y + (v2size.y/2)
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+
+		reusablePos2.y = v2pos.y
+		reusablePos2.x = v2pos.x - (v2size.x/2)
+		reusablePos.x, reusablePos.y = thickness_x, v2size.y - thickness_y
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+
+		reusablePos2.x = v2pos.x + (v2size.x/2)
+		
+        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
+    end ]]
+
+    function gginput.draw_input(inputTable, bg_color, inputbox_color, outline_color, text_color, tableOfPos_Size)
+		if #inputTable.string ~= gginput.drawStuff.cached_table_length then
+			gginput.drawStuff.string = table.concat(inputTable.string)
+			gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
+			gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
+			gginput.drawStuff.cached_table_length = #inputTable.string
+		end
+		local drawString = gginput.indicator and gginput.drawStuff.indicator_string or gginput.drawStuff.string
+		--[[ if gginput.indicator then
+			gginput.drawStuff.string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
+		end ]]
+
+		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.backround_size, bg_color) -- background
+		cheeseUtils.draw_outline(tableOfPos_Size.middle_pos, tableOfPos_Size.outline_size, outline_color, 2)
+		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.inputBox_size, inputbox_color) -- inputBox
+		scriptdraw.draw_text(drawString, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, text_color, 0)
+		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size+0.4, 0xDC000000 | (text_color & 0xFFFFFF), 0)
+
+		tableOfPos_Size.underscore_pos.x = -0.4609375 + gginput.drawStuff.cached_text_width + 0.0015625
+		scriptdraw.draw_text("_", tableOfPos_Size.underscore_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, 0x64000000 | (text_color & 0xFFFFFF), 0)
+    end
+
+	gginput.tableOfPos_Size = {
+		middle_pos = v2(0, 0),
+		backround_size = v2(2, 2),
+		outline_size = v2(0.9390625, 0.06180555555555),
+		inputBox_size = v2(0.9375, 0.0590277777777778),
+		text_pos = v2(-0.4609375, 0.01111111111111111),
+		underscore_pos = v2(0, 0.01111111111111111),
+		title_pos = v2(0, 0.10555554),
+	}
+	function gginput.draw_thread(inputTable)
+		gginput.tableOfPos_Size.title_pos.x = -scriptdraw.get_text_size(inputTable.title, gginput.drawStuff.text_size+0.4).x/graphics.get_screen_width()
+		while true do
+			for i = 0, 357 do
+				controls.disable_control_action(0, i, true)
+			end
+			if utils.time_ms() > gginput.indicator_timer then
+				gginput.indicator = not gginput.indicator
+				gginput.indicator_timer = utils.time_ms() + 750
+			end
+			gginput.draw_input(inputTable, 0x64000000, 0xC8000000, 0xC8FFFFFF, 0xC8FFFFFF, gginput.tableOfPos_Size)
+			system.wait(0)
+		end
+	end
+
+	function gginput.disableESC()
+		while cheeseUtils.get_key(0x1B):is_down() do
+			controls.disable_control_action(0, 200, true)
+			system.wait(0)
+		end
+		controls.disable_control_action(0, 200, true)
+	end
+
+	function gginput.moveCursorRight(inputTable, moveAmount)
+		if cheeseUtils.get_key(0x11):is_down() then
+			for i = inputTable.cursor+1, #inputTable.string do
+				if inputTable.string[i] == " " then
+					if i == inputTable.cursor+1 then
+						for i = inputTable.cursor+1, #inputTable.string do
+							if inputTable.string[i] ~= " " then
+								inputTable.cursor = i-1
+								break
+							elseif i == #inputTable.string then
+								inputTable.cursor = #inputTable.string
+							end
+						end
+					else
+						inputTable.cursor = i-1
+					end
+					break
+				elseif i == #inputTable.string then
+					inputTable.cursor = #inputTable.string
+				end
+			end
+		elseif not (inputTable.cursor >= #inputTable.string) then
+			inputTable.cursor = inputTable.cursor + moveAmount
+		end
+		gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
+		gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
+	end
+	function gginput.moveCursorLeft(inputTable, moveAmount)
+		if cheeseUtils.get_key(0x11):is_down() then
+			for i = inputTable.cursor, 2, -1 do
+				if inputTable.string[i] == " " then
+					if i == inputTable.cursor then
+						for i = inputTable.cursor, 2, -1 do
+							if inputTable.string[i] ~= " " then
+								inputTable.cursor = i
+								break
+							elseif i == 2 then
+								inputTable.cursor = 1
+							end
+						end
+					else
+						inputTable.cursor = i
+					end
+					break
+				elseif i == 2 then
+					inputTable.cursor = 1
+				end
+			end
+		elseif not (inputTable.cursor <= 1) then
+			inputTable.cursor = inputTable.cursor - moveAmount
+		end
+		gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
+		gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
+	end
+
+	function gginput.write_char(keyTable, inputTable)
+		if cheeseUtils.get_key(0x10):is_down() then
+			if inputTable.cursor == #inputTable.string then
+				inputTable.string[#inputTable.string+1] = keyTable[2] or keyTable[1]:upper()
+			else
+				table.insert(inputTable.string, inputTable.cursor+1, keyTable[2] or keyTable[1]:upper())
+			end
+		else
+			if inputTable.cursor == #inputTable.string then
+				inputTable.string[#inputTable.string+1] = keyTable[1]
+			else
+				table.insert(inputTable.string, inputTable.cursor+1, keyTable[1])
+			end
+		end
+
+		gginput.moveCursorRight(inputTable, 1)
+	end
+
+	function gginput.paste(stringInput, inputTable)
+		stringInput = tostring(stringInput)
+		if inputTable.cursor == #inputTable.string then
+			for char in stringInput:gmatch(".") do
+				if #inputTable.string-1 ~= inputTable.limit then
+					inputTable.string[#inputTable.string+1] = char
+				end
+			end
+			inputTable.cursor = #inputTable.string
+		else
+			for char in stringInput:gmatch(".") do
+				if #inputTable.string-1 ~= inputTable.limit then
+					table.insert(inputTable.string, inputTable.cursor+1, char)
+					inputTable.cursor = inputTable.cursor+1
+				end
+			end
+		end
+	end
+
+	function gginput.delete_char(inputTable, range_start, range_end)
+		if not range_start then
+			gginput.moveCursorLeft(inputTable, 1)
+			if inputTable.cursor == #inputTable.string-1 then
+				inputTable.string[#inputTable.string] = nil
+			else
+				table.remove(inputTable.string, inputTable.cursor+1)
+			end
+		else
+			if range_end ~= #inputTable.string then
+				inputTable.cursor = range_start
+				for i = range_end, range_start+1, -1 do
+					table.remove(inputTable.string, i)
+				end
+			else
+				inputTable.cursor = range_start
+				for i = range_start+1, #inputTable.string do
+					inputTable.string[i] = i == 1 and "" or nil
+				end
+			end
+		end
+	end
+
+	function gginput.delete(inputTable)
+		if cheeseUtils.get_key(0x11):is_down() then
+			local range_start
+			for i = inputTable.cursor, 1, -1 do
+				if inputTable.string[i] == " " then
+					if i == inputTable.cursor then
+						for i = inputTable.cursor, 1, -1 do
+							if inputTable.string[i] ~= " " then
+								range_start = i
+								break
+							end
+						end
+					else
+						range_start = i
+					end
+					break
+				elseif i == 1 then
+					range_start = 1
+				end
+			end
+			gginput.delete_char(inputTable, range_start, inputTable.cursor)
+		else
+			gginput.delete_char(inputTable)
+		end
+	end
+
+	local shift_esc = MenuKey()
+	shift_esc:push_vk(0x10)
+	shift_esc:push_vk(0x1B)
+	function gginput.reset_menu_nav()
+		while true do
+			if shift_esc:is_down() then
+				menu.set_menu_can_navigate(true)
+				menu.notify("Reset menu navigation")
+				break
+			end
+			system.wait(0)
+		end
+	end
+
+
+	function gginput.get_input(title, default, len, inputtype, inputTable)
+		local menuNavThread = menu.create_thread(gginput.reset_menu_nav)
+		menu.set_menu_can_navigate(false)
+		local pressed = {}
+
+		for k, v in pairs(gginput.char_codes[1]) do
+			if cheeseUtils.get_key(k):is_down() then
+				pressed[k] = utils.time_ms() + 2000
+			else
+				pressed[k] = 0
+			end
+		end
+
+		inputtype = tonumber(inputtype)
+		inputtype = (inputtype <= 5 and inputtype >= 0) and inputtype or 0
+		inputtype = inputtype + 1
+		local charTable = gginput.char_codes[inputtype]
+		local pasteCheck = {}
+		for k, v in pairs(charTable) do
+			local concatenated = table.concat(v)
+			pasteCheck[#pasteCheck+1] = concatenated
+			if concatenated ~= concatenated:upper() then
+				pasteCheck[#pasteCheck+1] = concatenated:upper()
+			end
+		end
+		pasteCheck = "[^"..table.concat(pasteCheck).."]"
+
+		inputTable = inputTable or {}
+		inputTable.string = {""}
+		inputTable.state = 1
+		inputTable.cursor = 1
+		inputTable.title = tostring(title)
+		inputTable.limit = tonumber(len) or 25
+
+		gginput.paste(default, inputTable)
+
+		gginput.drawStuff.text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.6+0.2
+
+		local drawThread = menu.create_thread(gginput.draw_thread, inputTable)
+		while cheeseUtils.get_key(0x0D):is_down() do
+			system.wait()
+		end
+		while not (cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down()) do
+			for k, v in pairs(charTable) do
+				if not cheeseUtils.get_key(0x11):is_down() and #inputTable.string-1 ~= len then
+					gginput.do_key(k, pressed, gginput.write_char, v, inputTable)
+				end
+			end
+
+			if cheeseUtils.get_key(0x11, 0x56):is_down() then
+				gginput.paste(utils.from_clipboard():gsub("[\r\n]", " "):gsub(pasteCheck, ""), inputTable)
+				while cheeseUtils.get_key(0x11, 0x56):is_down() do
+					system.wait()
+				end
+			elseif cheeseUtils.get_key(0x11, 0x43):is_down() then
+				utils.to_clipboard(table.concat(inputTable.string))
+			end
+
+			gginput.do_key(0x08, pressed, gginput.delete, inputTable) -- backspace
+			gginput.do_key(0x27, pressed, gginput.moveCursorRight, inputTable, 1) -- right
+			gginput.do_key(0x25, pressed, gginput.moveCursorLeft, inputTable, 1) -- left
+			system.wait(0)
+		end
+
+		gginput.disableESC()
+
+		local success = cheeseUtils.get_key(0x0D):is_down()
+		while cheeseUtils.get_key(0x0D):is_down() do
+			system.wait(0)
+		end
+		menu.delete_thread(drawThread)
+		menu.delete_thread(menuNavThread)
+		menu.set_menu_can_navigate(true)
+		inputTable.string = table.concat(inputTable.string)
+		inputTable.state = success and 0 or 2
+
+		gginput.drawStuff.string = ""
+		gginput.drawStuff.indicator_string = ""
+		gginput.drawStuff.cached_text_width = 0
+		gginput.drawStuff.cached_table_length = 0
+
+		return inputTable.state, success and inputTable.string or nil
+	end
+--
+
+return gginput
+]=],
 	["GLTW.lua"] = [==[-- Made by GhostOne
 -- L00naMods "Even if you say L00na is a bitch just put my name in there somewhere"
 -- Ghost's Lua Table Writer
@@ -207,10 +1710,12 @@ function cheeseUtils.new_reusable_v2(limit)
 		v2Table[i] = v2()
 	end
 
+	---@param x number
+	---@param y number
+	---@return v2
 	return function(x, y)
-		if not x or not y then
-			return
-		end
+		x = x or 0
+		y = y or 0
 		local vector2d = v2Table[counter]
 		counter = counter + 1
 		counter = counter <= limit and counter or 1
@@ -1235,7 +2740,7 @@ return cheeseUtils]=],
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.9.1"
+local version = "1.9.2"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -3085,7 +4590,7 @@ function loadCurrentMenu()
 
 			local footerTextColor = cheeseUtils.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a)
 			local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-			local featHint = feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id] or stuff.feature_hints[feat.id]
+			local featHint = feat and (feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id] or stuff.feature_hints[feat.id])
 			if featHint then
 				local padding = scriptdraw.size_pixel_to_rel_y(5)
 				local hintStrSize = scriptdraw.size_pixel_to_rel_y(featHint.size.y) * (stuff.menuData.text_size * stuff.menuData.hint_size_modifier)
@@ -4334,1507 +5839,4 @@ end
 if httpTrustedOff then
 	loadCurrentMenu()
 end]=],
-	["Get Input.lua"] = [=[--Made by GhostOne
-
-local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
-local gginput = {
-	indicator_timer = utils.time_ms() + 750,
-	indicator = false,
-	drawStuff = {
-		cached_table_length = 0,
-		cached_text_width = 0,
-	}
-}
-gginput.char_codes = {
-    {
-		[0x30] = {"0", ")"},
-		[0x31] = {"1", "!"},
-		[0x32] = {"2", "@"},
-		[0x33] = {"3", "#"},
-		[0x34] = {"4", "$"},
-		[0x35] = {"5", "%"},
-		[0x36] = {"6", "^"},
-		[0x37] = {"7", "&"},
-		[0x38] = {"8", "*"},
-		[0x39] = {"9", "("},
-		[0x41] = {"a"},
-		[0x42] = {"b"},
-		[0x43] = {"c"},
-		[0x44] = {"d"},
-		[0x45] = {"e"},
-		[0x46] = {"f"},
-		[0x47] = {"g"},
-		[0x48] = {"h"},
-		[0x49] = {"i"},
-		[0x4A] = {"j"},
-		[0x4B] = {"k"},
-		[0x4C] = {"l"},
-		[0x4D] = {"m"},
-		[0x4E] = {"n"},
-		[0x4F] = {"o"},
-		[0x50] = {"p"},
-		[0x51] = {"q"},
-		[0x52] = {"r"},
-		[0x53] = {"s"},
-		[0x54] = {"t"},
-		[0x55] = {"u"},
-		[0x56] = {"v"},
-		[0x57] = {"w"},
-		[0x58] = {"x"},
-		[0x59] = {"y"},
-		[0x5A] = {"z"},
-		[0x60] = {"0", ")"},
-		[0x61] = {"1", "!"},
-		[0x62] = {"2", "@"},
-		[0x63] = {"3", "#"},
-		[0x64] = {"4", "$"},
-		[0x65] = {"5", "%"},
-		[0x66] = {"6", "^"},
-		[0x67] = {"7", "&"},
-		[0x68] = {"8", "*"},
-		[0x69] = {"9", "("},
-		[0x20] = {" "},
-		[0xBA] = {";", ":"},
-		[0xBB] = {"=", "+"},
-		[0xBC] = {",", "<"},
-		[0xBD] = {"-", "_"},
-		[0xBE] = {".", ">"},
-		[0xBF] = {"/", "?"},
-		[0xC0] = {"`", "~"},
-		[0xDB] = {"[", "{"},
-		[0xDC] = {"\\", "|"},
-		[0xDD] = {"]", "}"},
-		[0xDE] = {"\'", "\""},
-		[0x6A] = {"*"},
-		[0x6B] = {"+"},
-		[0x6D] = {"-"},
-		[0x6E] = {"."},
-		[0x6F] = {"/"}
-	},
-	{
-		[0x41] = {"a"},
-		[0x42] = {"b"},
-		[0x43] = {"c"},
-		[0x44] = {"d"},
-		[0x45] = {"e"},
-		[0x46] = {"f"},
-		[0x47] = {"g"},
-		[0x48] = {"h"},
-		[0x49] = {"i"},
-		[0x4A] = {"j"},
-		[0x4B] = {"k"},
-		[0x4C] = {"l"},
-		[0x4D] = {"m"},
-		[0x4E] = {"n"},
-		[0x4F] = {"o"},
-		[0x50] = {"p"},
-		[0x51] = {"q"},
-		[0x52] = {"r"},
-		[0x53] = {"s"},
-		[0x54] = {"t"},
-		[0x55] = {"u"},
-		[0x56] = {"v"},
-		[0x57] = {"w"},
-		[0x58] = {"x"},
-		[0x59] = {"y"},
-		[0x5A] = {"z"},
-	},
-	{
-		[0x41] = {"a"},
-		[0x42] = {"b"},
-		[0x43] = {"c"},
-		[0x44] = {"d"},
-		[0x45] = {"e"},
-		[0x46] = {"f"},
-		[0x47] = {"g"},
-		[0x48] = {"h"},
-		[0x49] = {"i"},
-		[0x4A] = {"j"},
-		[0x4B] = {"k"},
-		[0x4C] = {"l"},
-		[0x4D] = {"m"},
-		[0x4E] = {"n"},
-		[0x4F] = {"o"},
-		[0x50] = {"p"},
-		[0x51] = {"q"},
-		[0x52] = {"r"},
-		[0x53] = {"s"},
-		[0x54] = {"t"},
-		[0x55] = {"u"},
-		[0x56] = {"v"},
-		[0x57] = {"w"},
-		[0x58] = {"x"},
-		[0x59] = {"y"},
-		[0x5A] = {"z"},
-		[0x60] = {"0"},
-		[0x61] = {"1"},
-		[0x62] = {"2"},
-		[0x63] = {"3"},
-		[0x64] = {"4"},
-		[0x65] = {"5"},
-		[0x66] = {"6"},
-		[0x67] = {"7"},
-		[0x68] = {"8"},
-		[0x69] = {"9"},
-		[0x30] = {"0"},
-		[0x31] = {"1"},
-		[0x32] = {"2"},
-		[0x33] = {"3"},
-		[0x34] = {"4"},
-		[0x35] = {"5"},
-		[0x36] = {"6"},
-		[0x37] = {"7"},
-		[0x38] = {"8"},
-		[0x39] = {"9"}
-	},
-	{
-		[0xBD] = {"-"},
-		[0x6D] = {"-"},
-		[0x60] = {"0"},
-		[0x61] = {"1"},
-		[0x62] = {"2"},
-		[0x63] = {"3"},
-		[0x64] = {"4"},
-		[0x65] = {"5"},
-		[0x66] = {"6"},
-		[0x67] = {"7"},
-		[0x68] = {"8"},
-		[0x69] = {"9"},
-		[0x30] = {"0"},
-		[0x31] = {"1"},
-		[0x32] = {"2"},
-		[0x33] = {"3"},
-		[0x34] = {"4"},
-		[0x35] = {"5"},
-		[0x36] = {"6"},
-		[0x37] = {"7"},
-		[0x38] = {"8"},
-		[0x39] = {"9"}
-	},
-	{
-		[0xBD] = {"-"},
-		[0x6D] = {"-"},
-		[0x60] = {"0"},
-		[0x61] = {"1"},
-		[0x62] = {"2"},
-		[0x63] = {"3"},
-		[0x64] = {"4"},
-		[0x65] = {"5"},
-		[0x66] = {"6"},
-		[0x67] = {"7"},
-		[0x68] = {"8"},
-		[0x69] = {"9"},
-		[0x30] = {"0"},
-		[0x31] = {"1"},
-		[0x32] = {"2"},
-		[0x33] = {"3"},
-		[0x34] = {"4"},
-		[0x35] = {"5"},
-		[0x36] = {"6"},
-		[0x37] = {"7"},
-		[0x38] = {"8"},
-		[0x39] = {"9"},
-		[0x6E] = {"."},
-		[0xBE] = {"."},
-	},
-	{
-		[0xBD] = {"-"},
-		[0x6D] = {"-"},
-		[0x60] = {"0"},
-		[0x61] = {"1"},
-		[0x62] = {"2"},
-		[0x63] = {"3"},
-		[0x64] = {"4"},
-		[0x65] = {"5"},
-		[0x66] = {"6"},
-		[0x67] = {"7"},
-		[0x68] = {"8"},
-		[0x69] = {"9"},
-		[0x30] = {"0"},
-		[0x31] = {"1"},
-		[0x32] = {"2"},
-		[0x33] = {"3"},
-		[0x34] = {"4"},
-		[0x35] = {"5"},
-		[0x36] = {"6"},
-		[0x37] = {"7"},
-		[0x38] = {"8"},
-		[0x39] = {"9"},
-		[0x6E] = {"."},
-		[0xBE] = {"."},
-	},
-}
-
---Functions
-
-	function gginput.do_key(key, pressed, funcPressed, ...)
-		if cheeseUtils.get_key(key):is_down() and ((utils.time_ms() > pressed[key]) or (pressed[key] == 0)) then
-			funcPressed(...)
-			if pressed[key] == 0 then
-				pressed[key] = utils.time_ms() + 500
-			else
-				pressed[key] = utils.time_ms() + 30
-			end
-		elseif not cheeseUtils.get_key(key):is_down() then
-			pressed[key] = 0
-		end
-	end
-
-    --[[ function gginput.draw_outline(v2pos, v2size, color, thickness, reusablePos, reusablePos2)
-        local thickness_y = thickness / graphics.get_screen_height() * 2
-		local thickness_x = thickness / graphics.get_screen_width() * 2
-
-		reusablePos2.x, reusablePos2.y = v2pos.x, v2pos.y
-
-		reusablePos2.y = v2pos.y - (v2size.y/2)
-		reusablePos.x, reusablePos.y = v2size.x + thickness_x, thickness_y
-        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
-
-		reusablePos2.y = v2pos.y + (v2size.y/2)
-        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
-
-		reusablePos2.y = v2pos.y
-		reusablePos2.x = v2pos.x - (v2size.x/2)
-		reusablePos.x, reusablePos.y = thickness_x, v2size.y - thickness_y
-        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
-
-		reusablePos2.x = v2pos.x + (v2size.x/2)
-		
-        scriptdraw.draw_rect(reusablePos2, reusablePos, color)
-    end ]]
-
-    function gginput.draw_input(inputTable, bg_color, inputbox_color, outline_color, text_color, tableOfPos_Size)
-		if #inputTable.string ~= gginput.drawStuff.cached_table_length then
-			gginput.drawStuff.string = table.concat(inputTable.string)
-			gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
-			gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
-			gginput.drawStuff.cached_table_length = #inputTable.string
-		end
-		local drawString = gginput.indicator and gginput.drawStuff.indicator_string or gginput.drawStuff.string
-		--[[ if gginput.indicator then
-			gginput.drawStuff.string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
-		end ]]
-
-		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.backround_size, bg_color) -- background
-		cheeseUtils.draw_outline(tableOfPos_Size.middle_pos, tableOfPos_Size.outline_size, outline_color, 2)
-		scriptdraw.draw_rect(tableOfPos_Size.middle_pos, tableOfPos_Size.inputBox_size, inputbox_color) -- inputBox
-		scriptdraw.draw_text(drawString, tableOfPos_Size.text_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, text_color, 0)
-		scriptdraw.draw_text(inputTable.title, tableOfPos_Size.title_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size+0.4, 0xDC000000 | (text_color & 0xFFFFFF), 0)
-
-		tableOfPos_Size.underscore_pos.x = -0.4609375 + gginput.drawStuff.cached_text_width + 0.0015625
-		scriptdraw.draw_text("_", tableOfPos_Size.underscore_pos, tableOfPos_Size.backround_size, gginput.drawStuff.text_size, 0x64000000 | (text_color & 0xFFFFFF), 0)
-    end
-
-	gginput.tableOfPos_Size = {
-		middle_pos = v2(0, 0),
-		backround_size = v2(2, 2),
-		outline_size = v2(0.9390625, 0.06180555555555),
-		inputBox_size = v2(0.9375, 0.0590277777777778),
-		text_pos = v2(-0.4609375, 0.01111111111111111),
-		underscore_pos = v2(0, 0.01111111111111111),
-		title_pos = v2(0, 0.10555554),
-	}
-	function gginput.draw_thread(inputTable)
-		gginput.tableOfPos_Size.title_pos.x = -scriptdraw.get_text_size(inputTable.title, gginput.drawStuff.text_size+0.4).x/graphics.get_screen_width()
-		while true do
-			for i = 0, 357 do
-				controls.disable_control_action(0, i, true)
-			end
-			if utils.time_ms() > gginput.indicator_timer then
-				gginput.indicator = not gginput.indicator
-				gginput.indicator_timer = utils.time_ms() + 750
-			end
-			gginput.draw_input(inputTable, 0x64000000, 0xC8000000, 0xC8FFFFFF, 0xC8FFFFFF, gginput.tableOfPos_Size)
-			system.wait(0)
-		end
-	end
-
-	function gginput.disableESC()
-		while cheeseUtils.get_key(0x1B):is_down() do
-			controls.disable_control_action(0, 200, true)
-			system.wait(0)
-		end
-		controls.disable_control_action(0, 200, true)
-	end
-
-	function gginput.moveCursorRight(inputTable, moveAmount)
-		if cheeseUtils.get_key(0x11):is_down() then
-			for i = inputTable.cursor+1, #inputTable.string do
-				if inputTable.string[i] == " " then
-					if i == inputTable.cursor+1 then
-						for i = inputTable.cursor+1, #inputTable.string do
-							if inputTable.string[i] ~= " " then
-								inputTable.cursor = i-1
-								break
-							elseif i == #inputTable.string then
-								inputTable.cursor = #inputTable.string
-							end
-						end
-					else
-						inputTable.cursor = i-1
-					end
-					break
-				elseif i == #inputTable.string then
-					inputTable.cursor = #inputTable.string
-				end
-			end
-		elseif not (inputTable.cursor >= #inputTable.string) then
-			inputTable.cursor = inputTable.cursor + moveAmount
-		end
-		gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
-		gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
-	end
-	function gginput.moveCursorLeft(inputTable, moveAmount)
-		if cheeseUtils.get_key(0x11):is_down() then
-			for i = inputTable.cursor, 2, -1 do
-				if inputTable.string[i] == " " then
-					if i == inputTable.cursor then
-						for i = inputTable.cursor, 2, -1 do
-							if inputTable.string[i] ~= " " then
-								inputTable.cursor = i
-								break
-							elseif i == 2 then
-								inputTable.cursor = 1
-							end
-						end
-					else
-						inputTable.cursor = i
-					end
-					break
-				elseif i == 2 then
-					inputTable.cursor = 1
-				end
-			end
-		elseif not (inputTable.cursor <= 1) then
-			inputTable.cursor = inputTable.cursor - moveAmount
-		end
-		gginput.drawStuff.indicator_string = gginput.drawStuff.string:sub(1, inputTable.cursor-1).."_"..gginput.drawStuff.string:sub(inputTable.cursor+1, #gginput.drawStuff.string)
-		gginput.drawStuff.cached_text_width = scriptdraw.get_text_size(gginput.drawStuff.string:sub(1, inputTable.cursor-1):gsub(" ", "."), gginput.drawStuff.text_size).x/graphics.get_screen_width()*2
-	end
-
-	function gginput.write_char(keyTable, inputTable)
-		if cheeseUtils.get_key(0x10):is_down() then
-			if inputTable.cursor == #inputTable.string then
-				inputTable.string[#inputTable.string+1] = keyTable[2] or keyTable[1]:upper()
-			else
-				table.insert(inputTable.string, inputTable.cursor+1, keyTable[2] or keyTable[1]:upper())
-			end
-		else
-			if inputTable.cursor == #inputTable.string then
-				inputTable.string[#inputTable.string+1] = keyTable[1]
-			else
-				table.insert(inputTable.string, inputTable.cursor+1, keyTable[1])
-			end
-		end
-
-		gginput.moveCursorRight(inputTable, 1)
-	end
-
-	function gginput.paste(stringInput, inputTable)
-		stringInput = tostring(stringInput)
-		if inputTable.cursor == #inputTable.string then
-			for char in stringInput:gmatch(".") do
-				if #inputTable.string-1 ~= inputTable.limit then
-					inputTable.string[#inputTable.string+1] = char
-				end
-			end
-			inputTable.cursor = #inputTable.string
-		else
-			for char in stringInput:gmatch(".") do
-				if #inputTable.string-1 ~= inputTable.limit then
-					table.insert(inputTable.string, inputTable.cursor+1, char)
-					inputTable.cursor = inputTable.cursor+1
-				end
-			end
-		end
-	end
-
-	function gginput.delete_char(inputTable, range_start, range_end)
-		if not range_start then
-			gginput.moveCursorLeft(inputTable, 1)
-			if inputTable.cursor == #inputTable.string-1 then
-				inputTable.string[#inputTable.string] = nil
-			else
-				table.remove(inputTable.string, inputTable.cursor+1)
-			end
-		else
-			if range_end ~= #inputTable.string then
-				inputTable.cursor = range_start
-				for i = range_end, range_start+1, -1 do
-					table.remove(inputTable.string, i)
-				end
-			else
-				inputTable.cursor = range_start
-				for i = range_start+1, #inputTable.string do
-					inputTable.string[i] = i == 1 and "" or nil
-				end
-			end
-		end
-	end
-
-	function gginput.delete(inputTable)
-		if cheeseUtils.get_key(0x11):is_down() then
-			local range_start
-			for i = inputTable.cursor, 1, -1 do
-				if inputTable.string[i] == " " then
-					if i == inputTable.cursor then
-						for i = inputTable.cursor, 1, -1 do
-							if inputTable.string[i] ~= " " then
-								range_start = i
-								break
-							end
-						end
-					else
-						range_start = i
-					end
-					break
-				elseif i == 1 then
-					range_start = 1
-				end
-			end
-			gginput.delete_char(inputTable, range_start, inputTable.cursor)
-		else
-			gginput.delete_char(inputTable)
-		end
-	end
-
-	local shift_esc = MenuKey()
-	shift_esc:push_vk(0x10)
-	shift_esc:push_vk(0x1B)
-	function gginput.reset_menu_nav()
-		while true do
-			if shift_esc:is_down() then
-				menu.set_menu_can_navigate(true)
-				menu.notify("Reset menu navigation")
-				break
-			end
-			system.wait(0)
-		end
-	end
-
-
-	function gginput.get_input(title, default, len, inputtype, inputTable)
-		local menuNavThread = menu.create_thread(gginput.reset_menu_nav)
-		menu.set_menu_can_navigate(false)
-		local pressed = {}
-
-		for k, v in pairs(gginput.char_codes[1]) do
-			if cheeseUtils.get_key(k):is_down() then
-				pressed[k] = utils.time_ms() + 2000
-			else
-				pressed[k] = 0
-			end
-		end
-
-		inputtype = tonumber(inputtype)
-		inputtype = (inputtype <= 5 and inputtype >= 0) and inputtype or 0
-		inputtype = inputtype + 1
-		local charTable = gginput.char_codes[inputtype]
-		local pasteCheck = {}
-		for k, v in pairs(charTable) do
-			local concatenated = table.concat(v)
-			pasteCheck[#pasteCheck+1] = concatenated
-			if concatenated ~= concatenated:upper() then
-				pasteCheck[#pasteCheck+1] = concatenated:upper()
-			end
-		end
-		pasteCheck = "[^"..table.concat(pasteCheck).."]"
-
-		inputTable = inputTable or {}
-		inputTable.string = {""}
-		inputTable.state = 1
-		inputTable.cursor = 1
-		inputTable.title = tostring(title)
-		inputTable.limit = tonumber(len) or 25
-
-		gginput.paste(default, inputTable)
-
-		gginput.drawStuff.text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.6+0.2
-
-		local drawThread = menu.create_thread(gginput.draw_thread, inputTable)
-		while cheeseUtils.get_key(0x0D):is_down() do
-			system.wait()
-		end
-		while not (cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down()) do
-			for k, v in pairs(charTable) do
-				if not cheeseUtils.get_key(0x11):is_down() and #inputTable.string-1 ~= len then
-					gginput.do_key(k, pressed, gginput.write_char, v, inputTable)
-				end
-			end
-
-			if cheeseUtils.get_key(0x11, 0x56):is_down() then
-				gginput.paste(utils.from_clipboard():gsub("[\r\n]", " "):gsub(pasteCheck, ""), inputTable)
-				while cheeseUtils.get_key(0x11, 0x56):is_down() do
-					system.wait()
-				end
-			elseif cheeseUtils.get_key(0x11, 0x43):is_down() then
-				utils.to_clipboard(table.concat(inputTable.string))
-			end
-
-			gginput.do_key(0x08, pressed, gginput.delete, inputTable) -- backspace
-			gginput.do_key(0x27, pressed, gginput.moveCursorRight, inputTable, 1) -- right
-			gginput.do_key(0x25, pressed, gginput.moveCursorLeft, inputTable, 1) -- left
-			system.wait(0)
-		end
-
-		gginput.disableESC()
-
-		local success = cheeseUtils.get_key(0x0D):is_down()
-		while cheeseUtils.get_key(0x0D):is_down() do
-			system.wait(0)
-		end
-		menu.delete_thread(drawThread)
-		menu.delete_thread(menuNavThread)
-		menu.set_menu_can_navigate(true)
-		inputTable.string = table.concat(inputTable.string)
-		inputTable.state = success and 0 or 2
-
-		gginput.drawStuff.string = ""
-		gginput.drawStuff.indicator_string = ""
-		gginput.drawStuff.cached_text_width = 0
-		gginput.drawStuff.cached_table_length = 0
-
-		return inputTable.state, success and inputTable.string or nil
-	end
---
-
-return gginput
-]=],
-	["Proddy's Script Manager.lua"] = [=[local ScriptName <const> = "Proddy's Script Manager (CheeseMenu)"
-local Version <const> = "2.3.2"
-local Exiting = false
-
-local Paths <const> = {}
-Paths.Root = utils.get_appdata_path("PopstarDevs", "2Take1Menu")
-Paths.Cfg = Paths.Root .. "\\cfg"
-Paths.LogFile = Paths.Root .. "\\" .. ScriptName .. ".log"
-Paths.Scripts = Paths.Root .. "\\scripts"
-
-local og_loadfile <const> = loadfile
-local og__loadfile <const> = _loadfile
-local og_load <const> = load
-local og_pcall <const> = _pcall
-local io_open <const> = io.open
-local os_date <const> = os.date
-local string_format <const> = string.format
-local system_wait <const> = system.wait
-
-local basePrint <const> = print
-local function print(...)
-	basePrint(...)
-	local success, result = og_pcall(function(...)
-		local args = {...}
-		if #args == 0 then
-			return
-		end
-
-		local currTime = os_date("*t")
-		local file <close> = io_open(Paths.LogFile, "a")
-
-		for i=1,#args do
-			file:write(string_format("[%02d-%02d-%02d %02d:%02d:%02d] <%s> %s\n", currTime.year, currTime.month, currTime.day, currTime.hour, currTime.min, currTime.sec, Version, tostring(args[i])))
-		end
-
-		file:close()
-	end, ...)
-	if not success then
-		basePrint("Error writing log: " .. result)
-	end
-end
-
-local notif <const> = menu.notify
-local function notify(msg, colour)
-	notif(msg, ScriptName .. " v" .. Version, nil, colour)
-	print(msg)
-end
-
-if ProddysScriptManager then
-	notify(ScriptName .. " already loaded.", 0xFF50C8F0)
-	return
-end
-
---notify(ScriptName .. " v" .. Version .. " loading...")
-
-local function CloneTable(obj, seen)
-	if type(obj) ~= 'table' then
-		return obj
-	end
-
-	if seen and seen[obj] then
-		return seen[obj]
-	end
-
-	local s = seen or {}
-	local res = {}
-	s[obj] = res
-
-	for k, v in pairs(obj) do
-		res[CloneTable(k, s)] = CloneTable(v, s)
-	end
-
-	return setmetatable(res, getmetatable(obj)) --Should definitely clone the metatable
-end
-
-local function Trim(s)
-	local n = s:find"%S"
-	return n and s:match(".*%S", n) or ""
-end
-
-local function FileNameWithoutExtension(FileName)
-	local name = FileName:match("(.+)%.")
-	return name or FileName
-end
-
-local ExcludedScripts <const> = {}
-ExcludedScripts["autoexec.lua"] = true
-ExcludedScripts["autoexec.luac"] = true
-ExcludedScripts["cheesemenu.lua"] = true
-ExcludedScripts[debug.getinfo(1, "S").source:sub(Paths.Scripts:len() + 3):lower()] = true
-
-local Settings <const> = {}
-
-function Settings.Save(SettingsFile, SettingsTbl)
-	assert(SettingsFile, "Nil passed for SettingsFile to Settings.Save")
-	assert(type(SettingsTbl) == "table", "Not a table passed for SettingsTbl to Settings.Save")
-	local file <close> = io.open(Paths.Cfg .. "\\" .. SettingsFile .. ".cfg", "w")
-	local keys = {}
-	for k in pairs(SettingsTbl) do
-		keys[#keys + 1] = k
-	end
-	table.sort(keys)
-	for i=1,#keys do
-		file:write(tostring(keys[i]) .. "=" .. tostring(SettingsTbl[keys[i]]) .. "\n")
-	end
-	file:close()
-end
-
-function Settings.Load(SettingsFile, SettingsTbl)
-	assert(SettingsFile, "Nil passed for SettingsFile to Settings.Load")
-	assert(type(SettingsTbl) == "table", "Not a table passed for SettingsTbl to Settings.Load")
-	SettingsFile = Paths.Cfg .. "\\" .. SettingsFile .. ".cfg"
-	if not utils.file_exists(SettingsFile) then
-		return false
-	end
-	for line in io.lines(SettingsFile) do
-		local key, value = line:match("^(.-)=(.-)$")
-		if key and value then
-			local num = tonumber(value)
-			if num then
-				value = num
-			elseif value == "true" then
-				value = true
-			elseif value == "false" then
-				value = false
-			end
-			num = tonumber(key)
-			if num then
-				key = num
-			end
-			SettingsTbl[key] = value
-		end
-	end
-	return true
-end
-
-local FeatType <const> = {
-	[2048] = "parent",
-	[1] = "toggle",
-	[512] = "action",
-	[11] = "value_i",
-	[131] = "value_f",
-	[7] = "slider",
-	[35] = "value_str",
-	[522] = "action_value_i",
-	[642] = "action_value_f",
-	[518] = "action_slider",
-	[546] = "action_value_str",
-	[1034] = "autoaction_value_i",
-	[1154] = "autoaction_value_f",
-	[1030] = "autoaction_slider",
-	[1058] = "autoaction_value_str",
-}
-
-local AutoloadTbl = {}
-Settings.Load(ScriptName, AutoloadTbl)
-
-local LoadedScripts = {}
-
-local add_feature <const> = menu.add_feature
-local add_player_feature <const> = menu.add_player_feature
-local delete_feature <const> = menu.delete_feature
-local delete_player_feature <const> = menu.delete_player_feature
-local create_thread <const> = menu.create_thread
-local delete_thread <const> = menu.delete_thread
-
-local register_script_event_hook <const> = hook.register_script_event_hook
-local remove_script_event_hook <const> = hook.remove_script_event_hook
-local register_net_event_hook <const> = hook.register_net_event_hook
-local remove_net_event_hook <const> = hook.remove_net_event_hook
-
-local add_event_listener <const> = event.add_event_listener
-local remove_event_listener <const> = event.remove_event_listener
-
-local register_command <const> = console.register_command
-local remove_command <const> = console.remove_command
-
-local Parent <const> = menu_originals.add_feature("Proddy's Script Manager", "parent", menu.get_feature_by_hierarchy_key("local.script_features.cheese_menu").id)
-local ParentId <const> = Parent.id
-local FirstChild
-local AutoloadFirstChild
-local FilterFeat
-
-menu_originals.add_feature("Trusted Mode", "parent", ParentId)
-
-local AutoloadParent <const> = menu_originals.add_feature("Manage Autoload Scripts", "parent", ParentId)
-local AutoloadParentId <const> = AutoloadParent.id
-
-local assert <const> = assert
-local error <const> = error
-local type <const> = type
-
-local UnloadScript
-
-local function DeleteFeature(Feat)
-	if Feat then
-		if Feat.type == 2048 then
-			for i=1,Feat.child_count do
-				DeleteFeature(Feat.children[1])
-			end
-		elseif Feat.type == 1 then
-			if Feat.data and type(Feat.data) == "table" and Feat.data.ScriptManager then
-				print("Deleting script: " .. Feat.name)
-				UnloadScript(Feat)
-				print("Deleted script: " .. Feat.name)
-			end
-		end
-		if Feat.activate_feat_func then
-			delete_feature(Feat.id)
-		else
-			menu_originals.delete_feature(Feat.id)
-		end
-	end
-end
-local function DeletePlayerFeature(Feat)
-	delete_player_feature(Feat.id)
-end
-
-UnloadScript = function(f)
-	if Exiting then return end
-	if not f.data or type(f.data) ~= "table" or not f.data.ScriptManager then return end
-
-	print("Unloading script: " .. f.name)
-
-	local success, result = og_pcall(function(data)
-		if data.exits then
-			for k,v in pairs(data.exits) do
-				v({["code"]=69})
-			end
-		end
-
-		if data.features then
-			local ids = {}
-			for k in pairs(data.features) do
-				ids[#ids + 1] = k
-			end
-			table.sort(ids)
-			for i = #ids,1,-1 do
-				DeleteFeature(data.features[ids[i]])
-			end
-		end
-
-		if data.player_features then
-			local ids = {}
-			for k in pairs(data.player_features) do
-				ids[#ids + 1] = k
-			end
-			table.sort(ids)
-			for i = #ids,1,-1 do
-				DeletePlayerFeature(data.player_features[ids[i]])
-			end
-		end
-
-		if data.threads then
-			local ids = {}
-			for k in pairs(data.threads) do
-				ids[#ids + 1] = k
-			end
-			table.sort(ids)
-			for i = #ids,1,-1 do
-				delete_thread(ids[i])
-			end
-		end
-
-		if data.script_hooks then
-			local ids = {}
-			for k in pairs(data.script_hooks) do
-				ids[#ids + 1] = k
-			end
-			table.sort(ids)
-			for i = #ids,1,-1 do
-				remove_script_event_hook(ids[i])
-			end
-		end
-
-		if data.net_hooks then
-			local ids = {}
-			for k in pairs(data.net_hooks) do
-				ids[#ids + 1] = k
-			end
-			table.sort(ids)
-			for i = #ids,1,-1 do
-				remove_net_event_hook(ids[i])
-			end
-		end
-
-		if data.events then
-			for eventName,v in pairs(data.events) do
-				local ids = {}
-				for k in pairs(v) do
-					ids[#ids + 1] = k
-				end
-				table.sort(ids)
-				for i = #ids,1,-1 do
-					remove_event_listener(eventName, ids[i])
-				end
-			end
-		end
-
-		if data.commands then
-			for name in pairs(data.commands) do
-				remove_command(name)
-			end
-		end
-	end, f.data)
-
-	LoadedScripts[f.name] = nil
-	f.data = nil
-	f.on = false
-
-	if success then
-		notify("Unloaded script: " .. f.name, 0xFF00FF00)
-	else
-		notify("Failed to unload script: " .. f.name .. "\n" .. result, 0xFF00FF00)
-	end
-
-	collectgarbage("collect")
-end
-
--- modified
-local limited_functions = {
-	{
-		namespace = "stats",
-		table = stats,
-		["stat_set_int"] = true,
-		["stat_set_float"] = true,
-		["stat_set_bool"] = true,
-		["stat_set_i64"] = true,
-		["stat_set_u64"] = true,
-		["stat_set_masked_int"] = true,
-		["stat_set_masked_bool"] = true,
-	},
-	{
-		namespace = "script",
-		table = script,
-		["set_global_f"] = true,
-		["set_global_i"] = true,
-		["set_global_s"] = true,
-		["set_local_f"] = true,
-		["set_local_i"] = true,
-		["set_local_s"] = true,
-	},
-	{
-		namespace = "native",
-		table = native,
-		["call"] = true,
-	},
-	{
-		namespace = "web",
-		table = web,
-		["post"] = true,
-		["get"] = true,
-		["request"] = true,
-		["urlencode"] = true,
-		["urldecode"] = true,
-	},
-	{
-		namespace = "memory",
-		table = memory,
-		["get_any"] = true,
-		["get_entity"] = true,
-		["get_ped"] = true,
-		["get_vehicle"] = true,
-		["get_object"] = true,
-		["get_pickup"] = true,
-		["read_u64"] = true,
-		["read_u32"] = true,
-		["read_u16"] = true,
-		["read_u8"] = true,
-		["read_i64"] = true,
-		["read_i32"] = true,
-		["read_i16"] = true,
-		["read_i8"] = true,
-		["read_f32"] = true,
-	},
-}
-
-local trusted_names = {
-	[0] = "Stats",
-	"Globals / Locals",
-	"Natives",
-	"HTTP",
-	"Memory"
-}
-
-local modified_functions = {
-	stats = {},
-	script = {},
-	native = {},
-	web = {},
-	memory = {},
-}
-
-for k, v in ipairs(limited_functions) do
-	local namespace = v.namespace
-	for name, data in pairs(v) do
-		if data == true then
-			modified_functions[namespace][name] = function(...)
-				local is_flag_on, notify = menu.is_trusted_mode_enabled(1 << (k-1))
-				if is_flag_on then
-					return v.table[name](...)
-				elseif notify then
-					menu.notify("Trusted Flag '"..trusted_names[k-1].."' is not enabled.\nFunction used: "..namespace..'.'..name, "Cheese Menu", 5, 0x00ffff)
-				end
-			end
-		end
-	end
-end
---
-
-local function LoadScript(f)
-	if f.on then
-		if not f.data then
-			local Filename = f.name
-			local Filepath = Paths.Scripts .. "\\" .. Filename
-
-			if not utils.file_exists(Filepath) then
-				notify("Could not find script: " .. Filename,0xFF0000FF)
-				LoadedScripts[f.name] = nil
-				f.data = nil
-				f.on = false
-				return
-			end
-
-			print("Enabling script: " .. f.name)
-			f.data = {}
-			f.data.ScriptManager = true
-			f.data.features = {}
-			f.data.player_features = {}
-			f.data.threads = {}
-			f.data.script_hooks = {}
-			f.data.net_hooks = {}
-			f.data.events = {}
-			f.data.exits = {}
-			f.data.commands = {}
-
-			local env = CloneTable(_G)
-			function env.SetGlobal(Name, Value)
-				assert(type(Name) == "string", "Arg #1 (Name) must be a string")
-
-				_G[Name] = Value
-				for i=FirstChild,Parent.child_count do
-					local feat = Parent.children[i]
-					if feat.data and feat.data.env then
-						feat.data.env[Name] = Value
-					end
-				end
-			end
-
-			for namespace, func_table in pairs(modified_functions) do
-				local env_namespace = env[namespace]
-				for name, func in pairs(func_table) do
-					env_namespace[name] = func
-				end
-			end
-
-			env.cheeseUIdata = cheeseUIdata
-
-			env.menu.add_feature = function(...)
-				local feat = add_feature(...)
-				if feat then
-					f.data.features[feat.id] = feat
-				end
-				return feat
-			end
-			env.menu.add_player_feature = function(...)
-				local feat = add_player_feature(...)
-				if feat then
-					f.data.player_features[feat.id] = feat
-				end
-				return feat
-			end
-			env.menu.delete_feature = function(id)
-				local success = delete_feature(id)
-				if success then
-					f.data.features[id] = nil
-				end
-				return success
-			end
-			env.menu.delete_player_feature = function(id)
-				local success = delete_player_feature(id)
-				if success then
-					f.data.player_features[id] = nil
-				end
-				return success
-			end
-			env.menu.create_thread = function(...)
-				local id = create_thread(...)
-				if id then
-					f.data.threads[id] = true
-				end
-				return id
-			end
-			env.menu.delete_thread = function(id)
-				local success = delete_thread(id)
-				if success then
-					f.data.threads[id] = nil
-				end
-				return success
-			end
-			env.hook.register_script_event_hook = function(...)
-				local id = register_script_event_hook(...)
-				if id then
-					f.data.script_hooks[id] = true
-				end
-				return id
-			end
-			env.hook.remove_script_event_hook = function(id)
-				local success = remove_script_event_hook(id)
-				if success then
-					f.data.script_hooks[id] = nil
-				end
-				return success
-			end
-			env.hook.register_net_event_hook = function(...)
-				local id = register_net_event_hook(...)
-				if id then
-					f.data.net_hooks[id] = true
-				end
-				return id
-			end
-			env.hook.remove_net_event_hook = function(id)
-				local success = remove_net_event_hook(id)
-				if success then
-					f.data.net_hooks[id] = nil
-				end
-				return success
-			end
-			env.event.add_event_listener = function(eventName, callback)
-				local id = add_event_listener(eventName, callback)
-				if id then
-					f.data.events[eventName] = f.data.events[eventName] or {}
-					f.data.events[eventName][id] = true
-					if eventName == "exit" then
-						f.data.exits[id] = callback
-					end
-				end
-				return id
-			end
-			env.event.remove_event_listener = function(eventName, id)
-				local success = remove_event_listener(eventName, id)
-				if success and f.data.events[eventName] then
-					f.data.events[eventName][id] = nil
-					if eventName == "exit" then
-						f.data.exits[id] = nil
-					end
-				end
-				return success
-			end
-			env.console.register_command = function(name, ...)
-				if register_command(name, ...) then
-					f.data.commands[name] = true
-					return true
-				end
-				return false
-			end
-			env.console.remove_command = function(name)
-				if remove_command(name) then
-					for i=FirstChild,Parent.child_count do
-						local feat = Parent.children[i]
-						if feat.data and feat.data.commands then
-							feat.data.commands[name] = nil
-						end
-					end
-					return true
-				end
-				return false
-			end
-			env.load = function(chunk, chunkname, mode, env2)
-				return og_load(chunk, chunkname or "=(load)", mode or "bt", env2 or env)
-			end
-			env.dofile = function(filename)
-				return og__loadfile(filename, "bt", env)()
-			end
-			env.loadfile = function(filename, mode, env2)
-				return og__loadfile(filename, mode or "bt", env2 or env)
-			end
-			env._loadfile = function(filename, mode, env)
-				return og__loadfile(filename, mode or "bt", env or env)
-			end
-			local loaders = {}
-			local loaded = {}
-			env.require = function(Library)
-				assert(Library ~= nil, "You must pass a Library name")
-				assert(type(Library) == "string", "Library name must be a string")
-				if loaders[Library] then
-					local status, result = og_pcall(loaders[Library])
-					if status then
-						if result == nil then
-							return true
-						else
-							loaded[Library] = result
-							return loaded[Library]
-						end
-					end
-				end
-				local libParts = {}
-				for part in Library:gmatch("[^.]+") do
-					libParts[#libParts + 1] = part
-				end
-				local subDirTbl = {}
-				if #libParts > 1 then
-					for i=1,#libParts-1 do
-						subDirTbl[#subDirTbl + 1] = libParts[i]
-					end
-				end
-				local subDir = table.concat(subDirTbl, "/") .. "/"
-				local lib = libParts[#libParts]
-				for rootDir in env.package.path:gmatch("[^;]+") do
-					local path = rootDir:gsub("%?", subDir .. lib)
-					if utils.file_exists(path) then
-						local chunk, err = og__loadfile(path, "bt", env)
-						assert(chunk, "Failed to load \"" .. Library .. "\": " .. tostring(err))
-						local status, result = og_pcall(chunk)
-						assert(status, "Failed to exec  \"" .. Library .. "\": " .. tostring(result))
-						loaders[Library] = chunk
-						if result == nil then
-							return true
-						else
-							loaded[Library] = result
-							return loaded[Library]
-						end
-					end
-				end
-				error("Failed to find library with name \"" .. Library .. "\"")
-			end
-			env.clear_lib_cache = function(Library)
-				if Library then
-					local retVal = loaders[Library] ~= nil and loaded[Library] ~= nil
-					loaders[Library] = nil
-					loaded[Library] = nil
-					return retVal
-				else
-					loaders = {}
-					loaded = {}
-					return true
-				end
-			end
-			env.get_lib_cache = function()
-				local cache = {}
-				for k,v in pairs(loaded) do
-					cache[k] = v
-				end
-				return cache
-			end
-			f.data.env = env
-
-			local chunk, err = og__loadfile(Filepath, "bt", f.data.env)
-			if chunk then
-				local status, result = og_pcall(chunk)
-				if not status then
-					menu.create_thread(UnloadScript, f)
-					notify("Error executing script: " .. Filename .. "\n" .. tostring(result), 0xFF0000FF)
-				else
-					notify("Loaded script: " .. Filename, 0xFF00FF00)
-					LoadedScripts[Filename] = true
-				end
-			else
-				menu.create_thread(UnloadScript, f)
-				notify("Error loading script: " .. Filename .. "\n" .. err, 0xFF0000FF)
-			end
-		end
-	else
-		if f.data then
-			menu.create_thread(UnloadScript, f)
-		end
-	end
-end
-
-local function CaseInsensitiveSort(a, b)
-	return tostring(a):lower() < tostring(b):lower()
-end
-
-local function LoadScripts(feat)
-	if FilterFeat then
-		FilterFeat.data = ""
-		FilterFeat.name = "Filter: <None>"
-	end
-
-	local files = utils.get_all_files_in_directory(Paths.Scripts, "lua")
-	local files2 = {}
-	for i=1,#files do
-		files2[files[i]] = true
-	end
-	local files3 = utils.get_all_files_in_directory(Paths.Scripts, "luac")
-	for i=1,#files3 do
-		if not files2[files3[i]] then
-			files[#files + 1] = files3[i]
-			files2[files3[i]] = true
-		end
-	end
-	table.sort(files, CaseInsensitiveSort)
-	local threads = {}
-	for i=Parent.child_count,FirstChild,-1 do
-		if not files2[Parent.children[i].name] then
-			threads[#threads + 1] = create_thread(DeleteFeature, Parent.children[i])
-		else
-			files2[Parent.children[i].name] = false
-			Parent.children[i].hidden = false
-		end
-	end
-	for i=AutoloadParent.child_count,AutoloadFirstChild,-1 do
-		threads[#threads + 1] = create_thread(DeleteFeature, AutoloadParent.children[i])
-	end
-	local waiting = true
-	while waiting do
-		local running = false
-		for i=1,#threads do
-			running = running or (not menu.has_thread_finished(threads[i]))
-		end
-		waiting = running
-		system_wait(0)
-	end
-	for i=1,#files do
-		if not ExcludedScripts[files[i]:lower()] then
-			if files2[files[i]] then
-				menu_originals.add_feature(files[i], "toggle", ParentId, LoadScript, f)
-			end
-			local autoloadFeat = menu_originals.add_feature(files[i], "value_i", AutoloadParentId)
-			autoloadFeat.min = 1
-			autoloadFeat.max = 999
-			autoloadFeat.mod = 1
-			local val = AutoloadTbl[files[i]]
-			if val then
-				autoloadFeat.value = type(val) == "number" and val or 1
-				autoloadFeat.on = true
-			else
-				autoloadFeat.value = 1
-			end
-		end
-	end
-end
-
-local ExitFeat = menu_originals.add_feature("Exit Listener", "toggle", ParentId, function(f)
-	if not f.on then
-		print("Exit Listener Feat Off")
-		Exiting = true
-	end
-end)
-ExitFeat.hidden = true
-ExitFeat.on = true
-
-local delayFeat
-
-menu_originals.add_feature("Save Autoload Scripts", "action", AutoloadParentId, function(f)
-	AutoloadTbl = {
-		["autoload_delay_between_scripts"] = delayFeat.value
-	}
-	for i=AutoloadFirstChild,AutoloadParent.child_count do
-		local child = AutoloadParent.children[i]
-		if child.on then
-			AutoloadTbl[child.name] = child.value
-		end
-	end
-	Settings.Save(ScriptName, AutoloadTbl)
-	notify("Saved autoload scripts.", 0xFF00FF00)
-end)
-
-delayFeat = menu_originals.add_feature("Delay between scripts (ms)", "action_value_i", AutoloadParentId, function(f)
-	local r, s
-	repeat
-		r, s = input.get("Enter delay", f.value, 4, eInputType.IT_NUM)
-		if r == 2 then return HANDLER_POP end
-		system_wait(0)
-	until r == 0
-
-	local num = tonumber(s)
-	if num and num >= f.min and num <= f.max then
-		f.value = num
-	end
-end)
-delayFeat.min = 0
-delayFeat.max = 1000
-delayFeat.mod = 1
-local delayVal = AutoloadTbl["autoload_delay_between_scripts"]
-if type(delayVal) ~= "number" or delayVal < delayFeat.min then
-	delayVal = delayFeat.min
-elseif delayVal > delayFeat.max then
-	delayVal = delayFeat.max
-end
-delayFeat.value = delayVal
-
-local RefreshFeat <const> = menu_originals.add_feature("Refresh Scripts", "action", ParentId, function(f)
-	LoadScripts(f)
-	notify("Refreshed scripts list.", 0xFF00FF00)
-end)
-
-local function FocusFeat(f)
-	if f.data.parent then
-		f.data.parent:toggle()
-	end
-	f.data:select()
-end
-
-local function ToggleFeat(f)
-	f.data:toggle()
-end
-
-local SearchParentId <const> = menu_originals.add_feature("Search Script Features", "parent", ParentId).id
-menu_originals.add_feature("Filter: <None>", "action", SearchParentId, function(f)
-	local r, s
-	repeat
-		r, s = input.get("Enter search query", f.data, 64, 0)
-		if r == 2 then return HANDLER_POP end
-		system_wait(0)
-	until r == 0
-
-	local threads = {}
-	for i=f.parent.child_count,2,-1 do
-		threads[#threads + 1] = create_thread(DeleteFeature, f.parent.children[i])
-	end
-
-	local waiting = true
-	while waiting do
-		local running = false
-		for i=1,#threads do
-			running = running or (not menu.has_thread_finished(threads[i]))
-		end
-		waiting = running
-		system_wait(0)
-	end
-
-	s = Trim(s)
-	if s:len() == 0 then
-		f.data = ""
-		f.name = "Filter: <None>"
-		return HANDLER_POP
-	end
-
-	local count = 0
-	for i=4,RefreshFeat.parent.child_count do
-		local child = RefreshFeat.parent.children[i]
-		if child.data and child.data.features and type(child.data.features) == "table" then
-			for j=1,#child.data.features do
-				local feat = child.data.features[j]
-				if feat then
-					if feat.name:lower():find(s:lower(), 1, true) then
-						if feat.type == 2048 then
-							menu_originals.add_feature(FileNameWithoutExtension(child.name) .. " | " .. feat.name, "parent", SearchParentId, ToggleFeat).data = feat
-						else
-							menu_originals.add_feature(FileNameWithoutExtension(child.name) .. " | " .. feat.name, "action", SearchParentId, FocusFeat).data = feat
-						end
-						count = count + 1
-					end
-				end
-			end
-		end
-	end
-
-	f.data = s
-	f.name = "Filter: <" .. s .. "> (" .. count .. ")"
-end).data = ""
-
-FilterFeat = menu_originals.add_feature("Filter: <None>", "action", ParentId, function(f)
-	local r, s
-	repeat
-		r, s = input.get("Enter search query", f.data, 64, 0)
-		if r == 2 then return HANDLER_POP end
-		system_wait(0)
-	until r == 0
-
-	s = Trim(s)
-	if s:len() == 0 then
-		f.data = ""
-		f.name = "Filter: <None>"
-		for i=f.parent.child_count,FirstChild,-1 do
-			f.parent.children[i].hidden = false
-		end
-		return HANDLER_POP
-	end
-
-	local count = 0
-	for i=f.parent.child_count,FirstChild,-1 do
-		if f.parent.children[i].name:lower():find(s, 1, true) then
-			f.parent.children[i].hidden = false
-			count = count + 1
-		else
-			f.parent.children[i].hidden = true
-		end
-	end
-
-	f.data = s
-	f.name = "Filter: <" .. s .. "> (" .. count .. ")"
-end)
-FilterFeat.data = ""
-
-ProddysScriptManager = true
-
-create_thread(function(f)
-	FirstChild = Parent.child_count + 1
-	AutoloadFirstChild = AutoloadParent.child_count + 1
-	LoadScripts(f)
-
-	local delay = 0
-	local autoload = {}
-	for k,v in pairs(AutoloadTbl) do
-		if k == "autoload_delay_between_scripts" then
-			if type(v) == "number" and v >= 0 then
-				delay = v
-			end
-		else
-			if type(v) ~= "number" then v = 1 end
-			autoload[v] = autoload[v] or {}
-			autoload[v][#autoload[v] + 1] = k
-		end
-	end
-
-	print("Autoloading with delay: " .. delay)
-
-	if #autoload > 0 then
-		local scripts = {}
-		for i=FirstChild,Parent.child_count do
-			local feat = Parent.children[i]
-			scripts[feat.name] = feat
-		end
-
-		local ids = {}
-		for k in pairs(autoload) do
-			ids[#ids + 1] = k
-		end
-		table.sort(ids)
-
-		for i=1,#ids do
-			local tbl = autoload[ids[i]]
-			for j=1,#tbl do
-				local script = scripts[tbl[j]]
-				if script then
-					system_wait(delay)
-					print("Enabled autoload script: " .. script.name)
-					script.on = true
-				end
-			end
-		end
-	end
-end, RefreshFeat)
-
---notify(ScriptName .. " v" .. Version .. " loaded.", 0xFF0FF00)]=],
 }
