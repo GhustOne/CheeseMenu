@@ -14,6 +14,10 @@ local gltw = {}
 local type <const> = type
 local l_next <const> = next
 local ipairs <const> = ipairs
+local long_str_levels <const> = {}
+for i = 0, 100 do
+	long_str_levels[i] = string.rep("=", i+1)
+end
 
 function gltw.write_table(tableTW, indentation, exclusions, exclude_empty, string_lines)
 	for k, v in l_next, tableTW do
@@ -27,7 +31,9 @@ function gltw.write_table(tableTW, indentation, exclusions, exclude_empty, strin
 			end
 
 			if typeofv == "string" then
-				string_lines[#string_lines + 1] = indentation..index.."[=["..v.."]=],"
+				local long_str_level = v:match("%](=*)%]")
+				long_str_level = long_str_level and long_str_levels[#long_str_level] or ""
+				string_lines[#string_lines + 1] = indentation..index.."["..long_str_level.."["..v.."]"..long_str_level.."],"
 			elseif typeofv ~= "function" and typeofv ~= "table" then
 				string_lines[#string_lines + 1] = indentation..index..tostring(v)..","
 			elseif typeofv == "table" and (exclude_empty and l_next(v) or not exclude_empty) then
@@ -98,10 +104,10 @@ function gltw.read(name, path, addToTable, typeMatched, overrideError)
 	end
 
 	path = path or ""
-	if type(tableRT) == "string" then
+	--[[ if type(tableRT) == "string" then
 		name, path = tableRT, name or path
 		tableRT = nil
-	end
+	end ]]
 
 	local readTable = loadfile(path..name..".lua", "tb")()
 	if addToTable then
