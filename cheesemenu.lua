@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.9.3"
+local version = "1.9.4"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -2984,9 +2984,6 @@ function loadCurrentMenu()
 
 						system.wait(0)
 					until status == 0
-					while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x08):is_down() or cheeseUtils.get_key(0x1B):is_down() do
-						system.wait(0)
-					end
 				end
 
 				local tempColor = {}

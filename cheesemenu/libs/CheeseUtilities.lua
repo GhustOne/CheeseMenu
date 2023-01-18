@@ -1,5 +1,5 @@
 --Made by GhostOne
-local cheeseUtils = {}
+local cheeseUtils = {version = "1.9.4"}
 
 -- Credit to kektram for this whole function ~ a little modified to focus on fractionals
 cheeseUtils.memoize = {}
@@ -680,9 +680,9 @@ function cheeseUtils.rgb_to_hsv(r, g, b)
 	local max = math.max(r, g, b)
 	local min = math.min(r, g, b)
 
-	local chroma = max - min
-	local saturation = min < 255 and (chroma > 0 and chroma / max or 1) or 0
 	local value = max / 255
+	local chroma = max - min
+	local saturation = value == 0 and 0 or (chroma > 0 and 1-(chroma / max) or 1)
 	local hue = 0
 
 	local sub
@@ -784,11 +784,19 @@ do
 		self.draw = func
 	end
 
+	local default_draw_outline = v2(scriptdraw.size_pixel_to_rel_x(2), scriptdraw.size_pixel_to_rel_y(2))
 	local function default_draw(self)
-		scriptdraw.draw_rect(self.pos, self.size, 0xFFAAAAAA)
+		scriptdraw.draw_rect(self.pos, self.v2r(self.size.x + default_draw_outline.x, self.size.y + default_draw_outline.y), 0xFFDDDDDD)
+		scriptdraw.draw_rect(self.pos, self.size, 0xFF555555)
+
+		local is_one_dimensional = self.type ~= 3
+		local is_horizontal = self.type & 1 ~= 0
+		local circle_size = (is_one_dimensional and (is_horizontal and self.size.y or self.size.x) or 5)
+		circle_size = is_horizontal and scriptdraw.size_rel_to_pixel_y(circle_size) or scriptdraw.size_rel_to_pixel_x(circle_size)
 
 		local x, y = self:get_screen_pos()
-		scriptdraw.draw_circle(self.v2r(x, y), 0.01, 0xFFFFFFFF)
+		scriptdraw.draw_circle(self.v2r(x, y), scriptdraw.size_pixel_to_rel_y(circle_size + 2), 0xFFDDDDDD)
+		scriptdraw.draw_circle(self.v2r(x, y), scriptdraw.size_pixel_to_rel_y(circle_size), 0xFF555555)
 	end
 
 	local function update_slider(self, disable_control)
@@ -939,12 +947,13 @@ end
 		until status == 0
 ]]
 do
+	local size_scale = (graphics.get_screen_width()*graphics.get_screen_height()-480000) / (8924400-480000) * (1.25) + 0.75
 	local alpha_slider
 	local hue_slider
 	local color_picker = cheeseUtils.mouse.xy_slider(
 		v2(),
-		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(256)),
-		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(256))
+		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale)),
+		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale))
 	)
 	color_picker:set_draw_function(function(slider)
 		local hue = (1-hue_slider.value.y)*360
@@ -965,18 +974,18 @@ do
 		slider.colors[3] = b
 		slider.colors[4] = (1-alpha_slider.value.x)*255//1
 
-		scriptdraw.draw_circle(screen_pos, 0.0125, 0xFFFFFFFF)
-		scriptdraw.draw_circle(screen_pos, 0.01, slider.color)
+		scriptdraw.draw_circle(screen_pos, scriptdraw.size_pixel_to_rel_y(8*size_scale), 0xFFFFFFFF)
+		scriptdraw.draw_circle(screen_pos, scriptdraw.size_pixel_to_rel_y(6*size_scale), slider.color)
 	end)
 	color_picker.color = 0
 	color_picker.colors = {}
 
-	local size = v2(scriptdraw.size_pixel_to_rel_x(48), scriptdraw.size_pixel_to_rel_y(256))
-	hue_slider = cheeseUtils.mouse.vertical_slider(v2(color_picker.pos.x+color_picker.size.x/2+scriptdraw.size_pixel_to_rel_x(50), color_picker.pos.y), size, size, 0)
+	local size = v2(scriptdraw.size_pixel_to_rel_x(48*size_scale), scriptdraw.size_pixel_to_rel_y(360*size_scale))
+	hue_slider = cheeseUtils.mouse.vertical_slider(v2(color_picker.pos.x+color_picker.size.x/2+scriptdraw.size_pixel_to_rel_x(50*size_scale), color_picker.pos.y-scriptdraw.size_pixel_to_rel_y(52*size_scale)), size, size, 0)
 	hue_slider.hue = 0
 
 	local hue_gradient = {}
-	local hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(23)
+	local hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(30*size_scale)
 	for i = 0, 6, 1 do
 		local b, g, r = cheeseUtils.hsv_to_rgb(i*60)
 		local bottom = cheeseUtils.convert_rgba_to_int(r, g, b)
@@ -985,58 +994,76 @@ do
 		local top = cheeseUtils.convert_rgba_to_int(r, g, b)
 
 		hue_gradient[#hue_gradient+1] = {bottom = bottom, top = top, y = hue_y}
-		hue_y = hue_y + scriptdraw.size_pixel_to_rel_y(42)
+		hue_y = hue_y + scriptdraw.size_pixel_to_rel_y(60*size_scale)
 	end
 
-	local hue_size = v2(scriptdraw.size_pixel_to_rel_x(48), scriptdraw.size_pixel_to_rel_y(46))
+	local hue_size = v2(scriptdraw.size_pixel_to_rel_x(48*size_scale), scriptdraw.size_pixel_to_rel_y(60*size_scale))
 	hue_slider:set_draw_function(function(slider)
 		for i = 1, 6 do
 			local hue_table = hue_gradient[i]
 			cheeseUtils.draw_rect_ext_wh(slider.v2r(slider.pos.x, hue_table.y), hue_size, hue_table.bottom, hue_table.top, hue_table.top, hue_table.bottom)
 		end
-		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x+scriptdraw.size_pixel_to_rel_x(6), scriptdraw.size_pixel_to_rel_y(10)), 0xFFFFFFFF)
+		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x+scriptdraw.size_pixel_to_rel_x(6*size_scale), scriptdraw.size_pixel_to_rel_y(10*size_scale)), 0xFFFFFFFF)
 
 		local b, g, r = cheeseUtils.hsv_to_rgb((1-slider.value.y)*360)
 		local color = cheeseUtils.convert_rgba_to_int(r, g, b)
-		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x, scriptdraw.size_pixel_to_rel_y(6)), color)
+		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x, scriptdraw.size_pixel_to_rel_y(6*size_scale)), color)
 	end)
 
 	local hex = ""
 	local lastIntColor = 0
-	local color_pos = v2((color_picker.pos.x+hue_slider.pos.x/2.4)/2, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(60))
-	local color_size = v2(scriptdraw.size_pixel_to_rel_x(330), scriptdraw.size_pixel_to_rel_y(57))
-	local text_pos = v2(color_pos.x+scriptdraw.size_pixel_to_rel_x(10), color_pos.y)
+	--(color_picker.pos.x+hue_slider.pos.x/2.4)/2
+	local color_pos = v2(color_picker.pos.x, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(76*size_scale))
+	local color_size = v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(57*size_scale))
+	local text_pos = v2(color_pos.x-scriptdraw.size_pixel_to_rel_x(30*size_scale), color_pos.y)
 
 	alpha_slider = cheeseUtils.mouse.horizontal_slider(
-		v2(color_pos.x, color_pos.y+scriptdraw.size_pixel_to_rel_y(45)),
-		v2(scriptdraw.size_pixel_to_rel_x(330), scriptdraw.size_pixel_to_rel_y(15)),
-		v2(scriptdraw.size_pixel_to_rel_x(330), scriptdraw.size_pixel_to_rel_y(5)),
+		v2(color_picker.pos.x, color_pos.y+scriptdraw.size_pixel_to_rel_y(52*size_scale)),
+		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(15*size_scale)),
+		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(5*size_scale)),
 		0
 	)
 
 	saturation_slider = cheeseUtils.mouse.horizontal_slider(
-		v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw.size_pixel_to_rel_y(15)),
-		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(15)),
-		v2(scriptdraw.size_pixel_to_rel_x(256), scriptdraw.size_pixel_to_rel_y(5))
+		v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw.size_pixel_to_rel_y(15*size_scale)),
+		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(15*size_scale)),
+		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(5*size_scale))
 	)
 
 	value_slider = cheeseUtils.mouse.vertical_slider(
-		v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw.size_pixel_to_rel_x(15), color_picker.pos.y),
-		v2(scriptdraw.size_pixel_to_rel_x(15), scriptdraw.size_pixel_to_rel_y(256)),
-		v2(scriptdraw.size_pixel_to_rel_x(5), scriptdraw.size_pixel_to_rel_y(256))
+		v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw.size_pixel_to_rel_x(15*size_scale), color_picker.pos.y),
+		v2(scriptdraw.size_pixel_to_rel_x(15*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale)),
+		v2(scriptdraw.size_pixel_to_rel_x(5*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale))
 	)
+
+	--[[
+		local background_pos = v2((color_picker.pos.x+hue_slider.pos.x/3)/2, hue_slider.pos.y+scriptdraw.size_pixel_to_rel_y(10))
+		local background_size = v2(scriptdraw.size_pixel_to_rel_x(380), scriptdraw.size_pixel_to_rel_y(410))
+	]]
 
 	local running = false
 	---@return integer status, uint32_t|nil color, int|nil red, int|nil green, int|nil blue, int|nil alpha
 	function cheeseUtils.pick_color(r, g, b, a)
-		if not running and (r and g and b) then
-			local hue, sat, val = cheeseUtils.rgb_to_hsv(r, g, b)
-			hue_slider.value.y = 1-hue/360
-			color_picker.value.x = 1-sat
-			saturation_slider.value.x = 1-sat
-			color_picker.value.y = 1-val
-			value_slider.value.y = 1-val
-			alpha_slider.value.x = a and 1-a/255 or 255
+		if not running then
+			if (r and g and b) then
+				local hue, sat, val = cheeseUtils.rgb_to_hsv(r, g, b)
+				hue_slider.value.y = 1-hue/360
+				color_picker.value.x = sat
+				saturation_slider.value.x = sat
+				color_picker.value.y = 1-val
+				value_slider.value.y = 1-val
+				alpha_slider.value.x = a and 1-a/255 or 255
+			else
+				hue_slider.value.y = 1
+				color_picker.value.x = 0
+				saturation_slider.value.x = 0
+				color_picker.value.y = 0
+				value_slider.value.y = 0
+				alpha_slider.value.x = 0
+			end
+			while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() do
+				system.wait(0)
+			end
 		end
 
 		if cheeseUIdata then
@@ -1050,12 +1077,14 @@ do
 		if lastIntColor ~= color_picker.color then
 			local r, g, b = cheeseUtils.convert_int_to_rgba(color_picker.color, "r", "g", "b")
 			local intColor = r << 16 | g << 8 | b
-			hex = string.format("%X", intColor)
-			hex = "#"..string.rep("0", 6 - #hex)..hex
+			hex = "#"..string.format("%06X", intColor)
 		end
 
-		scriptdraw.draw_rect(color_pos, color_size, color_picker.color)
-		scriptdraw.draw_text(hex, text_pos, color_size, 1, 0xFFFFFFFF, 2)
+		-- Background
+			--scriptdraw.draw_rect(background_pos, background_size, 0xAA000000)
+		-- Color rect
+			scriptdraw.draw_rect(color_pos, color_size, color_picker.color)
+			scriptdraw.draw_text(hex, text_pos, color_size, size_scale, 0xFFFFFFFF, 2)
 
 		local sat = saturation_slider:update()
 		local val = value_slider:update()

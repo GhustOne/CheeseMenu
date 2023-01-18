@@ -5,5 +5,6 @@
 - Improved hotkey activation (shouldn't activate when input box is open, will add console later)
 - Improved update download (thanks to Proton#5503's idea)
 
-v1.9.3:
-- Improved Color Picker
+v1.9.4:
+- Modified Color Picker design
+- Improved Color Picker/Sliders
