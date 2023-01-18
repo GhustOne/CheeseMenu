@@ -653,9 +653,11 @@ end
 
 -- Round Numbers
 function cheeseUtils.round_num(n, digits)
-	n = digits and n * (10 * digits) or n
+	digits = digits and 10 ^ digits
+	n = digits and n * digits or n
 	n = n + 0.5
-	n = n // (digits and 10 * digits or 1)
+	n = n // 1
+	n = digits and n / digits or n
 	return n
 end
 
