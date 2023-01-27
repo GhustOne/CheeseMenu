@@ -1,4 +1,5 @@
 - Organized Menu UI features
+- Added Set position with mouse
 - Added On Screen Shortcuts for features
 - Added Apply/Cancel buttons for Color Picker
 - Made hex text a button in Color Picker (one click = copy, two clicks = input)
