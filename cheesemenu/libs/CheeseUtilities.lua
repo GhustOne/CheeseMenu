@@ -1409,8 +1409,8 @@ do
 		value_slider:set_pos(v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw.size_pixel_to_rel_x(15*size_scale), color_picker.pos.y))
 
 		hex_button:set_pos(text_pos)
-		apply_button:set_pos(v2(color_picker.pos.x+color_picker.size.x/4+scriptdraw.size_pixel_to_rel_x(14), color_picker.pos.y-color_picker.size.y))
-		cancel_button:set_pos(v2(color_picker.pos.x-color_picker.size.x/4-scriptdraw.size_pixel_to_rel_x(14), color_picker.pos.y-color_picker.size.y))
+		apply_button:set_pos(v2(color_picker.pos.x+color_picker.size.x/4+scriptdraw.size_pixel_to_rel_x(14*size_scale), color_picker.pos.y-color_picker.size.y))
+		cancel_button:set_pos(v2(color_picker.pos.x-color_picker.size.x/4-scriptdraw.size_pixel_to_rel_x(14*size_scale), color_picker.pos.y-color_picker.size.y))
 	end
 
 	--[[
