@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.9.4"
+local version = "1.10"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -283,6 +283,7 @@ function loadCurrentMenu()
 			open = "F4",
 			setHotkey = "F11",
 			specialKey = "LCONTROL",
+			revealMouse = "X"
 		},
 		vkcontrols = {
 			left = 0x25,
@@ -294,6 +295,7 @@ function loadCurrentMenu()
 			open = 0x73,
 			setHotkey = 0x7A,
 			specialKey = 0xA2,
+			revealMouse = 0x58
 		},
 		drawScroll = 0,
 		maxDrawScroll = 0,
@@ -346,7 +348,6 @@ function loadCurrentMenu()
 			footer_size_modifier = 1,
 			hint_size_modifier = 1,
 			text_y_offset = -0.0055555555,
-			color = {},
 			files = {},
 			background_sprite = {
 				sprite = nil,
@@ -399,7 +400,9 @@ function loadCurrentMenu()
 		footer_text = {r = 0, g = 0, b = 0, a = 180},
 		notifications = {r = 255, g = 200, b = 0, a = 255},
 		side_window_background = {r = 0, g = 0, b = 0, a = 150},
-		side_window_text = {r = 255, g = 255, b = 255, a = 220}
+		side_window_text = {r = 255, g = 255, b = 255, a = 220},
+		shortcut_background = {r = 255, g = 160, b = 0, a = 170},
+		shortcut_text = {r = 0, g = 0, b = 0, a = 180}
 	}
 
 	stuff.path.cheesemenu = stuff.path.scripts.."cheesemenu\\"
@@ -476,11 +479,6 @@ function loadCurrentMenu()
 		return table.concat(ipTable, ".")
 	end
 
-	gltw.read("controls", stuff.path.cheesemenu, stuff.controls, false, true)
-	for k, v in pairs(stuff.controls) do
-		stuff.vkcontrols[k] = stuff.char_codes[v]
-	end
-
 	gltw.read("hotkey notifications", stuff.path.hotkeys, stuff.hotkey_notifications, false, true)
 	stuff.hotkeys = gltw.read("hotkeys", stuff.path.hotkeys, nil, false, true) or {}
 	stuff.hierarchy_key_to_hotkey = {}
@@ -499,6 +497,8 @@ function loadCurrentMenu()
 			end
 		end
 	end
+
+	stuff.saved_shortcuts = gltw.read("shortcuts", stuff.path.hotkeys, nil, false, true)
 
 	--local originalGetInput = input.get
 	if stuff.input then
@@ -1057,6 +1057,7 @@ function loadCurrentMenu()
 				currentParent.child_count = currentParent.child_count + 1
 			end
 		end
+
 		feat.hotkey = stuff.hierarchy_key_to_hotkey[hierarchy_key]
 		feat.hierarchy_key = hierarchy_key
 		if stuff.hotkey_feature_hierarchy_keys[hierarchy_key] then
@@ -1065,6 +1066,11 @@ function loadCurrentMenu()
 			stuff.hotkey_feature_hierarchy_keys[hierarchy_key] = {feat}
 		end
 		feat.hierarchy_id = #stuff.hotkey_feature_hierarchy_keys[hierarchy_key]
+
+		if stuff.saved_shortcuts and stuff.saved_shortcuts[hierarchy_key] then
+			func.add_shortcut(feat, stuff.saved_shortcuts[hierarchy_key])
+		end
+
 		if playerFeat then
 			stuff.player_feature_by_id[#stuff.player_feature_by_id+1] = feat
 			feat.real_id = #stuff.player_feature_by_id
@@ -1308,6 +1314,7 @@ function loadCurrentMenu()
 		end
 
 		stuff.hotkey_feature_hierarchy_keys[feat.hierarchy_key][feat.hierarchy_id] = nil
+		func.delete_shortcut(feat.shortcut)
 
 		if stuff.old_selected == stuff.feature_by_id[id] then
 			stuff.old_selected = nil
@@ -1415,12 +1422,12 @@ function loadCurrentMenu()
 		--path = path or stuff.path.header
 		id_table = id_table or stuff.header_ids
 		path_to_file = tostring(path_to_file)
-		assert(path_to_file, "invalid name")
+		assert(path_to_file, "invalid header path")
 
 		--name = name:gsub("%.[a-z]+$", "")
 
 		if not id_table[path_to_file] then
-			if utils.dir_exists(path_to_file:gsub("%.ogif", "")) and path_to_file:find("%.ogif") then
+			if path_to_file:find("%.ogif") and utils.dir_exists(path_to_file:gsub("%.ogif", "")) then
 				local path = path_to_file:gsub("%.ogif", "").."\\"
 				local images
 
@@ -1497,6 +1504,11 @@ function loadCurrentMenu()
 		for _, hintTable in pairs(stuff.player_feature_hints) do
 			func.rewrap_hint(hintTable, font, padding)
 		end
+	end
+
+	function func.set_menu_pos(x, y)
+		stuff.menuData.pos_x = x or stuff.menuData.pos_x
+		stuff.menuData.pos_y = y or stuff.menuData.pos_y
 	end
 
 	function func.save_settings()
@@ -1753,7 +1765,8 @@ function loadCurrentMenu()
 					is_selected and cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_selectedBackground) or cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_background),
 					is_selected and cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_selectedActive) or cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_active),
 					is_selected and cheeseUtils.convert_rgba_to_int(stuff.menuData.color.slider_text) or 0,
-					is_selected)
+					is_selected
+				)
 			else
 				local value_str = "< "..tostring(rounded_value).." >"
 				if v.str_data then
@@ -2093,69 +2106,77 @@ function loadCurrentMenu()
 		return response ~= "escaped" and response
 	end
 
+	-- Shortcuts
+	do
+		local shortcut_callback = function(button)
+			if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() then
+				local pos = cheeseUtils.mouse.enable()
+				while controls.is_disabled_control_pressed(0, 142) do
+					for _, shortcut in pairs(stuff.shortcuts) do
+						shortcut:update(true)
+					end
+					cheeseUtils.mouse.enable(true)
+					cheeseUtils.draw_outline(pos, button.size, 0xFFFFFFFF, 4)
+					system.wait(0)
+				end
+				button:set_pos(pos)
+				func.save_shortcuts()
+				return
+			end
+			if button.data.type & 1 ~= 0 then
+				button.data.on = not button.data.on
+				button.text = button.data.name..": "..(button.data.on and "ON" or "OFF")
+				return
+			end
+			button.data:activate_feat_func()
+		end
+		stuff.shortcuts = {}
+		function func.add_shortcut(feat, pos)
+			if not feat or feat.type >> 11 & 1 ~= 0 then return end
+
+			local is_toggle = feat.type & 1 ~= 0
+
+			local bg = cheeseUtils.convert_rgba_to_int(stuff.menuData.color.shortcut_background)
+			local text = cheeseUtils.convert_rgba_to_int(stuff.menuData.color.shortcut_text)
+			local button = cheeseUtils.mouse.button(feat.name..(is_toggle and ": OFF" or ""), pos or v2(), bg, text, text, bg, stuff.menuData.fonts.text, stuff.menuData.text_size*stuff.menuData.text_size_modifier, nil, shortcut_callback)
+			button.data = feat
+
+			if is_toggle and feat.on then
+				button.text = feat.name..": "..(feat.on and "ON" or "OFF")
+			end
+
+			stuff.shortcuts[#stuff.shortcuts+1] = button
+			feat.shortcut = #stuff.shortcuts
+		end
+
+		function func.delete_shortcut(id, delete_saved)
+			local button = id and stuff.shortcuts[id]
+			if not button then return end
+
+			if delete_saved then
+				stuff.saved_shortcuts[button.data.hierarchy_key] = nil
+			end
+
+			button.data.shortcut = nil
+			stuff.shortcuts[id] = nil
+		end
+
+		function func.save_shortcuts()
+			local shortcuts = {}
+			for hierarchy_key, pos in pairs(stuff.saved_shortcuts) do
+				shortcuts[hierarchy_key] = pos
+			end
+			for _, button in pairs(stuff.shortcuts) do
+				shortcuts[button.data.hierarchy_key] = button.pos
+			end
+			stuff.saved_shortcuts = shortcuts
+			gltw.write(shortcuts, "shortcuts", stuff.path.hotkeys)
+		end
+	end
+
 	--End of functions
 
 	--threads
-	menu.create_thread(function()
-		local side_window_pos = v2((stuff.menuData.pos_x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.pos_y + stuff.menuData.side_window.offset.y)*-2+1)
-		while true do
-			if stuff.menuData.menuToggle then
-				func.draw_current_menu()
-				if currentMenu and stuff.menuData.side_window.on then
-					local pid = currentMenu.pid
-					if not pid and currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						pid = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].pid
-					end
-					if pid and pid ~= stuff.pid then
-						if not stuff.playerIds[pid].hidden then
-							stuff.player_info[1][2] = tostring(pid)
-							stuff.player_info[10][2] = func.convert_int_ip(player.get_player_ip(pid))
-							stuff.player_info[11][2] = tostring(player.get_player_scid(pid))
-							stuff.player_info[12][2] = string.format("%X", player.get_player_host_token(pid))
-							stuff.player_info.max_health = "/"..math.floor(player.get_player_max_health(pid))
-							stuff.player_info.name = tostring(player.get_player_name(pid))
-							stuff.pid = pid
-						end
-					end
-					if pid then
-						side_window_pos.x, side_window_pos.y = (stuff.menuData.pos_x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.pos_y + stuff.menuData.side_window.offset.y)*-2+1
-						native.call(0xBE8CD9BE829BBEBF, player.get_player_ped(stuff.pid), stuff.proofs.bulletProof, stuff.proofs.fireProof, stuff.proofs.explosionProof, stuff.proofs.collisionProof, stuff.proofs.meleeProof, stuff.proofs.steamProof, stuff.proofs.p7, stuff.proofs.drownProof)
-						stuff.player_info[2][2] = player.is_player_god(stuff.pid) and "Yes" or "No"
-						stuff.player_info[3][2] = (stuff.proofs.bulletProof:__tointeger()|stuff.proofs.fireProof:__tointeger()|stuff.proofs.explosionProof:__tointeger()|stuff.proofs.collisionProof:__tointeger()|stuff.proofs.meleeProof:__tointeger()|stuff.proofs.steamProof:__tointeger()|stuff.proofs.p7:__tointeger()|stuff.proofs.drownProof:__tointeger()) == 1 and "Yes" or "No"
-						stuff.player_info[4][2] = player.is_player_vehicle_god(stuff.pid) and "Yes" or "No"
-						stuff.player_info[5][2] = player.is_player_modder(stuff.pid, -1) and "Yes" or "No"
-						stuff.player_info[6][2] = player.is_player_host(stuff.pid) and "Yes" or "No"
-						stuff.player_info[7][2] = player.get_player_wanted_level(stuff.pid)
-						stuff.player_info[8][2] = math.floor(player.get_player_health(stuff.pid))..stuff.player_info.max_health
-						stuff.player_info[9][2] = math.floor(player.get_player_armour(stuff.pid)).."/50"
-						stuff.player_info[13][2] = player.get_player_host_priority(stuff.pid)
-						func.draw_side_window(
-							stuff.player_info.name,
-							stuff.player_info,
-							side_window_pos,
-							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_background.r, stuff.menuData.color.side_window_background.g, stuff.menuData.color.side_window_background.b, stuff.menuData.color.side_window_background.a),
-							stuff.menuData.side_window.width, stuff.menuData.side_window.spacing, stuff.menuData.side_window.padding,
-							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a)
-						)
-					end
-				end
-				if stuff.old_selected ~= currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-					if type(stuff.old_selected) == "table" then
-						stuff.old_selected:activate_hl_func()
-					end
-					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
-					end
-					stuff.old_selected = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-				end
-				controls.disable_control_action(0, 172, true)
-				controls.disable_control_action(0, 27, true)
-			else
-				system.wait(0)
-			end
-		end
-	end, nil)
-
 	menu.create_thread(function()
 		while true do
 			stuff.menuData.menuNav = native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not (stuff.menuData.inputBoxOpen or input.is_open() --[[or console.on]])
@@ -2181,30 +2202,54 @@ function loadCurrentMenu()
 		end
 	end, nil)
 	menu.create_thread(function()
+		local selector_table = {"Hotkey", "On Screen Shortcut"}
+		local choice_table = {"Set", "Delete", "Reveal"}
 		while true do
 			system.wait(0)
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
 				func.do_key(500, stuff.vkcontrols.setHotkey, false, function() -- F11
-					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-					if cheeseUtils.get_key(0x10):is_down() and stuff.hotkeys[feat.hotkey] then
-						stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
-						if not next(stuff.hotkeys[feat.hotkey]) then
-							stuff.hotkeys[feat.hotkey] = nil
-						end
-						feat.hotkey = nil
-						gltw.write(stuff.hotkeys, "hotkeys", stuff.path.hotkeys, nil, true)
-						menu.notify("Removed "..feat.name.."'s hotkey")
-					elseif cheeseUtils.get_key(0x11):is_down() then
-						menu.notify(feat.name.."'s hotkey is "..(feat.hotkey or "none"))
-					elseif not cheeseUtils.get_key(0x10):is_down() and not cheeseUtils.get_key(0x11):is_down() then
-						if stuff.hotkeys[feat.hotkey] then
-							stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
-						end
-						if func.start_hotkey_process(feat) then
-							menu.notify("Set "..feat.name.."'s hotkey to "..feat.hotkey)
+					func.toggle_menu(false)
+					local index = cheeseUtils.selector(nil, stuff.menuData.selector_speed, 1, selector_table)
+					if index then
+						local choice = cheeseUtils.selector(nil, stuff.menuData.selector_speed, 1, choice_table)
+						local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+						if index == 1 then
+							if --[[cheeseUtils.get_key(0x10):is_down()]] choice == 2 and stuff.hotkeys[feat.hotkey] then
+								stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
+								if not next(stuff.hotkeys[feat.hotkey]) then
+									stuff.hotkeys[feat.hotkey] = nil
+								end
+								feat.hotkey = nil
+								gltw.write(stuff.hotkeys, "hotkeys", stuff.path.hotkeys, nil, true)
+								menu.notify("Removed "..feat.name.."'s hotkey")
+							elseif --[[cheeseUtils.get_key(0x11):is_down()]] choice == 3 then
+								menu.notify(feat.name.."'s hotkey is "..(feat.hotkey or "none"))
+							elseif choice == 1 then -- not cheeseUtils.get_key(0x10):is_down() and not cheeseUtils.get_key(0x11):is_down() then
+								if stuff.hotkeys[feat.hotkey] then
+									stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
+								end
+								if func.start_hotkey_process(feat) then
+									menu.notify("Set "..feat.name.."'s hotkey to "..feat.hotkey)
+								end
+							end
+						elseif index == 2 then
+							if choice == 1 then
+								func.add_shortcut(feat)
+							elseif choice == 2 then
+								func.delete_shortcut(feat.shortcut, true)
+							end
+							func.save_shortcuts()
 						end
 					end
+					func.toggle_menu(true)
 				end)
+			end
+			local is_reveal_down = cheeseUtils.get_key(stuff.vkcontrols.revealMouse):is_down()
+			for _, shortcut in pairs(stuff.shortcuts) do
+				shortcut:update(not is_reveal_down)
+			end
+			if is_reveal_down then
+				cheeseUtils.mouse.enable(true)
 			end
 		end
 	end,nil)
@@ -2380,6 +2425,66 @@ function loadCurrentMenu()
 		end
 	end, nil)
 
+	menu.create_thread(function()
+		local side_window_pos = v2((stuff.menuData.pos_x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.pos_y + stuff.menuData.side_window.offset.y)*-2+1)
+		while true do
+			if stuff.menuData.menuToggle then
+				func.draw_current_menu()
+				if currentMenu and stuff.menuData.side_window.on then
+					local pid = currentMenu.pid
+					if not pid and currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+						pid = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].pid
+					end
+					if pid and pid ~= stuff.pid then
+						if not stuff.playerIds[pid].hidden then
+							stuff.player_info[1][2] = tostring(pid)
+							stuff.player_info[10][2] = func.convert_int_ip(player.get_player_ip(pid))
+							stuff.player_info[11][2] = tostring(player.get_player_scid(pid))
+							stuff.player_info[12][2] = string.format("%X", player.get_player_host_token(pid))
+							stuff.player_info.max_health = "/"..math.floor(player.get_player_max_health(pid))
+							stuff.player_info.name = tostring(player.get_player_name(pid))
+							stuff.pid = pid
+						end
+					end
+					if pid then
+						side_window_pos.x, side_window_pos.y = (stuff.menuData.pos_x + stuff.menuData.width + stuff.menuData.side_window.offset.x)*2-1, (stuff.menuData.pos_y + stuff.menuData.side_window.offset.y)*-2+1
+						native.call(0xBE8CD9BE829BBEBF, player.get_player_ped(stuff.pid), stuff.proofs.bulletProof, stuff.proofs.fireProof, stuff.proofs.explosionProof, stuff.proofs.collisionProof, stuff.proofs.meleeProof, stuff.proofs.steamProof, stuff.proofs.p7, stuff.proofs.drownProof)
+						stuff.player_info[2][2] = player.is_player_god(stuff.pid) and "Yes" or "No"
+						stuff.player_info[3][2] = (stuff.proofs.bulletProof:__tointeger()|stuff.proofs.fireProof:__tointeger()|stuff.proofs.explosionProof:__tointeger()|stuff.proofs.collisionProof:__tointeger()|stuff.proofs.meleeProof:__tointeger()|stuff.proofs.steamProof:__tointeger()|stuff.proofs.p7:__tointeger()|stuff.proofs.drownProof:__tointeger()) == 1 and "Yes" or "No"
+						stuff.player_info[4][2] = player.is_player_vehicle_god(stuff.pid) and "Yes" or "No"
+						stuff.player_info[5][2] = player.is_player_modder(stuff.pid, -1) and "Yes" or "No"
+						stuff.player_info[6][2] = player.is_player_host(stuff.pid) and "Yes" or "No"
+						stuff.player_info[7][2] = player.get_player_wanted_level(stuff.pid)
+						stuff.player_info[8][2] = math.floor(player.get_player_health(stuff.pid))..stuff.player_info.max_health
+						stuff.player_info[9][2] = math.floor(player.get_player_armour(stuff.pid)).."/50"
+						stuff.player_info[13][2] = player.get_player_host_priority(stuff.pid)
+						func.draw_side_window(
+							stuff.player_info.name,
+							stuff.player_info,
+							side_window_pos,
+							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_background.r, stuff.menuData.color.side_window_background.g, stuff.menuData.color.side_window_background.b, stuff.menuData.color.side_window_background.a),
+							stuff.menuData.side_window.width, stuff.menuData.side_window.spacing, stuff.menuData.side_window.padding,
+							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a)
+						)
+					end
+				end
+				if stuff.old_selected ~= currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+					if type(stuff.old_selected) == "table" then
+						stuff.old_selected:activate_hl_func()
+					end
+					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+						currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+					end
+					stuff.old_selected = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+				end
+				controls.disable_control_action(0, 172, true)
+				controls.disable_control_action(0, 27, true)
+			else
+				system.wait(0)
+			end
+		end
+	end, nil)
+
 
 	--Hotkey thread
 	menu.create_thread(function()
@@ -2430,35 +2535,14 @@ function loadCurrentMenu()
 		menu.notify("Settings Saved Successfully", "Cheese Menu", 6, 0x00ff00)
 	end)
 
-	menu.add_feature("Save UI", "action", menu_configuration_features.cheesemenuparent.id, function()
-		local status, name = input.get("name of ui", "", 25, 0)
-		if status == 0 then
-			func.save_ui(name)
-			menu.notify("UI Saved Successfully", "Cheese Menu", 6, 0x00ff00)
-			for _, v in pairs(stuff.menuData.files.ui) do
-				if v == name then
-					return
-				end
-			end
-			stuff.menuData.files.ui[#stuff.menuData.files.ui+1] = name
-			menu_configuration_features.load_ui:set_str_data(stuff.menuData.files.ui)
-		end
-	end)
-
-	menu_configuration_features.load_ui = menu.add_feature("Load UI", "action_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
-		func.load_ui(f.str_data[f.value + 1])
-	end)
-	menu_configuration_features.load_ui:set_str_data(stuff.menuData.files.ui)
-
 	menu_configuration_features.menuXfeat = menu.add_feature("Menu pos X", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-			local stat, num = input.get("num", "", 10, 3)
+			local stat, num = input.get("Put horizontal menu position in pixels", "", 10, 3)
 			if stat == 0 and tonumber(num) then
-				stuff.menuData.pos_x = num/graphics.get_screen_height()
 				f.value = num
 			end
 		end
-		stuff.menuData.pos_x = f.value/graphics.get_screen_width()
+		func.set_menu_pos(f.value/graphics.get_screen_width())
 	end)
 	menu_configuration_features.menuXfeat.max = graphics.get_screen_width()
 	menu_configuration_features.menuXfeat.mod = 1
@@ -2467,20 +2551,50 @@ function loadCurrentMenu()
 
 	menu_configuration_features.menuYfeat = menu.add_feature("Menu pos Y", "autoaction_value_i", menu_configuration_features.cheesemenuparent.id, function(f)
 		if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
-			local stat, num = input.get("num", "", 10, 3)
+			local stat, num = input.get("Put vertical menu position in pixels", "", 10, 3)
 			if stat == 0 and tonumber(num) then
-				stuff.menuData.pos_y = num/graphics.get_screen_height()
 				f.value = num
 			end
 		end
-		stuff.menuData.pos_y = f.value/graphics.get_screen_height()
+		func.set_menu_pos(nil, f.value/graphics.get_screen_height())
 	end)
 	menu_configuration_features.menuYfeat.max = graphics.get_screen_height()
 	menu_configuration_features.menuYfeat.mod = 1
 	menu_configuration_features.menuYfeat.min = -graphics.get_screen_height()
 	menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.pos_y*graphics.get_screen_height())
 
-	menu_configuration_features.headerfeat = menu.add_feature("Header", "autoaction_value_str", menu_configuration_features.cheesemenuparent.id, function(f)
+	menu_configuration_features.menuMouseMove = menu.add_feature("Set position with mouse", "action", menu_configuration_features.cheesemenuparent.id, function()
+		local original_x, original_y = stuff.menuData.pos_x, stuff.menuData.pos_y
+		local pos = cheeseUtils.mouse.enable()
+		local original_toggle = stuff.menuData.menuToggle
+		stuff.menuData.menuToggle = true
+		stuff.menuData.inputBoxOpen = true
+		while true do
+			cheeseUtils.mouse.enable()
+			func.set_menu_pos((pos.x+1)/2, (pos.y-1)/-2)
+
+			if cheeseUtils.control_is_pressed(0, 142) or cheeseUtils.get_key(0x0D):is_down() then -- left click or enter
+				menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.pos_x*graphics.get_screen_width())
+				menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.pos_y*graphics.get_screen_height())
+				break
+			elseif cheeseUtils.get_key(0x08):is_down() then
+				func.set_menu_pos(original_x, original_y)
+				break
+			end
+			system.wait(0)
+		end
+		while cheeseUtils.get_key(0x08):is_down() or cheeseUtils.get_key(0x0D):is_down() do
+			system.wait(0)
+		end
+		stuff.menuData.inputBoxOpen = false
+		stuff.menuData.menuToggle = original_toggle
+	end)
+
+	-- Menu UI
+
+	menu_configuration_features.menu_ui = menu.add_feature("Menu UI", "parent", menu_configuration_features.cheesemenuparent.id)
+
+	menu_configuration_features.headerfeat = menu.add_feature("Header", "autoaction_value_str", menu_configuration_features.menu_ui.id, function(f)
 		if f.str_data[f.value + 1] == "NONE" then
 			stuff.menuData.header = nil
 		else
@@ -2489,7 +2603,59 @@ function loadCurrentMenu()
 	end)
 	menu_configuration_features.headerfeat:set_str_data({"NONE", table.unpack(stuff.menuData.files.headers)})
 
-	menu_configuration_features.layoutParent = menu.add_feature("Layout", "parent", menu_configuration_features.cheesemenuparent.id)
+	-- Profiles
+
+		menu_configuration_features.profiles = menu.add_feature("Profiles", "parent", menu_configuration_features.menu_ui.id)
+
+		local callback_ui = function(f, data)
+			if f.value == 0 then
+				func.load_ui(data)
+			else
+				func.save_ui(data)
+				menu.notify("UI Saved to profile "..data, "Cheese Menu", 6, 0x00ff00)
+			end
+		end
+
+		local feat_str_data = {"Load", "Save"}
+
+		local original_menu_add = menu.add_feature
+		menu.add_feature("Save UI", "action", menu_configuration_features.profiles.id, function()
+			local status, name = input.get("name of ui", "", 25, 0)
+			if status == 0 then
+				func.save_ui(name)
+				menu.notify("UI Saved Successfully", "Cheese Menu", 6, 0x00ff00)
+				for _, v in pairs(stuff.menuData.files.ui) do
+					if v == name then
+						return
+					end
+				end
+				stuff.menuData.files.ui[#stuff.menuData.files.ui+1] = name
+				local feat = original_menu_add(name, "action_value_str", menu_configuration_features.profiles.id, callback_ui)
+				feat:set_str_data(feat_str_data)
+				feat.data = name
+			end
+		end)
+
+		do
+			local feat = menu.add_feature("Default", "action_value_str", menu_configuration_features.profiles.id, callback_ui)
+			feat:set_str_data(feat_str_data)
+			feat.data = "default"
+		end
+
+		for _, ui_name in pairs(stuff.menuData.files.ui) do
+			if ui_name ~= "default" then
+				local feat = menu.add_feature(ui_name, "action_value_str", menu_configuration_features.profiles.id, callback_ui)
+				feat:set_str_data(feat_str_data)
+				feat.data = ui_name
+			end
+		end
+
+		--[[ menu_configuration_features.load_ui = menu.add_feature("Load UI", "action_value_str", menu_configuration_features.profiles.id, function(f)
+			func.load_ui(f.str_data[f.value + 1])
+		end)
+		menu_configuration_features.load_ui:set_str_data(stuff.menuData.files.ui) ]]
+
+	menu_configuration_features.layoutParent = menu.add_feature("Layout", "parent", menu_configuration_features.menu_ui.id)
 
 	menu_configuration_features.maxfeats = menu.add_feature("Max features", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
 		stuff.menuData:set_max_features(f.value)
@@ -2655,27 +2821,41 @@ function loadCurrentMenu()
 	-- Controls
 		menu_configuration_features.controls = menu.add_feature("Controls", "parent", menu_configuration_features.cheesemenuparent.id)
 
-			for k, v in pairs(stuff.controls) do
-				menu.add_feature(k, "action_value_str", menu_configuration_features.controls.id, function(f)
-					for k, v in pairs(stuff.char_codes) do
-						while cheeseUtils.get_key(v):is_down() do
-							system.wait(0)
+			do
+				local proper_names = {
+					left = "Left",
+					up = "Up",
+					right = "Right",
+					down = "Down",
+					select = "Select",
+					back = "Back",
+					open = "Open",
+					setHotkey = "Set Hotkey",
+					specialKey = "Special Key",
+					revealMouse = "Reveal Mouse",
+				}
+				for k, v in pairs(stuff.controls) do
+					menu.add_feature(proper_names[k], "action_value_str", menu_configuration_features.controls.id, function(f)
+						for k, v in pairs(stuff.char_codes) do
+							while cheeseUtils.get_key(v):is_down() do
+								system.wait(0)
+							end
 						end
-					end
-					menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
-					local disablethread = menu.create_thread(stuff.disable_all_controls, nil)
-					local stringkey, vk = func.get_hotkey({}, {}, true)
-					if stringkey ~= "escaped" then
-						stuff.controls[k] = stringkey
-						stuff.vkcontrols[k] = vk
-						f:set_str_data({stringkey})
-					end
-					menu.delete_thread(disablethread)
-				end):set_str_data({v})
+						menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+						local disablethread = menu.create_thread(stuff.disable_all_controls, nil)
+						local stringkey, vk = func.get_hotkey({}, {}, true)
+						if stringkey ~= "escaped" then
+							stuff.controls[k] = stringkey
+							stuff.vkcontrols[k] = vk
+							f:set_str_data({stringkey})
+						end
+						menu.delete_thread(disablethread)
+					end):set_str_data({v})
+				end
 			end
 
 	-- Player Info
-	menu_configuration_features.side_window = menu.add_feature("Player Info Window", "parent", menu_configuration_features.cheesemenuparent.id)
+	menu_configuration_features.side_window = menu.add_feature("Player Info Window", "parent", menu_configuration_features.menu_ui.id)
 
 		-- On
 		menu_configuration_features.side_window_on = menu.add_feature("Draw", "toggle", menu_configuration_features.side_window.id, function(f)
@@ -2766,7 +2946,7 @@ function loadCurrentMenu()
 
 
 	-- Background
-		menu_configuration_features.backgroundparent = menu.add_feature("Background", "parent", menu_configuration_features.cheesemenuparent.id)
+		menu_configuration_features.backgroundparent = menu.add_feature("Background", "parent", menu_configuration_features.menu_ui.id)
 
 			menu_configuration_features.backgroundfeat = menu.add_feature("Background", "autoaction_value_str", menu_configuration_features.backgroundparent.id, function(f)
 				if f.str_data[f.value + 1] == "NONE" then
@@ -2821,7 +3001,7 @@ function loadCurrentMenu()
 			menu_configuration_features.backgroundsize.value = stuff.menuData.background_sprite.size
 
 	-- Footer
-		menu_configuration_features.footer = menu.add_feature("Footer", "parent", menu_configuration_features.cheesemenuparent.id)
+		menu_configuration_features.footer = menu.add_feature("Footer", "parent", menu_configuration_features.menu_ui.id)
 
 			menu_configuration_features.footer_size = menu.add_feature("Footer Size", "autoaction_value_i", menu_configuration_features.footer.id, function(f)
 				if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then
@@ -2890,7 +3070,7 @@ function loadCurrentMenu()
 			"Script 4",
 			"Script 5",
 		}
-		menu_configuration_features.fonts = menu.add_feature("Fonts", "parent", menu_configuration_features.cheesemenuparent.id)
+		menu_configuration_features.fonts = menu.add_feature("Fonts", "parent", menu_configuration_features.menu_ui.id)
 
 			menu_configuration_features.text_font = menu.add_feature("Text Font", "autoaction_value_str", menu_configuration_features.fonts.id, function(f)
 				stuff.menuData.fonts.text = f.value
@@ -2922,7 +3102,7 @@ function loadCurrentMenu()
 			end).on = stuff.hotkey_notifications.action
 
 	-- Colors
-		local colorParent = menu.add_feature("Colors", "parent", menu_configuration_features.cheesemenuparent.id)
+		local colorParent = menu.add_feature("Colors", "parent", menu_configuration_features.menu_ui.id)
 			do
 				local function input_num(f)
 					if cheeseUtils.get_key(0x65):is_down() or cheeseUtils.get_key(0x0D):is_down() then

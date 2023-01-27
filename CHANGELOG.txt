@@ -1,10 +1,4 @@
-- Added feature hints
-- Added support for gif, 2t1 and dds headers (old gif folders still work, all saved UIs will have no header)
-- Added gradient support for features (UIs will have to be edited and resaved)
-- Added customizable sizes for footer text and hint text
-- Improved hotkey activation (shouldn't activate when input box is open, will add console later)
-- Improved update download (thanks to Proton#5503's idea)
-
-v1.9.4:
-- Modified Color Picker design
-- Improved Color Picker/Sliders
+- Organized Menu UI features
+- Added On Screen Shortcuts for features
+- Added Apply/Cancel buttons for Color Picker
+- Made hex text a button in Color Picker (one click = copy, two clicks = input)

@@ -1,5 +1,5 @@
 --Made by GhostOne
-local cheeseUtils = {version = "1.9.4"}
+local cheeseUtils = {version = "2.0"}
 
 -- Credit to kektram for this whole function ~ a little modified to focus on fractionals
 cheeseUtils.memoize = {}
@@ -105,6 +105,28 @@ function cheeseUtils.new_reusable_v2(limit)
 		vector2d.x, vector2d.y = x, y
 
 		return vector2d
+	end
+end
+
+-- Do Key
+do
+	local key_waits = {}
+	function cheeseUtils.get_key_wait(vk, key_wait_table, first_wait, repeat_wait)
+		first_wait = first_wait or 500
+		repeat_wait = repeat_wait or 100
+		key_wait_table = key_wait_table or key_waits
+		local key = cheeseUtils.get_key(vk)
+		if key:is_down() and ((utils.time_ms() > key_wait_table[vk]) or (key_wait_table[vk] == 0)) then
+			if key_wait_table[vk] == 0 then
+				key_wait_table[vk] = utils.time_ms() + first_wait
+			else
+				key_wait_table[vk] = utils.time_ms() + repeat_wait
+			end
+			return true
+		elseif not key:is_down() then
+			key_wait_table[vk] = 0
+		end
+		return false
 	end
 end
 
@@ -562,20 +584,26 @@ do
 	end
 	local Metatable = {__call = convert_range}
 
-	--[[
+	local function update_range(self, original_range_min, original_range_max, convert_range_min, convert_range_max)
+		local adjusted_max_original = original_range_max-original_range_min
+		local adjusted_max_convert = convert_range_max-convert_range_min
 
+		self.base_value = (0-original_range_min)/adjusted_max_original*adjusted_max_convert+convert_range_min
+		self.step = (1-original_range_min)/adjusted_max_original*adjusted_max_convert+convert_range_min - self.base_value
+	end
+
+	--[[
 		local rng_cnvrt = cheeseUtils.create_range_converter(0, 1, 0, 100)
+		
 		rng_cnvrt(5) -- returns 500
 	]]
 	---@return range_converter
 	function cheeseUtils.create_range_converter(original_range_min, original_range_max, convert_range_min, convert_range_max)
-		local stuff = {}
+		local stuff = {
+			update_range = update_range
+		}
 
-		local adjusted_max_original = original_range_max-original_range_min
-		local adjusted_max_convert = convert_range_max-convert_range_min
-
-		stuff.base_value = (0-original_range_min)/adjusted_max_original*adjusted_max_convert+convert_range_min
-		stuff.step = (1-original_range_min)/adjusted_max_original*adjusted_max_convert+convert_range_min - stuff.base_value
+		stuff:update_range(original_range_min, original_range_max, convert_range_min, convert_range_max)
 
 		setmetatable(stuff, Metatable)
 
@@ -653,12 +681,10 @@ end
 
 -- Round Numbers
 function cheeseUtils.round_num(n, digits)
-	digits = digits and 10 ^ digits
-	n = digits and n * digits or n
-	n = n + 0.5
+	digits = 10 ^ (digits or 0)
+	n = n * digits + 0.5
 	n = n // 1
-	n = digits and n / digits or n
-	return n
+	return n / digits
 end
 
 -- Hue Saturation Value TO BGR
@@ -684,7 +710,7 @@ function cheeseUtils.rgb_to_hsv(r, g, b)
 
 	local value = max / 255
 	local chroma = max - min
-	local saturation = value == 0 and 0 or (chroma > 0 and 1-(chroma / max) or 1)
+	local saturation = value == 0 and 1 or (chroma > 0 and (chroma / max) or 0)
 	local hue = 0
 
 	local sub
@@ -708,23 +734,22 @@ function cheeseUtils.rgb_to_hsv(r, g, b)
 	return hue, saturation, value
 end
 
--- Mouse Sliders
+-- get control wether disabled or not
+function cheeseUtils.controls_get_normal(...)
+	return math.max(menu.is_trusted_mode_enabled(4) and native.call(0x11E65974A982637C, ...):__tonumber() or 0, controls.get_control_normal(...))
+end
+
+function cheeseUtils.control_is_just_pressed(...)
+	return controls.is_disabled_control_just_pressed(...) or controls.is_control_just_pressed(...)
+end
+
+function cheeseUtils.control_is_pressed(...)
+	return controls.is_disabled_control_pressed(...) or controls.is_control_pressed(...)
+end
+
+-- Mouse
 do
 	cheeseUtils.mouse = {}
-
-	local trustNatives = menu.is_trusted_mode_enabled(4)
-
-	local function controls_get_normal(...)
-		return math.max(trustNatives and native.call(0x11E65974A982637C, ...):__tonumber() or 0, controls.get_control_normal(...))
-	end
-
-	local function control_is_just_pressed(...)
-		return controls.is_disabled_control_just_pressed(...) or controls.is_control_just_pressed(...)
-	end
-
-	local function control_is_pressed(...)
-		return controls.is_disabled_control_pressed(...) or controls.is_control_pressed(...)
-	end
 
 	local disableControls = {
 		1,
@@ -748,7 +773,7 @@ do
 		end
 		native.call(0x5E6CC07646BBEAB8, player.player_id(), true) -- DISABLE_PLAYER_FIRING
 
-		mousev2.x, mousev2.y = controls_get_normal(0, 239)*2-1, controls_get_normal(0, 240)*-2+1-scriptdraw.size_pixel_to_rel_y(20)
+		mousev2.x, mousev2.y = cheeseUtils.controls_get_normal(0, 239)*2-1, cheeseUtils.controls_get_normal(0, 240)*-2+1-scriptdraw.size_pixel_to_rel_y(20)
 		if draw then
 			scriptdraw.draw_triangle(
 				mousev2,
@@ -768,17 +793,17 @@ do
 
 	local function set_pos(self, pos)
 		self.pos = pos
-		self.range['hitbox_x'] = cheeseUtils.create_range_converter(pos.x+self.hitbox.x/2, pos.x-self.hitbox.x/2, 0, 1)
-		self.range['hitbox_y'] = cheeseUtils.create_range_converter(pos.y+self.hitbox.y/2, pos.y-self.hitbox.y/2, 0, 1)
+		self.range['hitbox_x']:update_range(pos.x+self.hitbox.x/2, pos.x-self.hitbox.x/2, 0, 1)
+		self.range['hitbox_y']:update_range(pos.y+self.hitbox.y/2, pos.y-self.hitbox.y/2, 0, 1)
 
 		local is_xy = self.type & 3 == 3
 		if self.type & 1 ~= 0 then
-			self.range['x'] = cheeseUtils.create_range_converter(pos.x+self.size.x/2, pos.x-self.size.x/2, 0, 1)
-			self.range['inverse_x'] = cheeseUtils.create_range_converter(0, 1, pos.x+self.size.x/2, pos.x-self.size.x/2)
+			self.range['x']:update_range(pos.x-self.size.x/2, pos.x+self.size.x/2, 0, 1)
+			self.range['inverse_x']:update_range(0, 1, pos.x-self.size.x/2, pos.x+self.size.x/2)
 		end
 		if self.type >> 1 & 1 ~= 0 then
-			self.range['y'] = cheeseUtils.create_range_converter(pos.y+self.size.y/2, pos.y-self.size.y/2, 0, 1)
-			self.range['inverse_y'] = cheeseUtils.create_range_converter(0, 1, pos.y+self.size.y/2, pos.y-self.size.y/2)
+			self.range['y']:update_range(pos.y-self.size.y/2, pos.y+self.size.y/2, 0, 1)
+			self.range['inverse_y']:update_range(0, 1, pos.y-self.size.y/2, pos.y+self.size.y/2)
 		end
 	end
 
@@ -804,15 +829,10 @@ do
 	local function update_slider(self, disable_control)
 		self:draw()
 
-		local mouse_x, mouse_y = controls_get_normal(0, 239)*2-1, controls_get_normal(0, 240)*-2+1
-		if control_is_just_pressed(0, 142) and not disable_control then
-			local x = self.range.hitbox_x(mouse_x)
-			local y = self.range.hitbox_y(mouse_y)
-
-			x = 0 <= x and x <= 1
-			y = 0 <= y and y <= 1
-			self.within_hitbox = x and y
-		elseif not control_is_pressed(0, 142) then
+		local mouse_x, mouse_y = cheeseUtils.controls_get_normal(0, 239)*2-1, cheeseUtils.controls_get_normal(0, 240)*-2+1
+		if cheeseUtils.control_is_just_pressed(0, 142) and not disable_control then
+			self.within_hitbox = self:is_within_hitbox()
+		elseif not cheeseUtils.control_is_pressed(0, 142) then
 			self.within_hitbox = false
 		end
 
@@ -840,6 +860,17 @@ do
 	---@return float y y|nil 0, 1
 	local function get_value(self)
 		return self.value.x or self.value.y, self.value.y
+	end
+
+	local function is_within_hitbox(self)
+		local mouse_x, mouse_y = cheeseUtils.controls_get_normal(0, 239)*2-1, cheeseUtils.controls_get_normal(0, 240)*-2+1
+
+		local x = self.range.hitbox_x(mouse_x)
+		local y = self.range.hitbox_y(mouse_y)
+
+		x = 0 <= x and x <= 1
+		y = 0 <= y and y <= 1
+		return x and y
 	end
 
 	---@return float x, float y
@@ -874,7 +905,6 @@ do
 	---@return 			mouse_slider
 	local function mouse_slider(sType, pos, hitbox, size, default_x, default_y)
 		sType = slider_types[sType]
-		--local is_xy = sType & 3 == 3
 		local stuff = {
 			within_hitbox = false,
 			type = sType,
@@ -893,46 +923,266 @@ do
 			update = update_slider,
 			get_screen_pos = get_screen_pos,
 			get_value = get_value,
+			is_within_hitbox = is_within_hitbox,
 		}
 
 		stuff.range['hitbox_x'] = cheeseUtils.create_range_converter(pos.x+hitbox.x/2, pos.x-hitbox.x/2, 0, 1)
 		stuff.range['hitbox_y'] = cheeseUtils.create_range_converter(pos.y+hitbox.y/2, pos.y-hitbox.y/2, 0, 1)
 
 		if sType & 1 ~= 0 then
-			stuff.range['x'] = cheeseUtils.create_range_converter(pos.x+size.x/2, pos.x-size.x/2, 0, 1)
-			stuff.range['inverse_x'] = cheeseUtils.create_range_converter(0, 1, pos.x+size.x/2, pos.x-size.x/2)
+			stuff.range['x'] = cheeseUtils.create_range_converter(pos.x-size.x/2, pos.x+size.x/2, 0, 1)
+			stuff.range['inverse_x'] = cheeseUtils.create_range_converter(0, 1, pos.x-size.x/2, pos.x+size.x/2)
 		end
 		if sType >> 1 & 1 ~= 0 then
-			stuff.range['y'] = cheeseUtils.create_range_converter(pos.y+size.y/2, pos.y-size.y/2, 0, 1)
-			stuff.range['inverse_y'] = cheeseUtils.create_range_converter(0, 1, pos.y+size.y/2, pos.y-size.y/2)
+			stuff.range['y'] = cheeseUtils.create_range_converter(pos.y-size.y/2, pos.y+size.y/2, 0, 1)
+			stuff.range['inverse_y'] = cheeseUtils.create_range_converter(0, 1, pos.y-size.y/2, pos.y+size.y/2)
 		end
 
 		return stuff
 	end
 
+	--[[
+		x slider:
+
+		get_value returns x
+		top is 1
+		bottom is 0
+	]]
 	---@param pos 		v2
 	---@param hitbox	v2
 	---@param size 		v2
 	---@param default_x number|nil 		x
+	---@return mouse_slider
 	function cheeseUtils.mouse.horizontal_slider(pos, hitbox, size, default_x)
 		return mouse_slider("x", pos, hitbox, size, default_x)
 	end
 
+	--[[
+		y slider:
+
+		get_value returns y
+		right is 1
+		left is 0
+	]]
 	---@param pos 		v2
 	---@param hitbox	v2
 	---@param size 		v2
 	---@param default_y number|nil 		y
+	---@return mouse_slider
 	function cheeseUtils.mouse.vertical_slider(pos, hitbox, size, default_y)
 		return mouse_slider("y", pos, hitbox, size, nil, default_y)
 	end
 
+	--[[
+		xy slider:
+
+		get_value returns x, y
+		top right is 1, 1
+		bottom right is 1, 0
+		top left is 0, 1
+		bottom left is 0, 0
+	]]
 	---@param pos 		v2
 	---@param hitbox	v2
 	---@param size 		v2
 	---@param default_x number|nil 		x
 	---@param default_y number|nil 		y
+	---@return mouse_slider
 	function cheeseUtils.mouse.xy_slider(pos, hitbox, size, default_x, default_y)
 		return mouse_slider("xy", pos, hitbox, size, default_x, default_y)
+	end
+
+	-- Button
+	local function set_button_text(self, text, scale, font, disable_size_calc)
+		self.text		= text 	or self.text
+		self.text_scale	= scale or self.text_scale
+		self.text_font	= font 	or self.text_font
+
+		text	= self.text
+		scale	= self.text_scale
+		font	= self.text_font
+
+		self.text_scale_offset		= scriptdraw.get_text_size(text, scale or self.text_scale, font or self.text_font)
+		self.text_scale_offset.x	= scriptdraw.size_pixel_to_rel_x(self.text_scale_offset.x)
+		self.text_scale_offset.y	= scriptdraw.size_pixel_to_rel_y(self.text_scale_offset.y)
+
+		if disable_size_calc then
+			return
+		end
+
+		self.size.x, self.size.y = self.text_scale_offset.x+0.01, self.text_scale_offset.y+0.02
+		local size = self.size
+
+		self.circle.left.pos	= v2(self.pos.x-size.x/2, self.pos.y)
+		self.circle.right.pos	= v2(self.pos.x+size.x/2, self.pos.y)
+
+		self:set_hitbox(size)
+	end
+
+	---@param size v2
+	local function set_button_size(self, size)
+		self.size = size
+
+		self.circle.left.pos.x, self.circle.left.pos.y		= self.pos.x-size.x/2, self.pos.y
+		self.circle.right.pos.x, self.circle.right.pos.y	= self.pos.x+size.x/2, self.pos.y
+
+		self:set_hitbox(size)
+	end
+
+	local function set_button_pos(self, pos)
+		self.pos.x, self.pos.y = pos.x, pos.y
+		self.circle.left.pos.x, self.circle.left.pos.y = self.pos.x-self.size.x/2, self.pos.y
+		self.circle.right.pos.x, self.circle.right.pos.y = self.pos.x+self.size.x/2, self.pos.y
+
+		self:set_hitbox(self.size)
+	end
+
+	local function set_button_colors(self, bg_color, text_color, hover_bg_color, hover_text_color)
+		self.color = bg_color or self.color
+		self.text_color = text_color or self.text_color
+		self.hover_color = hover_bg_color or self.hover_color or bg_color
+		self.hover_text_color = hover_text_color or self.hover_text_color or text_color
+	end
+
+	local function default_draw_button(self, is_within_hitbox)
+		local bg_color = is_within_hitbox and self.hover_color or self.color
+		local txt_color = is_within_hitbox and self.hover_text_color or self.text_color
+
+		-- bg
+			scriptdraw.draw_rect(self.pos, self.size, bg_color)
+		-- circle
+			local half_size = self.size.y/2
+			scriptdraw.draw_circle(self.circle.left.pos, half_size, bg_color, math.pi, self.circle.left.phase_offset)
+			scriptdraw.draw_circle(self.circle.right.pos, half_size, bg_color, math.pi, self.circle.right.phase_offset)
+
+		scriptdraw.draw_text(self.text, self.v2r(self.pos.x-self.text_scale_offset.x/2, self.pos.y+self.text_scale_offset.y/2), self.size, self.text_scale, txt_color, self.text_flag, self.text_font)
+	end
+
+	---@param size v2
+	local function set_button_hitbox(self, size)
+		local circle_x = 0
+		if self.draw == default_draw_button then
+			circle_x = scriptdraw.size_rel_to_pixel_y(size.y)
+			circle_x = scriptdraw.size_pixel_to_rel_x(circle_x)/2
+		end
+		self.range['hitbox_x']:update_range(self.pos.x+size.x/2+circle_x, self.pos.x-size.x/2-circle_x, 0, 1)
+		self.range['inverse_x']:update_range(0, 1, self.pos.x+size.x/2, self.pos.x-size.x/2)
+		self.range['hitbox_y']:update_range(self.pos.y+size.y/2, self.pos.y-size.y/2, 0, 1)
+		self.range['inverse_y']:update_range(0, 1, self.pos.y+size.y/2, self.pos.y-size.y/2)
+	end
+
+	local function update_button(self, disable_control)
+		local is_just_pressed = cheeseUtils.control_is_just_pressed(0, 142)
+		local is_within_hitbox = not disable_control and self:is_within_hitbox()
+		if self.draw then
+			self:draw(is_within_hitbox and not is_just_pressed)
+		end
+		if is_just_pressed and is_within_hitbox then
+			local callback_return
+			if self.callback then
+				callback_return = self:callback()
+			end
+			return callback_return or true
+		end
+	end
+
+	---@class button
+	---@field update 			function
+	---@field text 				string
+	---@field text_font			number
+	---@field text_scale_offset	v2
+	---@field pos 				v2
+	---@field size				v2
+	---@field circle			v2
+	---@field text_scale		number
+	---@field text_flag 		number
+	---@field color 			color
+	---@field text_color 		color
+	---@field hover_color 		color
+	---@field hover_text_color 	color
+	---@field set_text 			function
+	---@field set_size 			function
+	---@field set_hitbox		function
+	---@field set_pos 			function
+	---@field set_colors 		function
+	---@field callback 			function
+	---@field draw 				function
+	---@field is_within_hitbox 	bool
+	---@field v2r 				function reusable v2
+
+	---@param text string
+	---@param pos v2
+	---@param bg_color uint32_t
+	---@param text_color uint32_t
+	---@param hover_bg_color uint32_t|nil
+	---@param hover_text_color uint32_t|nil
+	---@param font number|nil
+	---@param text_scale float|nil
+	---@param text_shadow bool|nil
+	---@param callback_function function|nil
+	---@return button
+	function cheeseUtils.mouse.button(text, pos, --[[size,]] bg_color, text_color, hover_bg_color, hover_text_color, font, text_scale, text_shadow, callback_function)
+		text = tostring(text)
+		assert(type(text) == "string", "text can only be a string")
+		assert(type(pos) == "userdata", "pos can only be a v2")
+		--assert(type(size) == "userdata", "size can only be a v2")
+		assert(type(text_scale) == "number" or not text_scale, "text_scale can only be a number")
+		assert(type(bg_color) == "number", "color can only be a number")
+		assert(type(text_color) == "number", "text_color can only be a number")
+		--assert(type(hover_color) == "number" or not hover_color, "hover_color can only be a number")
+		--assert(type(hover_text_color) == "number" or not hover_text_color, "hover_text_color can only be a number")
+		--assert(type(text_shadow) == "bool" or not text_shadow, "text_shadow can only be a bool")
+
+		local button_object = {
+			text = text,
+			text_font = font,
+			text_scale_offset = scriptdraw.get_text_size(text, text_scale, font),
+			pos = pos,
+			--size = size,
+			text_scale = text_scale or 1,
+			text_flag = text_shadow and 2 or 0,
+			color = bg_color,
+			text_color = text_color,
+			hover_color = hover_bg_color or bg_color,
+			hover_text_color = hover_text_color or text_color,
+			set_text = set_button_text,
+			set_size = set_button_size,
+			set_hitbox = set_button_hitbox,
+			set_pos = set_button_pos,
+			set_colors = set_button_colors,
+			callback = callback_function,
+			draw = default_draw_button,
+			update = update_button,
+			is_within_hitbox = is_within_hitbox,
+			v2r = cheeseUtils.new_reusable_v2(),
+			range = {}
+		}
+
+		button_object.text_scale_offset.x = scriptdraw.size_pixel_to_rel_x(button_object.text_scale_offset.x)
+		button_object.text_scale_offset.y = scriptdraw.size_pixel_to_rel_y(button_object.text_scale_offset.y)
+
+		button_object.size = v2(button_object.text_scale_offset.x+0.01, button_object.text_scale_offset.y+0.02)
+		local size = button_object.size
+
+		button_object.circle = {
+			left = {
+				pos = v2(pos.x-size.x/2, pos.y),
+				phase_offset = math.pi/2
+			},
+			right = {
+				pos = v2(pos.x+size.x/2, pos.y),
+				phase_offset = math.pi+math.pi/2
+			},
+		}
+
+		local circle_x = scriptdraw.size_rel_to_pixel_y(size.y)
+		circle_x = scriptdraw.size_pixel_to_rel_x(circle_x)/2
+		button_object.range['hitbox_x'] = cheeseUtils.create_range_converter(pos.x+size.x/2+circle_x, pos.x-size.x/2-circle_x, 0, 1)
+		button_object.range['inverse_x'] = cheeseUtils.create_range_converter(0, 1, pos.x+size.x/2, pos.x-size.x/2)
+		button_object.range['hitbox_y'] = cheeseUtils.create_range_converter(pos.y+size.y/2, pos.y-size.y/2, 0, 1)
+		button_object.range['inverse_y'] = cheeseUtils.create_range_converter(0, 1, pos.y+size.y/2, pos.y-size.y/2)
+
+		return button_object
 	end
 end
 
@@ -949,7 +1199,8 @@ end
 		until status == 0
 ]]
 do
-	local size_scale = (graphics.get_screen_width()*graphics.get_screen_height()-480000) / (8924400-480000) * (1.25) + 0.75
+	cheeseUtils.size_scale = (graphics.get_screen_width()*graphics.get_screen_height()-921600) / (8924400-921600) * (1.25) + 0.85
+	local size_scale = cheeseUtils.size_scale
 	local alpha_slider
 	local hue_slider
 	local color_picker = cheeseUtils.mouse.xy_slider(
@@ -958,7 +1209,7 @@ do
 		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale))
 	)
 	color_picker:set_draw_function(function(slider)
-		local hue = (1-hue_slider.value.y)*360
+		local hue = (hue_slider.value.y)*360
 		local b, g, r = cheeseUtils.hsv_to_rgb(hue)
 		local color = cheeseUtils.convert_rgba_to_int(r, g, b)
 
@@ -967,17 +1218,19 @@ do
 
 		local screen_pos = slider.v2r(slider:get_screen_pos())
 
-		local val = 1 - slider.value.y
-		local sat = 1 - slider.value.x
+		local val = slider.value.y
+		local sat = slider.value.x
+		local a = (alpha_slider.value.x)*255//1
 		b, g, r = cheeseUtils.hsv_to_rgb(hue, sat, val)
-		slider.color = cheeseUtils.convert_rgba_to_int(r, g, b, (1-alpha_slider.value.x)*255//1)
+
+		slider.color = cheeseUtils.convert_rgba_to_int(r, g, b, a)
 		slider.colors[1] = r
 		slider.colors[2] = g
 		slider.colors[3] = b
-		slider.colors[4] = (1-alpha_slider.value.x)*255//1
+		slider.colors[4] = a
 
 		scriptdraw.draw_circle(screen_pos, scriptdraw.size_pixel_to_rel_y(8*size_scale), 0xFFFFFFFF)
-		scriptdraw.draw_circle(screen_pos, scriptdraw.size_pixel_to_rel_y(6*size_scale), slider.color)
+		scriptdraw.draw_circle(screen_pos, scriptdraw.size_pixel_to_rel_y(6*size_scale), slider.color | 0xFF000000)
 	end)
 	color_picker.color = 0
 	color_picker.colors = {}
@@ -988,7 +1241,7 @@ do
 
 	local hue_gradient = {}
 	local hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(30*size_scale)
-	for i = 0, 6, 1 do
+	for i = 0, 6 do
 		local b, g, r = cheeseUtils.hsv_to_rgb(i*60)
 		local bottom = cheeseUtils.convert_rgba_to_int(r, g, b)
 
@@ -1007,7 +1260,7 @@ do
 		end
 		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x+scriptdraw.size_pixel_to_rel_x(6*size_scale), scriptdraw.size_pixel_to_rel_y(10*size_scale)), 0xFFFFFFFF)
 
-		local b, g, r = cheeseUtils.hsv_to_rgb((1-slider.value.y)*360)
+		local b, g, r = cheeseUtils.hsv_to_rgb((slider.value.y)*360)
 		local color = cheeseUtils.convert_rgba_to_int(r, g, b)
 		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x, scriptdraw.size_pixel_to_rel_y(6*size_scale)), color)
 	end)
@@ -1038,6 +1291,128 @@ do
 		v2(scriptdraw.size_pixel_to_rel_x(5*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale))
 	)
 
+	local function set_rgba_values(r, g, b, a)
+		if (r and g and b) then
+			local hue, sat, val = cheeseUtils.rgb_to_hsv(r, g, b)
+			hue_slider.value.y = hue/360
+
+			color_picker.value.x = sat
+			saturation_slider.value.x = sat
+
+			color_picker.value.y = val
+			value_slider.value.y = val
+
+			alpha_slider.value.x = a and a/255 or 255
+		else
+			hue_slider.value.y = 1
+
+			color_picker.value.x = 1
+			saturation_slider.value.x = 1
+
+			color_picker.value.y = 1
+			value_slider.value.y = 1
+
+			alpha_slider.value.x = 1
+		end
+	end
+
+	-- Buttons
+		local hex_button_thread_func = function(button)
+			system.wait(250)
+			if button.data ~= 0 then
+				local r, g, b, a = cheeseUtils.convert_int_to_rgba(color_picker.color, 'r', 'g', 'b', 'a')
+				local hex = string.format("%08X", cheeseUtils.convert_rgba_to_int(b, g, r, a))
+
+				utils.to_clipboard(hex)
+				menu.notify("Copied hex color to clipboard in this format: AA#FF0000FF#RR#FF00FF00#GG#FFFF0000#BB#DEFAULT#", "Color Picker", 2)
+				button.data = 0
+			end
+		end
+
+		local hex_button = cheeseUtils.mouse.button("#DDDDDD", text_pos, 0, 0xFFFFFFFF, 0x33000000, nil, nil, size_scale, true, function(button)
+			if button.thread and menu.has_thread_finished(button.thread) then
+				button.thread = menu.create_thread(hex_button_thread_func, button)
+			end
+
+			if button.data ~= 0 and utils.time_ms() - button.data < 250 then
+				if button.thread and not menu.has_thread_finished(button.thread) then
+					menu.delete_thread(button.thread)
+				end
+				local r, g, b, a = cheeseUtils.convert_int_to_rgba(color_picker.color, 'r', 'g', 'b', 'a')
+				local default_str = string.format("%08X", cheeseUtils.convert_rgba_to_int(b, g, r, a))
+				local code, hex
+
+				repeat
+					code, hex = input.get("Input Hex color AA#FF0000FF#RR#FF00FF00#GG#FFFF0000#BB#DEFAULT# or #FF0000FF#RR#FF00FF00#GG#FFFF0000#BB#DEFAULT#", default_str, 8, 2)
+					if code == 2 then
+						menu.notify("Cancelled", "Color Picker")
+						return
+					end
+					system.wait(0)
+				until code == 0
+
+				hex = tonumber("0x"..hex)
+				if not hex then
+					menu.notify("Invalid hex", "Color Picker")
+					return
+				end
+
+				local new_alpha
+				r, g, b, new_alpha = cheeseUtils.convert_int_to_rgba(hex, 'b', 'g', 'r', 'a')
+				set_rgba_values(r, g, b, new_alpha > 0 and new_alpha or a)
+			end
+			button.data = utils.time_ms()
+		end)
+		hex_button.data = 0
+		hex_button.thread = 0
+
+		local apply_button = cheeseUtils.mouse.button(
+			"Apply",
+			v2(color_picker.pos.x+color_picker.size.x/4+(scriptdraw.size_pixel_to_rel_x(14)*size_scale), color_picker.pos.y-color_picker.size.y),
+			0xDD000000, 0xDDFFFFFF, 0xDDFFFFFF, 0xDD000000, nil, size_scale, nil
+		)
+		apply_button:set_text(nil, apply_button.text_scale-0.15, nil, true)
+
+		do
+			local color_rect_size_right = color_pos.x + color_size.x/2 - apply_button.pos.x
+			local circle_x = scriptdraw.size_rel_to_pixel_y(apply_button.size.y)
+			circle_x = scriptdraw.size_pixel_to_rel_x(circle_x)
+
+			apply_button:set_size(v2(color_rect_size_right*2-circle_x, apply_button.size.y))
+		end
+
+		local cancel_button = cheeseUtils.mouse.button(
+			"Cancel",
+			v2(color_picker.pos.x-color_picker.size.x/4-(scriptdraw.size_pixel_to_rel_x(14)*size_scale), color_picker.pos.y-color_picker.size.y),
+			0xDD000000, 0xDDFFFFFF, 0xDDFFFFFF, 0xDD000000, nil, size_scale, nil
+		)
+		cancel_button:set_size(apply_button.size)
+		cancel_button:set_text(nil, cancel_button.text_scale-0.15, nil, true)
+
+
+	---@param pos v2
+	function cheeseUtils.set_color_picker_pos(pos)
+		color_picker:set_pos(pos)
+
+		hue_slider:set_pos(v2(color_picker.pos.x+color_picker.size.x/2+scriptdraw.size_pixel_to_rel_x(50*size_scale), color_picker.pos.y-scriptdraw.size_pixel_to_rel_y(52*size_scale)))
+		hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(30*size_scale)
+		for i = 1, 7 do
+			hue_gradient[i].y = hue_y
+			hue_y = hue_y + scriptdraw.size_pixel_to_rel_y(60*size_scale)
+		end
+
+		color_pos.x, color_pos.y	= color_picker.pos.x, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(76*size_scale)
+		text_pos.x, text_pos.y		= color_pos.x-scriptdraw.size_pixel_to_rel_x(30*size_scale), color_pos.y
+
+		alpha_slider:set_pos(v2(color_picker.pos.x, color_pos.y+scriptdraw.size_pixel_to_rel_y(52*size_scale)))
+		saturation_slider:set_pos(v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw.size_pixel_to_rel_y(15*size_scale)))
+		value_slider:set_pos(v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw.size_pixel_to_rel_x(15*size_scale), color_picker.pos.y))
+
+		hex_button:set_pos(text_pos)
+		apply_button:set_pos(v2(color_picker.pos.x+color_picker.size.x/4+scriptdraw.size_pixel_to_rel_x(14), color_picker.pos.y-color_picker.size.y))
+		cancel_button:set_pos(v2(color_picker.pos.x-color_picker.size.x/4-scriptdraw.size_pixel_to_rel_x(14), color_picker.pos.y-color_picker.size.y))
+	end
+
 	--[[
 		local background_pos = v2((color_picker.pos.x+hue_slider.pos.x/3)/2, hue_slider.pos.y+scriptdraw.size_pixel_to_rel_y(10))
 		local background_size = v2(scriptdraw.size_pixel_to_rel_x(380), scriptdraw.size_pixel_to_rel_y(410))
@@ -1047,22 +1422,7 @@ do
 	---@return integer status, uint32_t|nil color, int|nil red, int|nil green, int|nil blue, int|nil alpha
 	function cheeseUtils.pick_color(r, g, b, a)
 		if not running then
-			if (r and g and b) then
-				local hue, sat, val = cheeseUtils.rgb_to_hsv(r, g, b)
-				hue_slider.value.y = 1-hue/360
-				color_picker.value.x = sat
-				saturation_slider.value.x = sat
-				color_picker.value.y = 1-val
-				value_slider.value.y = 1-val
-				alpha_slider.value.x = a and 1-a/255 or 255
-			else
-				hue_slider.value.y = 1
-				color_picker.value.x = 0
-				saturation_slider.value.x = 0
-				color_picker.value.y = 0
-				value_slider.value.y = 0
-				alpha_slider.value.x = 0
-			end
+			set_rgba_values(r, g, b, a)
 			while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() do
 				system.wait(0)
 			end
@@ -1080,13 +1440,37 @@ do
 			local r, g, b = cheeseUtils.convert_int_to_rgba(color_picker.color, "r", "g", "b")
 			local intColor = r << 16 | g << 8 | b
 			hex = "#"..string.format("%06X", intColor)
+
+			local alpha = math.max(0x3F000000, color_picker.color & 0xFF000000)
+
+			local text_color = color_picker.color ~ 0xFFFFFF | 0xFF000000
+			local hover_bg_color = color_picker.color ~ 0xFFFFFF | alpha
+			local hover_text_color = color_picker.color | 0xFF000000
+
+			apply_button:set_colors(color_picker.color | alpha,
+				text_color,
+				hover_bg_color,
+				hover_text_color
+			)
+
+			cancel_button:set_colors(color_picker.color | alpha,
+				text_color,
+				hover_bg_color,
+				hover_text_color
+			)
 		end
 
 		-- Background
 			--scriptdraw.draw_rect(background_pos, background_size, 0xAA000000)
 		-- Color rect
 			scriptdraw.draw_rect(color_pos, color_size, color_picker.color)
-			scriptdraw.draw_text(hex, text_pos, color_size, size_scale, 0xFFFFFFFF, 2)
+			--scriptdraw.draw_text(hex, text_pos, color_size, size_scale, 0xFFFFFFFF, 2)
+			hex_button.text = hex
+			hex_button:update()
+
+		-- Apply and Cancel buttons
+			local cancel = cancel_button:update()
+			local apply = apply_button:update()
 
 		local sat = saturation_slider:update()
 		local val = value_slider:update()
@@ -1103,9 +1487,10 @@ do
 		alpha_slider:update()
 		cheeseUtils.mouse.enable(true)
 
-		if cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() then
-			local success = cheeseUtils.get_key(0x0D):is_down()
-			while cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down() do
+		if (cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down()) or (apply or cancel) then
+			local success = cheeseUtils.get_key(0x0D):is_down() or apply
+			while cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.control_is_pressed(0, 142) do
+				cheeseUtils.mouse.enable()
 				controls.disable_control_action(0, 200, true)
 				system.wait(0)
 			end
@@ -1120,6 +1505,9 @@ do
 			hue_slider.value.y = 0
 			color_picker.value.x = 0
 			color_picker.value.y = 0
+
+			cheeseUtils.set_color_picker_pos(v2())
+
 			if not success then
 				return 2
 			end
