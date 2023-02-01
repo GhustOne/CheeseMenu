@@ -1,5 +1,5 @@
 --Made by GhostOne
-local cheeseUtils = {version = "2.0"}
+local cheeseUtils = {version = "2.1"}
 
 -- Credit to kektram for this whole function ~ a little modified to focus on fractionals
 cheeseUtils.memoize = {}
@@ -765,23 +765,27 @@ do
 		346,
 	}
 
-	local mousev2 = v2()
-	local mousev2r = cheeseUtils.new_reusable_v2(2)
+	local mousev2					= v2()
+	local mousev2r					= cheeseUtils.new_reusable_v2(2)
+	local mouse_vertical_offset		= scriptdraw.size_pixel_to_rel_y(20)
+	local mouse_horizontal_offset	= scriptdraw.size_pixel_to_rel_x(13)
 	function cheeseUtils.mouse.enable(draw)
 		for _, control in ipairs(disableControls) do
 			controls.disable_control_action(0, control, true)
 		end
 		native.call(0x5E6CC07646BBEAB8, player.player_id(), true) -- DISABLE_PLAYER_FIRING
 
-		mousev2.x, mousev2.y = cheeseUtils.controls_get_normal(0, 239)*2-1, cheeseUtils.controls_get_normal(0, 240)*-2+1-scriptdraw.size_pixel_to_rel_y(20)
+		mousev2.x, mousev2.y = cheeseUtils.controls_get_normal(0, 239)*2-1, cheeseUtils.controls_get_normal(0, 240)*-2+1 - mouse_vertical_offset
 		if draw then
 			scriptdraw.draw_triangle(
 				mousev2,
-				mousev2r(mousev2.x, mousev2.y+scriptdraw.size_pixel_to_rel_y(20)),
-				mousev2r(mousev2.x+scriptdraw.size_pixel_to_rel_x(13), mousev2.y),
+				mousev2r(mousev2.x, mousev2.y + mouse_vertical_offset),
+				mousev2r(mousev2.x + mouse_horizontal_offset, mousev2.y),
 				0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF
 			)
 		end
+
+		mousev2.y = mousev2.y + mouse_vertical_offset
 		return mousev2
 	end
 
@@ -993,6 +997,24 @@ do
 	end
 
 	-- Button
+	local function set_button_hint(self, str, delay, scale, font, bg_color, text_color)
+		str = str ~= nil and tostring(str) or nil
+		delay = tonumber(delay)
+		assert(str or not str, "str param should be a string")
+
+		self.hint				= self.hint		or {}
+		self.hint.delay			= delay			or self.hint.delay		or 1000
+		self.hint.str			= str			or self.hint.str
+		self.hint.scale			= scale			or self.hint.scale		or self.text_scale
+		self.hint.font			= font			or self.hint.font		or self.text_font
+		self.hint.bg_color		= bg_color		or self.hint.bg_color	or self.color
+		self.hint.text_color	= text_color	or self.hint.text_color	or self.text_color
+		self.hint.rect_size		= scriptdraw.get_text_size(str or self.hint.str, scale or self.hint.scale, font or self.hint.font)
+
+		self.hint.rect_size.x	= scriptdraw.size_pixel_to_rel_x(self.hint.rect_size.x + 16)
+		self.hint.rect_size.y	= scriptdraw.size_pixel_to_rel_y(self.hint.rect_size.y + 16)
+	end
+
 	local function set_button_text(self, text, scale, font, disable_size_calc)
 		self.text		= text 	or self.text
 		self.text_scale	= scale or self.text_scale
@@ -1071,12 +1093,33 @@ do
 		self.range['inverse_y']:update_range(0, 1, self.pos.y+size.y/2, self.pos.y-size.y/2)
 	end
 
+	local hint_offset = v2(scriptdraw.size_pixel_to_rel_x(25), -scriptdraw.size_pixel_to_rel_y(25))
 	local function update_button(self, disable_control)
 		local is_just_pressed = cheeseUtils.control_is_just_pressed(0, 142)
 		local is_within_hitbox = not disable_control and self:is_within_hitbox()
+
 		if self.draw then
 			self:draw(is_within_hitbox and not is_just_pressed)
 		end
+
+		if not self.time_since_highlighted and is_within_hitbox then
+			self.time_since_highlighted = utils.time_ms()
+		elseif not is_within_hitbox then
+			self.time_since_highlighted = nil
+		end
+
+		-- Draw hint
+		if (self.hint and self.time_since_highlighted) and utils.time_ms() - self.time_since_highlighted > self.hint.delay then
+			scriptdraw.draw_rect(self.v2r(mousev2.x + self.hint.rect_size.x/2 + hint_offset.x - scriptdraw.size_pixel_to_rel_x(8), mousev2.y - self.hint.rect_size.y/2 + hint_offset.y + scriptdraw.size_pixel_to_rel_y(8)), self.hint.rect_size, self.hint.bg_color or self.color)
+			scriptdraw.draw_text(
+				self.hint.str,
+				self.v2r(mousev2.x + hint_offset.x, mousev2.y + hint_offset.y),
+				hint_offset,
+				self.hint.scale or self.text_scale,
+				self.hint.text_color or self.text_color, self.text_flag, self.hint.font or self.text_font
+			)
+		end
+
 		if is_just_pressed and is_within_hitbox then
 			local callback_return
 			if self.callback then
@@ -1105,6 +1148,7 @@ do
 	---@field set_hitbox		function
 	---@field set_pos 			function
 	---@field set_colors 		function
+	---@field set_hint			function
 	---@field callback 			function
 	---@field draw 				function
 	---@field is_within_hitbox 	bool
@@ -1150,6 +1194,7 @@ do
 			set_hitbox = set_button_hitbox,
 			set_pos = set_button_pos,
 			set_colors = set_button_colors,
+			set_hint = set_button_hint,
 			callback = callback_function,
 			draw = default_draw_button,
 			update = update_button,
@@ -1189,7 +1234,6 @@ end
 -- Color Picker
 --[[
 	Example:
-		cheeseUtils.set_color_picker_pos(v2(0, 0)) -- optional
 		local status, ABGR, red, green, blue, alpha
 		repeat
 			status, ABGR, red, green, blue, alpha = cheeseUtils.pick_color()
@@ -1366,6 +1410,7 @@ do
 		end)
 		hex_button.data = 0
 		hex_button.thread = 0
+		hex_button:set_hint("Click once - Copy\nDouble click - Input", 1000, size_scale*0.75, nil, 0xEE000000, 0xEEFFFFFF)
 
 		local apply_button = cheeseUtils.mouse.button(
 			"Apply",
@@ -1463,15 +1508,6 @@ do
 
 		-- Background
 			--scriptdraw.draw_rect(background_pos, background_size, 0xAA000000)
-		-- Color rect
-			scriptdraw.draw_rect(color_pos, color_size, color_picker.color)
-			--scriptdraw.draw_text(hex, text_pos, color_size, size_scale, 0xFFFFFFFF, 2)
-			hex_button.text = hex
-			hex_button:update()
-
-		-- Apply and Cancel buttons
-			local cancel = cancel_button:update()
-			local apply = apply_button:update()
 
 		local sat = saturation_slider:update()
 		local val = value_slider:update()
@@ -1486,6 +1522,17 @@ do
 		value_slider.value.y = val or value_slider.value.y
 
 		alpha_slider:update()
+
+		-- Apply and Cancel buttons
+			local cancel = cancel_button:update()
+			local apply = apply_button:update()
+
+		-- Color rect
+			scriptdraw.draw_rect(color_pos, color_size, color_picker.color)
+			--scriptdraw.draw_text(hex, text_pos, color_size, size_scale, 0xFFFFFFFF, 2)
+			hex_button.text = hex
+			hex_button:update()
+
 		cheeseUtils.mouse.enable(true)
 
 		if (cheeseUtils.get_key(0x0D):is_down() or cheeseUtils.get_key(0x1B):is_down() or cheeseUtils.get_key(0x08):is_down()) or (apply or cancel) then
