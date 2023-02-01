@@ -1189,6 +1189,7 @@ end
 -- Color Picker
 --[[
 	Example:
+		cheeseUtils.set_color_picker_pos(v2(0, 0)) -- optional
 		local status, ABGR, red, green, blue, alpha
 		repeat
 			status, ABGR, red, green, blue, alpha = cheeseUtils.pick_color()
