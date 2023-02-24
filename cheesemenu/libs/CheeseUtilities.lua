@@ -1,5 +1,5 @@
 --Made by GhostOne
-local cheeseUtils = {version = "2.2"}
+local cheeseUtils = {version = "2.3"}
 
 local scriptdraw_size_rel_to_pixel_y	<const> = scriptdraw.size_rel_to_pixel_y
 local scriptdraw_size_rel_to_pixel_x	<const> = scriptdraw.size_rel_to_pixel_x
@@ -8,6 +8,7 @@ local scriptdraw_size_pixel_to_rel_y	<const> = scriptdraw.size_pixel_to_rel_y
 local scriptdraw_draw_rect				<const> = scriptdraw.draw_rect
 local scriptdraw_draw_circle			<const> = scriptdraw.draw_circle
 local math_abs							<const> = math.abs
+local str_sub							<const> = string.sub
 
 cheeseUtils.char_codes = {
 	{
@@ -905,6 +906,46 @@ do
 
 		return stuff
 	end
+end
+
+-- Find Longest Match
+function cheeseUtils.find_longest_match(search_str, find_str)
+	local search_len	<const> = #search_str
+	local find_len		<const> = #find_str
+	local matches		<const> = {}
+	local match_iter	= 1
+
+	for find_iter = 1, find_len do
+		local original_iter <const> = find_iter
+
+		for i = 1, search_len do
+			local search_char <const> = str_sub(search_str, i, i)
+
+			if search_char == str_sub(find_str, find_iter, find_iter) then
+				matches[match_iter] = matches[match_iter] or {}
+				matches[match_iter][#matches[match_iter]+1] = search_char
+				find_iter = find_iter + 1
+			elseif original_iter - find_iter ~= 0 then
+				break
+			end
+		end
+
+		match_iter = match_iter + 1
+	end
+
+	local longest_match = 0
+	local longest_match_index = 0
+
+	for i, match in pairs(matches) do
+		local match_len <const> = #match
+
+		if match_len > longest_match then
+			longest_match = match_len
+			longest_match_index = i
+		end
+	end
+
+	return longest_match > 0 and table.concat(matches[longest_match_index]) or false
 end
 
 -- Text Wrap
