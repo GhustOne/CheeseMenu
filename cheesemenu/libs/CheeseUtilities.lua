@@ -1,5 +1,233 @@
 --Made by GhostOne
-local cheeseUtils = {version = "2.1"}
+local cheeseUtils = {version = "2.2"}
+
+local scriptdraw_size_rel_to_pixel_y	<const> = scriptdraw.size_rel_to_pixel_y
+local scriptdraw_size_rel_to_pixel_x	<const> = scriptdraw.size_rel_to_pixel_x
+local scriptdraw_size_pixel_to_rel_x	<const> = scriptdraw.size_pixel_to_rel_x
+local scriptdraw_size_pixel_to_rel_y	<const> = scriptdraw.size_pixel_to_rel_y
+local scriptdraw_draw_rect				<const> = scriptdraw.draw_rect
+local scriptdraw_draw_circle			<const> = scriptdraw.draw_circle
+local math_abs							<const> = math.abs
+
+cheeseUtils.char_codes = {
+	{
+		[0x30] = {"0", ")"},
+		[0x31] = {"1", "!"},
+		[0x32] = {"2", "@"},
+		[0x33] = {"3", "#"},
+		[0x34] = {"4", "$"},
+		[0x35] = {"5", "%"},
+		[0x36] = {"6", "^"},
+		[0x37] = {"7", "&"},
+		[0x38] = {"8", "*"},
+		[0x39] = {"9", "("},
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+		[0x60] = {"0", ")"},
+		[0x61] = {"1", "!"},
+		[0x62] = {"2", "@"},
+		[0x63] = {"3", "#"},
+		[0x64] = {"4", "$"},
+		[0x65] = {"5", "%"},
+		[0x66] = {"6", "^"},
+		[0x67] = {"7", "&"},
+		[0x68] = {"8", "*"},
+		[0x69] = {"9", "("},
+		[0x20] = {" "},
+		[0xBA] = {";", ":"},
+		[0xBB] = {"=", "+"},
+		[0xBC] = {",", "<"},
+		[0xBD] = {"-", "_"},
+		[0xBE] = {".", ">"},
+		[0xBF] = {"/", "?"},
+		[0xC0] = {"`", "~"},
+		[0xDB] = {"[", "{"},
+		[0xDC] = {"\\", "|"},
+		[0xDD] = {"]", "}"},
+		[0xDE] = {"\'", "\""},
+		[0x6A] = {"*"},
+		[0x6B] = {"+"},
+		[0x6D] = {"-"},
+		[0x6E] = {"."},
+		[0x6F] = {"/"}
+	},
+	{
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+	},
+	{
+		[0x41] = {"a"},
+		[0x42] = {"b"},
+		[0x43] = {"c"},
+		[0x44] = {"d"},
+		[0x45] = {"e"},
+		[0x46] = {"f"},
+		[0x47] = {"g"},
+		[0x48] = {"h"},
+		[0x49] = {"i"},
+		[0x4A] = {"j"},
+		[0x4B] = {"k"},
+		[0x4C] = {"l"},
+		[0x4D] = {"m"},
+		[0x4E] = {"n"},
+		[0x4F] = {"o"},
+		[0x50] = {"p"},
+		[0x51] = {"q"},
+		[0x52] = {"r"},
+		[0x53] = {"s"},
+		[0x54] = {"t"},
+		[0x55] = {"u"},
+		[0x56] = {"v"},
+		[0x57] = {"w"},
+		[0x58] = {"x"},
+		[0x59] = {"y"},
+		[0x5A] = {"z"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"}
+	},
+	{
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"}
+	},
+	{
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"},
+		[0x6E] = {"."},
+		[0xBE] = {"."},
+	},
+	{
+		[0xBD] = {"-"},
+		[0x6D] = {"-"},
+		[0x60] = {"0"},
+		[0x61] = {"1"},
+		[0x62] = {"2"},
+		[0x63] = {"3"},
+		[0x64] = {"4"},
+		[0x65] = {"5"},
+		[0x66] = {"6"},
+		[0x67] = {"7"},
+		[0x68] = {"8"},
+		[0x69] = {"9"},
+		[0x30] = {"0"},
+		[0x31] = {"1"},
+		[0x32] = {"2"},
+		[0x33] = {"3"},
+		[0x34] = {"4"},
+		[0x35] = {"5"},
+		[0x36] = {"6"},
+		[0x37] = {"7"},
+		[0x38] = {"8"},
+		[0x39] = {"9"},
+		[0x6E] = {"."},
+		[0xBE] = {"."},
+	},
+}
 
 -- Credit to kektram for this whole function ~ a little modified to focus on fractionals
 cheeseUtils.memoize = {}
@@ -41,25 +269,25 @@ function cheeseUtils.draw_outline(v2pos, v2size, color, thickness)
     local thickness_y = thickness / graphics.get_screen_height() * 2
     local thickness_x = thickness / graphics.get_screen_width() * 2
 
-    scriptdraw.draw_rect(
+    scriptdraw_draw_rect(
         cheeseUtils.memoize.v2(v2pos.x, v2pos.y - (v2size.y/2)),
         cheeseUtils.memoize.v2(v2size.x + thickness_x, thickness_y),
         color
     )
 
-    scriptdraw.draw_rect(
+    scriptdraw_draw_rect(
         cheeseUtils.memoize.v2(v2pos.x, v2pos.y + (v2size.y/2)),
         cheeseUtils.memoize.v2(v2size.x + thickness_x, thickness_y),
         color
     )
 
-    scriptdraw.draw_rect(
+    scriptdraw_draw_rect(
         cheeseUtils.memoize.v2(v2pos.x - (v2size.x/2), v2pos.y),
         cheeseUtils.memoize.v2(thickness_x, v2size.y - thickness_y),
         color
     )
 
-    scriptdraw.draw_rect(
+    scriptdraw_draw_rect(
         cheeseUtils.memoize.v2(v2pos.x + (v2size.x/2), v2pos.y),
         cheeseUtils.memoize.v2(thickness_x, v2size.y - thickness_y),
         color
@@ -80,7 +308,7 @@ function cheeseUtils.get_key(...)
 		cheeseUtils.Keys[ID] = key
 	end
 
-	return cheeseUtils.Keys[ID]
+	return cheeseUtils.Keys[ID], ID
 end
 
 function cheeseUtils.new_reusable_v2(limit)
@@ -92,8 +320,8 @@ function cheeseUtils.new_reusable_v2(limit)
 		v2Table[i] = v2()
 	end
 
-	---@param x number
-	---@param y number
+	---@param x number|nil
+	---@param y number|nil
 	---@return v2
 	return function(x, y)
 		x = x or 0
@@ -110,20 +338,53 @@ end
 
 -- Do Key
 do
+	local get_key <const> = cheeseUtils.get_key
 	local key_waits = {}
+
+	local function do_key(self, ...)
+		local key, ID = get_key(...)
+		local is_down = key:is_down()
+		if is_down and ((utils.time_ms() > self.key_wait_table[ID]) or (self.key_wait_table[ID] == 0)) then
+			if self.key_wait_table[ID] == 0 then
+				self.key_wait_table[ID] = utils.time_ms() + self.first_wait
+			else
+				self.key_wait_table[ID] = utils.time_ms() + self.repeat_wait
+			end
+			return true
+		elseif not is_down then
+			self.key_wait_table[ID] = 0
+		end
+		return false
+	end
+
+	local Metatable <const> = {
+		__call = do_key
+	}
+	function cheeseUtils.make_key_wait_func(key_wait_table, first_wait, repeat_wait)
+		local stuff = {
+			first_wait = first_wait or 500,
+			repeat_wait = repeat_wait or 100,
+			key_wait_table = key_wait_table or key_waits,
+		}
+		setmetatable(stuff, Metatable)
+
+		return stuff
+	end
+
 	function cheeseUtils.get_key_wait(vk, key_wait_table, first_wait, repeat_wait)
 		first_wait = first_wait or 500
 		repeat_wait = repeat_wait or 100
 		key_wait_table = key_wait_table or key_waits
-		local key = cheeseUtils.get_key(vk)
-		if key:is_down() and ((utils.time_ms() > key_wait_table[vk]) or (key_wait_table[vk] == 0)) then
+		local key = get_key(vk)
+		local is_down = key:is_down()
+		if is_down and ((utils.time_ms() > key_wait_table[vk]) or (key_wait_table[vk] == 0)) then
 			if key_wait_table[vk] == 0 then
 				key_wait_table[vk] = utils.time_ms() + first_wait
 			else
 				key_wait_table[vk] = utils.time_ms() + repeat_wait
 			end
 			return true
-		elseif not key:is_down() then
+		elseif not is_down then
 			key_wait_table[vk] = 0
 		end
 		return false
@@ -166,7 +427,7 @@ do
 	local function draw_selector(stuff)
 		while true do
 			local selected = stuff.selected
-			scriptdraw.draw_rect(reuse_v2(0, 0), textv2, 0x7D000000)
+			scriptdraw_draw_rect(reuse_v2(0, 0), textv2, 0x7D000000)
 			scriptdraw.draw_text(stuff.selected_str, reuse_v2(-0.02, 0), textv2, 1 / stuff.text_size_rel_to_res, 0xFFFFFFFF, 1 << 4)
 
 			if stuff.move then
@@ -198,7 +459,7 @@ do
 				if stuff.items[i] then
 					local size = i == selected and 1.3 or 1
 					size = i == stuff.next_selected and size + stuff.size_offset or i == selected and size - stuff.size_offset or size
-					local alpha = stuff.move == "up" and math.max(math.floor(255 - math.abs((i - selected) + math.abs(stuff.offset)/0.08)*51), 0) or math.max(math.floor(255 - math.abs((i - selected) - math.abs(stuff.offset)/0.08)*51), 0)
+					local alpha = stuff.move == "up" and math.max(math.floor(255 - math_abs((i - selected) + math_abs(stuff.offset)/0.08)*51), 0) or math.max(math.floor(255 - math_abs((i - selected) - math_abs(stuff.offset)/0.08)*51), 0)
 					scriptdraw.draw_text(stuff.items[i], reuse_v2(0, 0.005 - 0.08 * (i - selected) + (stuff.offset or 0)), textv2, size / stuff.text_size_rel_to_res, (alpha << 24 | 0xFFFFFF), 0)
 				end
 			end
@@ -274,16 +535,16 @@ do
 	local reuse_v2 = cheeseUtils.new_reusable_v2()
 
 	function cheeseUtils.draw_slider(pos, width, min, max, value, colorBG, colorActive, colorText, draw_value)
-		scriptdraw.draw_rect(pos, width, colorBG)
+		scriptdraw_draw_rect(pos, width, colorBG)
 		local ActiveWidthX = width.x * ((value - min) / (max - min))
-		scriptdraw.draw_rect(reuse_v2(pos.x - width.x/2 + ActiveWidthX/2, pos.y), reuse_v2(ActiveWidthX , width.y), colorActive)
+		scriptdraw_draw_rect(reuse_v2(pos.x - width.x/2 + ActiveWidthX/2, pos.y), reuse_v2(ActiveWidthX , width.y), colorActive)
 
 		if draw_value then
 			local text_size = scriptdraw.get_text_size(tostring(value), 1)
-			local size_correction = width.y*2 / scriptdraw.size_pixel_to_rel_y(text_size.y*2) - 0.12
+			local size_correction = width.y*2 / scriptdraw_size_pixel_to_rel_y(text_size.y*2) - 0.12
 			text_size = text_size * size_correction
-			text_size.x = scriptdraw.size_pixel_to_rel_x(text_size.x)
-			text_size.y = scriptdraw.size_pixel_to_rel_y(text_size.y)
+			text_size.x = scriptdraw_size_pixel_to_rel_x(text_size.x)
+			text_size.y = scriptdraw_size_pixel_to_rel_y(text_size.y)
 			scriptdraw.draw_text(tostring(value), reuse_v2(pos.x - text_size.x/2, pos.y + text_size.y/2), reuse_v2(2, 2), size_correction, colorText, 0)
 		end
 	end
@@ -299,6 +560,41 @@ do
 		local Left = pos.x - halfWdith
 		local Right = pos.x + halfWdith
 		scriptdraw.draw_rect_ext(v2r(Left, Bottom), v2r(Left, Top), v2r(Right, Top), v2r(Right, Bottom), color1, color2, color3, color4)
+	end
+end
+
+-- Rounded Rect
+do
+	local pi		<const> = math.pi
+	local half_pi	<const> = math.pi/2
+	local pi_270d	<const> = math.pi*1.5
+	local v2r		<const> = cheeseUtils.new_reusable_v2()
+
+	---@param pos v2
+	---@param size v2
+	---@param radius number float from 0 to 1
+	---@param color uint32_t|number
+	function cheeseUtils.draw_rounded_rect(pos, size, radius, color)
+		radius = size.x > size.y and scriptdraw_size_rel_to_pixel_y(size.y/2*radius) or scriptdraw_size_rel_to_pixel_x(size.x/(math_abs(size.x-size.y) < 0.5 and 4 or 2)*radius)
+
+		local radius_x		<const> = scriptdraw_size_pixel_to_rel_x(radius)
+		local radius_y		<const> = scriptdraw_size_pixel_to_rel_y(radius)
+
+		local rect_width	<const> = size.x - radius_x*2
+		if rect_width > 0 then
+			scriptdraw_draw_rect(pos, v2r(rect_width, size.y), color)
+		end
+
+		local rect_height	<const> = math_abs(size.y - radius_y*2)
+		local left_pos		<const> = pos.x - rect_width/2
+		local right_pos		<const> = pos.x + rect_width/2
+		scriptdraw_draw_rect(v2r(left_pos - radius_x/2, pos.y), v2r(radius_x, rect_height), color)
+		scriptdraw_draw_rect(v2r(right_pos + radius_x/2, pos.y), v2r(radius_x, rect_height), color)
+
+		scriptdraw_draw_circle(v2r(left_pos, pos.y - rect_height/2), radius_y, color, half_pi, half_pi) -- left bottom
+		scriptdraw_draw_circle(v2r(left_pos, pos.y + rect_height/2), radius_y, color, half_pi, pi) -- left top
+		scriptdraw_draw_circle(v2r(right_pos, pos.y + rect_height/2), radius_y, color, half_pi, pi_270d) -- right top
+		scriptdraw_draw_circle(v2r(right_pos, pos.y - rect_height/2), radius_y, color, half_pi) -- right bottom
 	end
 end
 
@@ -367,9 +663,9 @@ do
 		local hidden_y_offset = 0
 
 
-		scriptdraw.draw_rect(self.pos, cheeseUtils.memoize.v2(self.rect_width, rect_height), self.rect_color)
+		scriptdraw_draw_rect(self.pos, cheeseUtils.memoize.v2(self.rect_width, rect_height), self.rect_color)
 		if self.header_on then
-			scriptdraw.draw_rect(cheeseUtils.memoize.v2(self.pos.x, header_y), cheeseUtils.memoize.v2(self.rect_width, self.header_height), self.rect_color)
+			scriptdraw_draw_rect(cheeseUtils.memoize.v2(self.pos.x, header_y), cheeseUtils.memoize.v2(self.rect_width, self.header_height), self.rect_color)
 		end
 
 		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
@@ -392,7 +688,7 @@ do
 			if new_name then
 				if self.window.fields[#self.window.fields] == self then
 					local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
-					self.window.last_name_height = scriptdraw.size_pixel_to_rel_y(scriptdraw.get_text_size(new_name, text_size, 0).y)
+					self.window.last_name_height = scriptdraw_size_pixel_to_rel_y(scriptdraw.get_text_size(new_name, text_size, 0).y)
 				end
 				self.fields_by_name[self.name] = nil
 				self.name = tostring(new_name) or ""
@@ -464,7 +760,7 @@ do
 		else
 			self.fields[#self.fields + 1] = field
 			local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
-			self.last_name_height = scriptdraw.size_pixel_to_rel_y(scriptdraw.get_text_size(name, text_size, 0).y)
+			self.last_name_height = scriptdraw_size_pixel_to_rel_y(scriptdraw.get_text_size(name, text_size, 0).y)
 		end
 		self.fields_by_name[name] = field
 
@@ -624,13 +920,13 @@ do
 			local newline
 			local lineSize = scriptdraw.get_text_size(line, scale, font)
 
-			if scriptdraw.size_pixel_to_rel_x(lineSize.x) > relWidth then
+			if scriptdraw_size_pixel_to_rel_x(lineSize.x) > relWidth then
 				local length = 0
 				newline = {}
 				for word in line:gmatch("[^%s-\\,]+[%s-\\,]*") do
-					local relx = scriptdraw.size_pixel_to_rel_x(scriptdraw.get_text_size(word, scale, font).x)
+					local relx = scriptdraw_size_pixel_to_rel_x(scriptdraw.get_text_size(word, scale, font).x)
 					local spaceRelx = word:gsub("%S", "")
-					spaceRelx = scriptdraw.size_pixel_to_rel_x(#spaceRelx*spaceSize)
+					spaceRelx = scriptdraw_size_pixel_to_rel_x(#spaceRelx*spaceSize)
 					if length + relx > relWidth then
 						newline[#newline+1] = "\n"
 						length = 0
@@ -767,8 +1063,8 @@ do
 
 	local mousev2					= v2()
 	local mousev2r					= cheeseUtils.new_reusable_v2(2)
-	local mouse_vertical_offset		= scriptdraw.size_pixel_to_rel_y(20)
-	local mouse_horizontal_offset	= scriptdraw.size_pixel_to_rel_x(13)
+	local mouse_vertical_offset		= scriptdraw_size_pixel_to_rel_y(20)
+	local mouse_horizontal_offset	= scriptdraw_size_pixel_to_rel_x(13)
 	function cheeseUtils.mouse.enable(draw)
 		for _, control in ipairs(disableControls) do
 			controls.disable_control_action(0, control, true)
@@ -815,19 +1111,19 @@ do
 		self.draw = func
 	end
 
-	local default_draw_outline = v2(scriptdraw.size_pixel_to_rel_x(2), scriptdraw.size_pixel_to_rel_y(2))
+	local default_draw_outline = v2(scriptdraw_size_pixel_to_rel_x(2), scriptdraw_size_pixel_to_rel_y(2))
 	local function default_draw(self)
-		scriptdraw.draw_rect(self.pos, self.v2r(self.size.x + default_draw_outline.x, self.size.y + default_draw_outline.y), 0xFFDDDDDD)
-		scriptdraw.draw_rect(self.pos, self.size, 0xFF555555)
+		scriptdraw_draw_rect(self.pos, self.v2r(self.size.x + default_draw_outline.x, self.size.y + default_draw_outline.y), 0xFFDDDDDD)
+		scriptdraw_draw_rect(self.pos, self.size, 0xFF555555)
 
 		local is_one_dimensional = self.type ~= 3
 		local is_horizontal = self.type & 1 ~= 0
 		local circle_size = (is_one_dimensional and (is_horizontal and self.size.y or self.size.x) or 5)
-		circle_size = is_horizontal and scriptdraw.size_rel_to_pixel_y(circle_size) or scriptdraw.size_rel_to_pixel_x(circle_size)
+		circle_size = is_horizontal and scriptdraw_size_rel_to_pixel_y(circle_size) or scriptdraw_size_rel_to_pixel_x(circle_size)
 
 		local x, y = self:get_screen_pos()
-		scriptdraw.draw_circle(self.v2r(x, y), scriptdraw.size_pixel_to_rel_y(circle_size + 2), 0xFFDDDDDD)
-		scriptdraw.draw_circle(self.v2r(x, y), scriptdraw.size_pixel_to_rel_y(circle_size), 0xFF555555)
+		scriptdraw_draw_circle(self.v2r(x, y), scriptdraw_size_pixel_to_rel_y(circle_size + 2), 0xFFDDDDDD)
+		scriptdraw_draw_circle(self.v2r(x, y), scriptdraw_size_pixel_to_rel_y(circle_size), 0xFF555555)
 	end
 
 	local function update_slider(self, disable_control)
@@ -1011,8 +1307,8 @@ do
 		self.hint.text_color	= text_color	or self.hint.text_color	or self.text_color
 		self.hint.rect_size		= scriptdraw.get_text_size(str or self.hint.str, scale or self.hint.scale, font or self.hint.font)
 
-		self.hint.rect_size.x	= scriptdraw.size_pixel_to_rel_x(self.hint.rect_size.x + 16)
-		self.hint.rect_size.y	= scriptdraw.size_pixel_to_rel_y(self.hint.rect_size.y + 16)
+		self.hint.rect_size.x	= scriptdraw_size_pixel_to_rel_x(self.hint.rect_size.x + 16)
+		self.hint.rect_size.y	= scriptdraw_size_pixel_to_rel_y(self.hint.rect_size.y + 16)
 	end
 
 	local function set_button_text(self, text, scale, font, disable_size_calc)
@@ -1025,8 +1321,8 @@ do
 		font	= self.text_font
 
 		self.text_scale_offset		= scriptdraw.get_text_size(text, scale or self.text_scale, font or self.text_font)
-		self.text_scale_offset.x	= scriptdraw.size_pixel_to_rel_x(self.text_scale_offset.x)
-		self.text_scale_offset.y	= scriptdraw.size_pixel_to_rel_y(self.text_scale_offset.y)
+		self.text_scale_offset.x	= scriptdraw_size_pixel_to_rel_x(self.text_scale_offset.x)
+		self.text_scale_offset.y	= scriptdraw_size_pixel_to_rel_y(self.text_scale_offset.y)
 
 		if disable_size_calc then
 			return
@@ -1071,11 +1367,11 @@ do
 		local txt_color = is_within_hitbox and self.hover_text_color or self.text_color
 
 		-- bg
-			scriptdraw.draw_rect(self.pos, self.size, bg_color)
+			scriptdraw_draw_rect(self.pos, self.size, bg_color)
 		-- circle
 			local half_size = self.size.y/2
-			scriptdraw.draw_circle(self.circle.left.pos, half_size, bg_color, math.pi, self.circle.left.phase_offset)
-			scriptdraw.draw_circle(self.circle.right.pos, half_size, bg_color, math.pi, self.circle.right.phase_offset)
+			scriptdraw_draw_circle(self.circle.left.pos, half_size, bg_color, math.pi, self.circle.left.phase_offset)
+			scriptdraw_draw_circle(self.circle.right.pos, half_size, bg_color, math.pi, self.circle.right.phase_offset)
 
 		scriptdraw.draw_text(self.text, self.v2r(self.pos.x-self.text_scale_offset.x/2, self.pos.y+self.text_scale_offset.y/2), self.size, self.text_scale, txt_color, self.text_flag, self.text_font)
 	end
@@ -1084,8 +1380,8 @@ do
 	local function set_button_hitbox(self, size)
 		local circle_x = 0
 		if self.draw == default_draw_button then
-			circle_x = scriptdraw.size_rel_to_pixel_y(size.y)
-			circle_x = scriptdraw.size_pixel_to_rel_x(circle_x)/2
+			circle_x = scriptdraw_size_rel_to_pixel_y(size.y)
+			circle_x = scriptdraw_size_pixel_to_rel_x(circle_x)/2
 		end
 		self.range['hitbox_x']:update_range(self.pos.x+size.x/2+circle_x, self.pos.x-size.x/2-circle_x, 0, 1)
 		self.range['inverse_x']:update_range(0, 1, self.pos.x+size.x/2, self.pos.x-size.x/2)
@@ -1093,7 +1389,7 @@ do
 		self.range['inverse_y']:update_range(0, 1, self.pos.y+size.y/2, self.pos.y-size.y/2)
 	end
 
-	local hint_offset = v2(scriptdraw.size_pixel_to_rel_x(25), -scriptdraw.size_pixel_to_rel_y(25))
+	local hint_offset = v2(scriptdraw_size_pixel_to_rel_x(25), -scriptdraw_size_pixel_to_rel_y(25))
 	local function update_button(self, disable_control)
 		local is_just_pressed = cheeseUtils.control_is_just_pressed(0, 142)
 		local is_within_hitbox = not disable_control and self:is_within_hitbox()
@@ -1110,7 +1406,7 @@ do
 
 		-- Draw hint
 		if (self.hint and self.time_since_highlighted) and utils.time_ms() - self.time_since_highlighted > self.hint.delay then
-			scriptdraw.draw_rect(self.v2r(mousev2.x + self.hint.rect_size.x/2 + hint_offset.x - scriptdraw.size_pixel_to_rel_x(8), mousev2.y - self.hint.rect_size.y/2 + hint_offset.y + scriptdraw.size_pixel_to_rel_y(8)), self.hint.rect_size, self.hint.bg_color or self.color)
+			scriptdraw_draw_rect(self.v2r(mousev2.x + self.hint.rect_size.x/2 + hint_offset.x - scriptdraw_size_pixel_to_rel_x(8), mousev2.y - self.hint.rect_size.y/2 + hint_offset.y + scriptdraw_size_pixel_to_rel_y(8)), self.hint.rect_size, self.hint.bg_color or self.color)
 			scriptdraw.draw_text(
 				self.hint.str,
 				self.v2r(mousev2.x + hint_offset.x, mousev2.y + hint_offset.y),
@@ -1149,6 +1445,7 @@ do
 	---@field set_pos 			function
 	---@field set_colors 		function
 	---@field set_hint			function
+	---@field set_draw_function	function
 	---@field callback 			function
 	---@field draw 				function
 	---@field is_within_hitbox 	bool
@@ -1195,6 +1492,7 @@ do
 			set_pos = set_button_pos,
 			set_colors = set_button_colors,
 			set_hint = set_button_hint,
+			set_draw_function = set_draw_function,
 			callback = callback_function,
 			draw = default_draw_button,
 			update = update_button,
@@ -1203,8 +1501,8 @@ do
 			range = {}
 		}
 
-		button_object.text_scale_offset.x = scriptdraw.size_pixel_to_rel_x(button_object.text_scale_offset.x)
-		button_object.text_scale_offset.y = scriptdraw.size_pixel_to_rel_y(button_object.text_scale_offset.y)
+		button_object.text_scale_offset.x = scriptdraw_size_pixel_to_rel_x(button_object.text_scale_offset.x)
+		button_object.text_scale_offset.y = scriptdraw_size_pixel_to_rel_y(button_object.text_scale_offset.y)
 
 		button_object.size = v2(button_object.text_scale_offset.x+0.01, button_object.text_scale_offset.y+0.02)
 		local size = button_object.size
@@ -1220,14 +1518,266 @@ do
 			},
 		}
 
-		local circle_x = scriptdraw.size_rel_to_pixel_y(size.y)
-		circle_x = scriptdraw.size_pixel_to_rel_x(circle_x)/2
+		local circle_x = scriptdraw_size_rel_to_pixel_y(size.y)
+		circle_x = scriptdraw_size_pixel_to_rel_x(circle_x)/2
 		button_object.range['hitbox_x'] = cheeseUtils.create_range_converter(pos.x+size.x/2+circle_x, pos.x-size.x/2-circle_x, 0, 1)
 		button_object.range['inverse_x'] = cheeseUtils.create_range_converter(0, 1, pos.x+size.x/2, pos.x-size.x/2)
 		button_object.range['hitbox_y'] = cheeseUtils.create_range_converter(pos.y+size.y/2, pos.y-size.y/2, 0, 1)
 		button_object.range['inverse_y'] = cheeseUtils.create_range_converter(0, 1, pos.y+size.y/2, pos.y-size.y/2)
 
 		return button_object
+	end
+
+	-- Input Box
+	local keys <const> = {
+		enter		= cheeseUtils.get_key(0x0D),
+		shift		= cheeseUtils.get_key(0x10),
+		ctrl		= cheeseUtils.get_key(0x11),
+		paste		= cheeseUtils.get_key(0x56, 0x11),
+		copy		= cheeseUtils.get_key(0x43, 0x11),
+		esc			= cheeseUtils.get_key(0x1B)
+	}
+	local key_waits <const> = {}
+	local indicator		= 0
+	local last_cursor	= -1
+
+	local function set_input_box_value(self, value)
+		assert(type(value) == "string", "value only accepts string")
+
+		self.str = value:sub(1, self.limit)
+
+		last_cursor = -1
+		if self.active then
+			self.cursor = #self.str + 1
+		end
+
+		self.update_char_table = true
+	end
+
+	local function draw_input_box(self)
+		local v2r			<const>	= self.v2r
+		local text_y_size	<const> = self.text_size.y * self.scale
+
+		local rect_size	<const> = v2r(self.width + self.padding.x, text_y_size + self.padding.y + self.text_y_offset)
+		scriptdraw_draw_rect(self.pos, rect_size, self.color.bg or 0xDD111111)
+		cheeseUtils.draw_outline(self.pos, rect_size, self.color.outline or 0xDDAAAAAA, 2)
+
+		local text_pos	<const> = v2r(self.pos.x-self.width/2, self.pos.y+text_y_size/2)
+		local text_size	<const> = v2r()
+		if self.placeholder and self.str == "" then
+			scriptdraw.draw_text(self.placeholder, text_pos, text_size, self.scale, self.color.placeholder or 0xFF555555, 0, self.font)
+		end
+		scriptdraw.draw_text(self.show_indicator and self.indicator_str or self.str, text_pos, text_size, self.scale, self.color.text or 0xFFFFFFFF, 0, self.font)
+	end
+
+	local function add_char_to_input(self, char)
+		table.insert(self.char, self.cursor+1, char)
+		self.str = table.concat(self.char)
+		last_cursor = -1
+		self.cursor = self.cursor + 1
+	end
+
+	local function set_text_y_offset(self, num)
+		self.text_y_offset = scriptdraw_size_pixel_to_rel_y(num)
+	end
+
+	local function set_colors(self, bg, outline, text, placeholder)
+		self.color.bg			= bg or self.color.bg
+		self.color.outline		= outline or self.color.outline
+		self.color.text			= text or self.color.text
+		self.color.placeholder	= placeholder or self.color.placeholder
+	end
+
+	local function set_placeholder(self, str)
+		self.placeholder = tostring(str)
+	end
+
+	local function set_input_pos(self, pos)
+		self.pos.x, self.pos.y = pos.x, pos.y
+		self.range['hitbox_x']:update_range(pos.x+self.width/2+self.padding.x, pos.x-self.width/2-self.padding.x, 0, 1)
+		self.range['inverse_x']:update_range(0, 1, pos.x+self.width/2+self.padding.x, pos.x-self.width/2-self.padding.x)
+		self.range['hitbox_y']:update_range(pos.y+self.text_size.y/2+self.padding.y, pos.y-self.text_size.y/2-self.padding.y, 0, 1)
+		self.range['inverse_y']:update_range(0, 1, pos.y+self.text_size.y/2+self.padding.y, pos.y-self.text_size.y/2-self.padding.y)
+	end
+
+	local function input_box_active(self, bool)
+		if bool then
+			self.active = true
+			self.cursor = #self.char
+			self.indicator_str = self.str.."|"
+			self.show_indicator = true
+			indicator = utils.time_ms()
+			last_cursor = self.cursor
+
+			menu.set_menu_can_navigate(false)
+		else
+			self.show_indicator = false
+			self.active = false
+			self.cursor = nil
+			last_cursor = -1
+
+			menu.set_menu_can_navigate(true)
+		end
+	end
+
+	local copy_paste_do_key = cheeseUtils.make_key_wait_func(key_waits, 10000)
+	local function update_input_box(self, disable_control)
+		if not disable_control or self.active then
+			for i = 0, 357 do
+				if i ~= 239 and i ~= 240 then
+					controls.disable_control_action(0, i, true)
+				end
+			end
+			native.call(0x0AFC4AF510774B47)
+		end
+
+		if self.draw then
+			self:draw()
+		end
+
+		if cheeseUtils.control_is_just_pressed(0, 142) and not disable_control and self:is_within_hitbox() then
+			self:set_active(true)
+		elseif self.active and keys.enter:is_down() then
+			self:set_active(false)
+			return 0, self.str
+		end
+
+		if self.active then
+			if self.update_char_table then
+				for k, _ in pairs(self.char) do
+					self.char[k] = nil
+				end
+				self.char[1] = ""
+				local i = 1
+				for char in self.str:gmatch(".") do
+					if i > self.limit+1 then
+						break
+					end
+					i = i + 1
+					self.char[i] = char
+				end
+
+				self.cursor = i
+				self.update_char_table = nil
+			end
+
+			if last_cursor ~= self.cursor then
+				self.indicator_str = self.str:sub(0, self.cursor-1).."|"..self.str:sub(self.cursor)
+				last_cursor = self.cursor
+			end
+
+			if cheeseUtils.get_key_wait(0x25, key_waits) then -- left
+				self.cursor = self.cursor - 1
+			elseif cheeseUtils.get_key_wait(0x27, key_waits) then -- right
+				self.cursor = self.cursor + 1
+			end
+			local charLength <const> = #self.char
+			self.cursor = self.cursor > charLength and charLength or self.cursor
+			self.cursor = self.cursor < 1 and 1 or self.cursor
+
+			if utils.time_ms() - indicator > 500 then
+				self.show_indicator = not self.show_indicator
+				indicator = utils.time_ms()
+			end
+
+			if cheeseUtils.get_key_wait(0x08, key_waits, nil, 75) and self.cursor ~= 1 then
+				table.remove(self.char, self.cursor)
+				self.str = table.concat(self.char)
+				last_cursor = -1
+				self.cursor = self.cursor - 1
+			end
+
+			if copy_paste_do_key(0x56, 0x11) then
+				for char in utils.from_clipboard():gsub(self.paste_check, ""):gmatch(".") do
+					if #self.str > self.limit then
+						break
+					end
+					self:add_char(char)
+				end
+			elseif copy_paste_do_key(0x43, 0x11) then
+				utils.to_clipboard(self.str)
+			end
+
+			for key_code, str_table in pairs(self.keys) do
+				if #self.str < self.limit and cheeseUtils.get_key_wait(key_code, key_waits) and not keys.ctrl:is_down() then
+					self:add_char(keys.shift:is_down() and (str_table[2] or str_table[1]:upper()) or str_table[1])
+				end
+			end
+		end
+
+		return self.active and 1 or 2, self.str
+	end
+
+	---@class input_box
+	---@field update			function
+	---@field set_value			function
+	---@field set_colors		function
+	---@field set_placeholder	function
+	---@field set_text_y_offset	function
+	---@field set_active		function
+	---@field set_pos			function
+
+	---@return input_box
+	--[[
+		Input Box:
+
+		update:				run input box
+		set_value:			string
+		set_colors:			bg, outline, text, placeholder
+		set_placeholder:		string
+		set_text_y_offset:		pixel y
+		set_active:			bool
+		set_pos:			v2
+	]]
+	function cheeseUtils.input_box(pos, width, type, scale, font, limit, padding, placeholder)
+		local stuff = {
+			char				= {""},
+			str					= "",
+			pos					= pos,
+			width				= scriptdraw_size_pixel_to_rel_x(width),
+			scale				= scale or 1,
+			font				= font,
+			limit				= limit or 25,
+			keys				= cheeseUtils.char_codes[type+1],
+			padding				= v2(padding or 0, padding or 0) * 2,
+			placeholder			= placeholder,
+			text_y_offset		= 0,
+			text_size			= scriptdraw.get_text_size("O", 1, font),
+			newlines			= 1,
+			v2r					= cheeseUtils.new_reusable_v2(4),
+			draw				= draw_input_box,
+			is_within_hitbox	= is_within_hitbox,
+			update				= update_input_box,
+			set_value			= set_input_box_value,
+			add_char			= add_char_to_input,
+			set_colors			= set_colors,
+			set_placeholder		= set_placeholder,
+			set_text_y_offset	= set_text_y_offset,
+			set_active			= input_box_active,
+			set_pos				= set_input_pos,
+			range				= {},
+			color				= {}
+		}
+
+		stuff.padding:size_pixel_to_rel()
+		stuff.text_size:size_pixel_to_rel()
+
+		stuff.range['hitbox_x']		= cheeseUtils.create_range_converter(pos.x+stuff.width/2+stuff.padding.x, pos.x-stuff.width/2-stuff.padding.x, 0, 1)
+		stuff.range['inverse_x']	= cheeseUtils.create_range_converter(0, 1, pos.x+stuff.width/2+stuff.padding.x, pos.x-stuff.width/2-stuff.padding.x)
+		stuff.range['hitbox_y']		= cheeseUtils.create_range_converter(pos.y+stuff.text_size.y/2+stuff.padding.y, pos.y-stuff.text_size.y/2-stuff.padding.y, 0, 1)
+		stuff.range['inverse_y']	= cheeseUtils.create_range_converter(0, 1, pos.y+stuff.text_size.y/2+stuff.padding.y, pos.y-stuff.text_size.y/2-stuff.padding.y)
+
+		local pasteCheck <const> = {}
+		for _, v in pairs(stuff.keys) do
+			local concatenated = table.concat(v)
+			pasteCheck[#pasteCheck+1] = concatenated
+			if concatenated ~= concatenated:upper() then
+				pasteCheck[#pasteCheck+1] = concatenated:upper()
+			end
+		end
+		stuff.paste_check = "[^"..table.concat(pasteCheck):gsub(".", "%%%1").."]"
+
+		return stuff
 	end
 end
 
@@ -1250,8 +1800,8 @@ do
 	local hue_slider
 	local color_picker = cheeseUtils.mouse.xy_slider(
 		v2(),
-		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale)),
-		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale))
+		v2(scriptdraw_size_pixel_to_rel_x(256*size_scale), scriptdraw_size_pixel_to_rel_y(256*size_scale)),
+		v2(scriptdraw_size_pixel_to_rel_x(256*size_scale), scriptdraw_size_pixel_to_rel_y(256*size_scale))
 	)
 	color_picker:set_draw_function(function(slider)
 		local hue = (hue_slider.value.y)*360
@@ -1274,18 +1824,18 @@ do
 		slider.colors[3] = b
 		slider.colors[4] = a
 
-		scriptdraw.draw_circle(screen_pos, scriptdraw.size_pixel_to_rel_y(8*size_scale), 0xFFFFFFFF)
-		scriptdraw.draw_circle(screen_pos, scriptdraw.size_pixel_to_rel_y(6*size_scale), slider.color | 0xFF000000)
+		scriptdraw_draw_circle(screen_pos, scriptdraw_size_pixel_to_rel_y(8*size_scale), 0xFFFFFFFF)
+		scriptdraw_draw_circle(screen_pos, scriptdraw_size_pixel_to_rel_y(6*size_scale), slider.color | 0xFF000000)
 	end)
 	color_picker.color = 0
 	color_picker.colors = {}
 
-	local size = v2(scriptdraw.size_pixel_to_rel_x(48*size_scale), scriptdraw.size_pixel_to_rel_y(360*size_scale))
-	hue_slider = cheeseUtils.mouse.vertical_slider(v2(color_picker.pos.x+color_picker.size.x/2+scriptdraw.size_pixel_to_rel_x(50*size_scale), color_picker.pos.y-scriptdraw.size_pixel_to_rel_y(52*size_scale)), size, size, 0)
+	local size = v2(scriptdraw_size_pixel_to_rel_x(48*size_scale), scriptdraw_size_pixel_to_rel_y(360*size_scale))
+	hue_slider = cheeseUtils.mouse.vertical_slider(v2(color_picker.pos.x+color_picker.size.x/2+scriptdraw_size_pixel_to_rel_x(50*size_scale), color_picker.pos.y-scriptdraw_size_pixel_to_rel_y(52*size_scale)), size, size, 0)
 	hue_slider.hue = 0
 
 	local hue_gradient = {}
-	local hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(30*size_scale)
+	local hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw_size_pixel_to_rel_y(30*size_scale)
 	for i = 0, 6 do
 		local b, g, r = cheeseUtils.hsv_to_rgb(i*60)
 		local bottom = cheeseUtils.convert_rgba_to_int(r, g, b)
@@ -1294,46 +1844,46 @@ do
 		local top = cheeseUtils.convert_rgba_to_int(r, g, b)
 
 		hue_gradient[#hue_gradient+1] = {bottom = bottom, top = top, y = hue_y}
-		hue_y = hue_y + scriptdraw.size_pixel_to_rel_y(60*size_scale)
+		hue_y = hue_y + scriptdraw_size_pixel_to_rel_y(60*size_scale)
 	end
 
-	local hue_size = v2(scriptdraw.size_pixel_to_rel_x(48*size_scale), scriptdraw.size_pixel_to_rel_y(60*size_scale))
+	local hue_size = v2(scriptdraw_size_pixel_to_rel_x(48*size_scale), scriptdraw_size_pixel_to_rel_y(60*size_scale))
 	hue_slider:set_draw_function(function(slider)
 		for i = 1, 6 do
 			local hue_table = hue_gradient[i]
 			cheeseUtils.draw_rect_ext_wh(slider.v2r(slider.pos.x, hue_table.y), hue_size, hue_table.bottom, hue_table.top, hue_table.top, hue_table.bottom)
 		end
-		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x+scriptdraw.size_pixel_to_rel_x(6*size_scale), scriptdraw.size_pixel_to_rel_y(10*size_scale)), 0xFFFFFFFF)
+		scriptdraw_draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x+scriptdraw_size_pixel_to_rel_x(6*size_scale), scriptdraw_size_pixel_to_rel_y(10*size_scale)), 0xFFFFFFFF)
 
 		local b, g, r = cheeseUtils.hsv_to_rgb((slider.value.y)*360)
 		local color = cheeseUtils.convert_rgba_to_int(r, g, b)
-		scriptdraw.draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x, scriptdraw.size_pixel_to_rel_y(6*size_scale)), color)
+		scriptdraw_draw_rect(slider.v2r(slider.pos.x, slider.range.inverse_y(slider.value.y)), slider.v2r(slider.size.x, scriptdraw_size_pixel_to_rel_y(6*size_scale)), color)
 	end)
 
 	local hex = ""
 	local lastIntColor = 0
 	--(color_picker.pos.x+hue_slider.pos.x/2.4)/2
-	local color_pos = v2(color_picker.pos.x, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(76*size_scale))
-	local color_size = v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(57*size_scale))
-	local text_pos = v2(color_pos.x-scriptdraw.size_pixel_to_rel_x(30*size_scale), color_pos.y)
+	local color_pos = v2(color_picker.pos.x, color_picker.pos.y-color_picker.size.y/2-scriptdraw_size_pixel_to_rel_y(76*size_scale))
+	local color_size = v2(scriptdraw_size_pixel_to_rel_x(256*size_scale), scriptdraw_size_pixel_to_rel_y(57*size_scale))
+	local text_pos = v2(color_pos.x-scriptdraw_size_pixel_to_rel_x(30*size_scale), color_pos.y)
 
 	alpha_slider = cheeseUtils.mouse.horizontal_slider(
-		v2(color_picker.pos.x, color_pos.y+scriptdraw.size_pixel_to_rel_y(52*size_scale)),
-		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(15*size_scale)),
-		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(5*size_scale)),
+		v2(color_picker.pos.x, color_pos.y+scriptdraw_size_pixel_to_rel_y(52*size_scale)),
+		v2(scriptdraw_size_pixel_to_rel_x(256*size_scale), scriptdraw_size_pixel_to_rel_y(15*size_scale)),
+		v2(scriptdraw_size_pixel_to_rel_x(256*size_scale), scriptdraw_size_pixel_to_rel_y(5*size_scale)),
 		0
 	)
 
 	saturation_slider = cheeseUtils.mouse.horizontal_slider(
-		v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw.size_pixel_to_rel_y(15*size_scale)),
-		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(15*size_scale)),
-		v2(scriptdraw.size_pixel_to_rel_x(256*size_scale), scriptdraw.size_pixel_to_rel_y(5*size_scale))
+		v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw_size_pixel_to_rel_y(15*size_scale)),
+		v2(scriptdraw_size_pixel_to_rel_x(256*size_scale), scriptdraw_size_pixel_to_rel_y(15*size_scale)),
+		v2(scriptdraw_size_pixel_to_rel_x(256*size_scale), scriptdraw_size_pixel_to_rel_y(5*size_scale))
 	)
 
 	value_slider = cheeseUtils.mouse.vertical_slider(
-		v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw.size_pixel_to_rel_x(15*size_scale), color_picker.pos.y),
-		v2(scriptdraw.size_pixel_to_rel_x(15*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale)),
-		v2(scriptdraw.size_pixel_to_rel_x(5*size_scale), scriptdraw.size_pixel_to_rel_y(256*size_scale))
+		v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw_size_pixel_to_rel_x(15*size_scale), color_picker.pos.y),
+		v2(scriptdraw_size_pixel_to_rel_x(15*size_scale), scriptdraw_size_pixel_to_rel_y(256*size_scale)),
+		v2(scriptdraw_size_pixel_to_rel_x(5*size_scale), scriptdraw_size_pixel_to_rel_y(256*size_scale))
 	)
 
 	local function set_rgba_values(r, g, b, a)
@@ -1347,7 +1897,7 @@ do
 			color_picker.value.y = val
 			value_slider.value.y = val
 
-			alpha_slider.value.x = a and a/255 or 255
+			alpha_slider.value.x = a and a/255 or 1
 		else
 			hue_slider.value.y = 1
 
@@ -1362,6 +1912,40 @@ do
 	end
 
 	-- Buttons
+		-- Previously Picked
+		local prev_pick_buttons = {}
+		do
+			local handler <const> = function(self)
+				local rgba <const> = self.rgba
+				set_rgba_values(rgba.r or 255, rgba.g or 255, rgba.b or 255, rgba.a or 255)
+			end
+
+			local highlight_size <const> = v2(scriptdraw_size_pixel_to_rel_x(60*size_scale), scriptdraw_size_pixel_to_rel_y(60*size_scale))
+			local draw <const> = function(self)
+				scriptdraw_draw_rect(self.pos, self:is_within_hitbox() and highlight_size or self.size, self.color)
+			end
+
+			local offset <const> = scriptdraw_size_pixel_to_rel_y(62.4*size_scale)
+			local pos <const> = v2(
+				hue_slider.pos.x + hue_slider.size.x/2 + scriptdraw_size_pixel_to_rel_x(40*size_scale),
+				hue_slider.pos.y + hue_slider.size.y/2 - scriptdraw_size_pixel_to_rel_y(24*size_scale)
+			)
+			for i = 1, 6 do
+				local button <const> = cheeseUtils.mouse.button(
+					"",
+					v2(pos.x, pos.y - (i ~= 1 and offset*(i-1) or 0)),
+					0, 0, 0, 0, nil, nil, nil, handler
+				)
+				button.rgba = {r = 0, g = 0, b = 0, a = 255}
+
+				local button_size <const> = v2(scriptdraw_size_pixel_to_rel_x(48*size_scale), scriptdraw_size_pixel_to_rel_y(48*size_scale))
+				button:set_draw_function(draw)
+				button:set_size(button_size)
+
+				prev_pick_buttons[i] = button
+			end
+		end
+
 		local hex_button_thread_func = function(button)
 			system.wait(250)
 			if button.data ~= 0 then
@@ -1414,22 +1998,22 @@ do
 
 		local apply_button = cheeseUtils.mouse.button(
 			"Apply",
-			v2(color_picker.pos.x+color_picker.size.x/4+(scriptdraw.size_pixel_to_rel_x(14)*size_scale), color_picker.pos.y-color_picker.size.y),
+			v2(color_picker.pos.x+color_picker.size.x/4+(scriptdraw_size_pixel_to_rel_x(14)*size_scale), color_picker.pos.y-color_picker.size.y),
 			0xDD000000, 0xDDFFFFFF, 0xDDFFFFFF, 0xDD000000, nil, size_scale, nil
 		)
 		apply_button:set_text(nil, apply_button.text_scale-0.15, nil, true)
 
 		do
 			local color_rect_size_right = color_pos.x + color_size.x/2 - apply_button.pos.x
-			local circle_x = scriptdraw.size_rel_to_pixel_y(apply_button.size.y)
-			circle_x = scriptdraw.size_pixel_to_rel_x(circle_x)
+			local circle_x = scriptdraw_size_rel_to_pixel_y(apply_button.size.y)
+			circle_x = scriptdraw_size_pixel_to_rel_x(circle_x)
 
 			apply_button:set_size(v2(color_rect_size_right*2-circle_x, apply_button.size.y))
 		end
 
 		local cancel_button = cheeseUtils.mouse.button(
 			"Cancel",
-			v2(color_picker.pos.x-color_picker.size.x/4-(scriptdraw.size_pixel_to_rel_x(14)*size_scale), color_picker.pos.y-color_picker.size.y),
+			v2(color_picker.pos.x-color_picker.size.x/4-(scriptdraw_size_pixel_to_rel_x(14)*size_scale), color_picker.pos.y-color_picker.size.y),
 			0xDD000000, 0xDDFFFFFF, 0xDDFFFFFF, 0xDD000000, nil, size_scale, nil
 		)
 		cancel_button:set_size(apply_button.size)
@@ -1440,28 +2024,41 @@ do
 	function cheeseUtils.set_color_picker_pos(pos)
 		color_picker:set_pos(pos)
 
-		hue_slider:set_pos(v2(color_picker.pos.x+color_picker.size.x/2+scriptdraw.size_pixel_to_rel_x(50*size_scale), color_picker.pos.y-scriptdraw.size_pixel_to_rel_y(52*size_scale)))
-		hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw.size_pixel_to_rel_y(30*size_scale)
+		hue_slider:set_pos(v2(color_picker.pos.x+color_picker.size.x/2+scriptdraw_size_pixel_to_rel_x(50*size_scale), color_picker.pos.y-scriptdraw_size_pixel_to_rel_y(52*size_scale)))
+		hue_y = hue_slider.pos.y-hue_slider.size.y/2+scriptdraw_size_pixel_to_rel_y(30*size_scale)
 		for i = 1, 7 do
 			hue_gradient[i].y = hue_y
-			hue_y = hue_y + scriptdraw.size_pixel_to_rel_y(60*size_scale)
+			hue_y = hue_y + scriptdraw_size_pixel_to_rel_y(60*size_scale)
 		end
 
-		color_pos.x, color_pos.y	= color_picker.pos.x, color_picker.pos.y-color_picker.size.y/2-scriptdraw.size_pixel_to_rel_y(76*size_scale)
-		text_pos.x, text_pos.y		= color_pos.x-scriptdraw.size_pixel_to_rel_x(30*size_scale), color_pos.y
+		do
+			local offset <const> = scriptdraw_size_pixel_to_rel_y(62.4*size_scale)
+			local prev_pick_pos <const> = v2(
+				hue_slider.pos.x + hue_slider.size.x/2 + scriptdraw_size_pixel_to_rel_x(40*size_scale),
+				hue_slider.pos.y + hue_slider.size.y/2 - scriptdraw_size_pixel_to_rel_y(24*size_scale)
+			)
+			prev_pick_buttons[1]:set_pos(prev_pick_pos)
+			for i = 2, 6 do
+				prev_pick_pos.y = prev_pick_pos.y - offset
+				prev_pick_buttons[i]:set_pos(prev_pick_pos)
+			end
+		end
 
-		alpha_slider:set_pos(v2(color_picker.pos.x, color_pos.y+scriptdraw.size_pixel_to_rel_y(52*size_scale)))
-		saturation_slider:set_pos(v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw.size_pixel_to_rel_y(15*size_scale)))
-		value_slider:set_pos(v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw.size_pixel_to_rel_x(15*size_scale), color_picker.pos.y))
+		color_pos.x, color_pos.y	= color_picker.pos.x, color_picker.pos.y-color_picker.size.y/2-scriptdraw_size_pixel_to_rel_y(76*size_scale)
+		text_pos.x, text_pos.y		= color_pos.x-scriptdraw_size_pixel_to_rel_x(30*size_scale), color_pos.y
+
+		alpha_slider:set_pos(v2(color_picker.pos.x, color_pos.y+scriptdraw_size_pixel_to_rel_y(52*size_scale)))
+		saturation_slider:set_pos(v2(color_picker.pos.x, color_picker.pos.y+color_picker.size.y/2+scriptdraw_size_pixel_to_rel_y(15*size_scale)))
+		value_slider:set_pos(v2(color_picker.pos.x-color_picker.size.x/2-scriptdraw_size_pixel_to_rel_x(15*size_scale), color_picker.pos.y))
 
 		hex_button:set_pos(text_pos)
-		apply_button:set_pos(v2(color_picker.pos.x+color_picker.size.x/4+scriptdraw.size_pixel_to_rel_x(14*size_scale), color_picker.pos.y-color_picker.size.y))
-		cancel_button:set_pos(v2(color_picker.pos.x-color_picker.size.x/4-scriptdraw.size_pixel_to_rel_x(14*size_scale), color_picker.pos.y-color_picker.size.y))
+		apply_button:set_pos(v2(color_picker.pos.x+color_picker.size.x/4+scriptdraw_size_pixel_to_rel_x(14*size_scale), color_picker.pos.y-color_picker.size.y))
+		cancel_button:set_pos(v2(color_picker.pos.x-color_picker.size.x/4-scriptdraw_size_pixel_to_rel_x(14*size_scale), color_picker.pos.y-color_picker.size.y))
 	end
 
 	--[[
-		local background_pos = v2((color_picker.pos.x+hue_slider.pos.x/3)/2, hue_slider.pos.y+scriptdraw.size_pixel_to_rel_y(10))
-		local background_size = v2(scriptdraw.size_pixel_to_rel_x(380), scriptdraw.size_pixel_to_rel_y(410))
+		local background_pos = v2((color_picker.pos.x+hue_slider.pos.x/3)/2, hue_slider.pos.y+scriptdraw_size_pixel_to_rel_y(10))
+		local background_size = v2(scriptdraw_size_pixel_to_rel_x(380), scriptdraw_size_pixel_to_rel_y(410))
 	]]
 
 	local running = false
@@ -1507,7 +2104,7 @@ do
 		end
 
 		-- Background
-			--scriptdraw.draw_rect(background_pos, background_size, 0xAA000000)
+			--scriptdraw_draw_rect(background_pos, background_size, 0xAA000000)
 
 		local sat = saturation_slider:update()
 		local val = value_slider:update()
@@ -1523,12 +2120,16 @@ do
 
 		alpha_slider:update()
 
+		for i = 1, 6 do
+			prev_pick_buttons[i]:update()
+		end
+
 		-- Apply and Cancel buttons
 			local cancel = cancel_button:update()
 			local apply = apply_button:update()
 
 		-- Color rect
-			scriptdraw.draw_rect(color_pos, color_size, color_picker.color)
+			scriptdraw_draw_rect(color_pos, color_size, color_picker.color)
 			--scriptdraw.draw_text(hex, text_pos, color_size, size_scale, 0xFFFFFFFF, 2)
 			hex_button.text = hex
 			hex_button:update()
@@ -1555,6 +2156,42 @@ do
 			color_picker.value.y = 0
 
 			cheeseUtils.set_color_picker_pos(v2())
+
+			if success then
+				local first_button <const> = prev_pick_buttons[1]
+				local is_new = first_button.color ~= color_picker.color
+				if is_new then
+					for i = 2, 6 do
+						local button <const> = prev_pick_buttons[i]
+						if button.color == color_picker.color then
+							button.color, first_button.color = first_button.color, button.color
+							button.rgba, first_button.rgba = first_button.rgba, button.rgba
+							is_new = false
+							break
+						end
+					end
+				end
+
+				if is_new then
+					for i = 6, 2, -1 do
+						local button <const> = prev_pick_buttons[i]
+						local prev_button <const> = prev_pick_buttons[i-1]
+
+						button:set_colors(prev_button.color)
+
+						for color, _ in pairs(button.rgba) do
+							button.rgba[color] = prev_button.rgba[color]
+						end
+					end
+
+					local colors <const> = color_picker.colors
+					first_button.rgba.r = colors[1]
+					first_button.rgba.g = colors[2]
+					first_button.rgba.b = colors[3]
+					first_button.rgba.a = colors[4]
+					first_button:set_colors(color_picker.color)
+				end
+			end
 
 			if not success then
 				return 2
