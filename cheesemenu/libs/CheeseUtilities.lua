@@ -1,5 +1,5 @@
 --Made by GhostOne
-local cheeseUtils = {version = "2.3"}
+local cheeseUtils = {version = "2.4"}
 
 local scriptdraw_size_rel_to_pixel_y	<const> = scriptdraw.size_rel_to_pixel_y
 local scriptdraw_size_rel_to_pixel_x	<const> = scriptdraw.size_rel_to_pixel_x
@@ -7,8 +7,12 @@ local scriptdraw_size_pixel_to_rel_x	<const> = scriptdraw.size_pixel_to_rel_x
 local scriptdraw_size_pixel_to_rel_y	<const> = scriptdraw.size_pixel_to_rel_y
 local scriptdraw_draw_rect				<const> = scriptdraw.draw_rect
 local scriptdraw_draw_circle			<const> = scriptdraw.draw_circle
+
 local math_abs							<const> = math.abs
+
 local str_sub							<const> = string.sub
+local str_find							<const> = string.find
+local str_lower							<const> = string.lower
 
 cheeseUtils.char_codes = {
 	{
@@ -908,8 +912,30 @@ do
 	end
 end
 
+-- Grid Position
+---@param start_pos		v2 start position
+---@param offset		float|number offset of each place in pixels
+---@param place			integer|number place in grid as integer
+---@param limit			integer|number if for example its set to 5 and place is 6, it'll move right then start at the top
+---@param flag			integer|number 1 = left instead of right, 2 = up instead of down, 3 = both
+---@return number x, number y
+function cheeseUtils.grid_pos(start_pos, offset, place, limit, flag)
+	place = place - 1
+	flag = flag or 0
+	local y_offset <const> = limit > 0 and place % limit or place
+	local x_offset <const> = limit > 0 and (place - y_offset) / limit or 0
+
+	local x_rel_offset <const> = limit > 0 and scriptdraw_size_pixel_to_rel_x(offset) or 0
+	local y_rel_offset <const> = scriptdraw_size_pixel_to_rel_y(offset)
+
+	local x <const> = start_pos.x + (flag & 1 ~= 0 and -x_offset or x_offset) * x_rel_offset
+	local y <const> = start_pos.y + (flag & 2 ~= 0 and y_offset or -y_offset) * y_rel_offset
+
+	return x, y
+end
+
 -- Find Longest Match
-function cheeseUtils.find_longest_match(search_str, find_str)
+function cheeseUtils.find_longest_match(search_str, find_str, case_insensitive)
 	local search_len	<const> = #search_str
 	local find_len		<const> = #find_str
 	local matches		<const> = {}
@@ -919,9 +945,10 @@ function cheeseUtils.find_longest_match(search_str, find_str)
 		local original_iter <const> = find_iter
 
 		for i = 1, search_len do
-			local search_char <const> = str_sub(search_str, i, i)
+			local search_char	<const> = str_sub(search_str, i, i)
+			local find_char		<const> = str_sub(find_str, find_iter, find_iter)
 
-			if search_char == str_sub(find_str, find_iter, find_iter) then
+			if case_insensitive and (str_lower(search_char) == str_lower(find_char)) or (search_char == find_char) then
 				matches[match_iter] = matches[match_iter] or {}
 				matches[match_iter][#matches[match_iter]+1] = search_char
 				find_iter = find_iter + 1
@@ -945,7 +972,7 @@ function cheeseUtils.find_longest_match(search_str, find_str)
 		end
 	end
 
-	return longest_match > 0 and table.concat(matches[longest_match_index]) or false
+	return longest_match > 0 and table.concat(matches[longest_match_index]), longest_match > 0 and matches or nil
 end
 
 -- Text Wrap
@@ -1966,20 +1993,20 @@ do
 				scriptdraw_draw_rect(self.pos, self:is_within_hitbox() and highlight_size or self.size, self.color)
 			end
 
-			local offset <const> = scriptdraw_size_pixel_to_rel_y(62.4*size_scale)
+			local button_size <const> = v2(scriptdraw_size_pixel_to_rel_x(48*size_scale), scriptdraw_size_pixel_to_rel_y(48*size_scale))
+			local offset <const> = 62.4*size_scale
 			local pos <const> = v2(
 				hue_slider.pos.x + hue_slider.size.x/2 + scriptdraw_size_pixel_to_rel_x(40*size_scale),
 				hue_slider.pos.y + hue_slider.size.y/2 - scriptdraw_size_pixel_to_rel_y(24*size_scale)
 			)
-			for i = 1, 6 do
+			for i = 1, 12 do
 				local button <const> = cheeseUtils.mouse.button(
 					"",
-					v2(pos.x, pos.y - (i ~= 1 and offset*(i-1) or 0)),
+					v2(cheeseUtils.grid_pos(pos, offset, i, 6, 0)),
 					0, 0, 0, 0, nil, nil, nil, handler
 				)
 				button.rgba = {r = 0, g = 0, b = 0, a = 255}
 
-				local button_size <const> = v2(scriptdraw_size_pixel_to_rel_x(48*size_scale), scriptdraw_size_pixel_to_rel_y(48*size_scale))
 				button:set_draw_function(draw)
 				button:set_size(button_size)
 
@@ -2073,15 +2100,17 @@ do
 		end
 
 		do
-			local offset <const> = scriptdraw_size_pixel_to_rel_y(62.4*size_scale)
+			local v2r <const> = v2()
+			local offset <const> = 62.4*size_scale
 			local prev_pick_pos <const> = v2(
 				hue_slider.pos.x + hue_slider.size.x/2 + scriptdraw_size_pixel_to_rel_x(40*size_scale),
 				hue_slider.pos.y + hue_slider.size.y/2 - scriptdraw_size_pixel_to_rel_y(24*size_scale)
 			)
 			prev_pick_buttons[1]:set_pos(prev_pick_pos)
-			for i = 2, 6 do
-				prev_pick_pos.y = prev_pick_pos.y - offset
-				prev_pick_buttons[i]:set_pos(prev_pick_pos)
+			for i = 2, 12 do
+				local x <const>, y <const> = cheeseUtils.grid_pos(prev_pick_pos, offset, i, 6, 0)
+				v2r.x, v2r.y = x, y
+				prev_pick_buttons[i]:set_pos(v2r)
 			end
 		end
 
@@ -2161,7 +2190,7 @@ do
 
 		alpha_slider:update()
 
-		for i = 1, 6 do
+		for i = 1, 12 do
 			prev_pick_buttons[i]:update()
 		end
 
@@ -2196,13 +2225,15 @@ do
 			color_picker.value.x = 0
 			color_picker.value.y = 0
 
-			cheeseUtils.set_color_picker_pos(v2())
+			if color_picker.pos.x ~= 0 or color_picker.pos.y ~= 0 then
+				cheeseUtils.set_color_picker_pos(v2())
+			end
 
 			if success then
 				local first_button <const> = prev_pick_buttons[1]
 				local is_new = first_button.color ~= color_picker.color
 				if is_new then
-					for i = 2, 6 do
+					for i = 2, 12 do
 						local button <const> = prev_pick_buttons[i]
 						if button.color == color_picker.color then
 							button.color, first_button.color = first_button.color, button.color
@@ -2214,7 +2245,7 @@ do
 				end
 
 				if is_new then
-					for i = 6, 2, -1 do
+					for i = 12, 2, -1 do
 						local button <const> = prev_pick_buttons[i]
 						local prev_button <const> = prev_pick_buttons[i-1]
 
