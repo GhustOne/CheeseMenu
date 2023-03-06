@@ -1,5 +1,5 @@
 --Made by GhostOne
-local cheeseUtils = {version = "2.4"}
+local cheeseUtils = {version = "2.4.1"}
 
 local scriptdraw_size_rel_to_pixel_y	<const> = scriptdraw.size_rel_to_pixel_y
 local scriptdraw_size_rel_to_pixel_x	<const> = scriptdraw.size_rel_to_pixel_x
@@ -925,13 +925,37 @@ function cheeseUtils.grid_pos(start_pos, offset, place, limit, flag)
 	local y_offset <const> = limit > 0 and place % limit or place
 	local x_offset <const> = limit > 0 and (place - y_offset) / limit or 0
 
-	local x_rel_offset <const> = limit > 0 and scriptdraw_size_pixel_to_rel_x(offset) or 0
-	local y_rel_offset <const> = scriptdraw_size_pixel_to_rel_y(offset)
+	local x_rel_offset <const> = limit > 0 and scriptdraw_size_pixel_to_rel_x(offset)/2 or 0
+	local y_rel_offset <const> = scriptdraw_size_pixel_to_rel_y(offset)/2
 
 	local x <const> = start_pos.x + (flag & 1 ~= 0 and -x_offset or x_offset) * x_rel_offset
 	local y <const> = start_pos.y + (flag & 2 ~= 0 and y_offset or -y_offset) * y_rel_offset
 
 	return x, y
+end
+
+do
+	local grid_pos <const> = cheeseUtils.grid_pos
+	local start_pos
+	local offset
+	local limit
+	local flag
+	local mod
+
+	local function iter_grid(max, place)
+		if place > max then return end
+		return place+mod, grid_pos(start_pos, offset, place, limit, flag)
+	end
+
+	function cheeseUtils.iter_grid(istart_pos, ioffset, ilimit, iflag, istart_place, imod, imax)
+		start_pos = istart_pos or 0
+		offset = ioffset or 0
+		limit = ilimit or 0
+		flag = iflag or 0
+		mod = imod or 0
+
+		return iter_grid, imax, istart_place
+	end
 end
 
 -- Find Longest Match
@@ -1994,7 +2018,7 @@ do
 			end
 
 			local button_size <const> = v2(scriptdraw_size_pixel_to_rel_x(48*size_scale), scriptdraw_size_pixel_to_rel_y(48*size_scale))
-			local offset <const> = 62.4*size_scale
+			local offset <const> = 62.4*size_scale*2
 			local pos <const> = v2(
 				hue_slider.pos.x + hue_slider.size.x/2 + scriptdraw_size_pixel_to_rel_x(40*size_scale),
 				hue_slider.pos.y + hue_slider.size.y/2 - scriptdraw_size_pixel_to_rel_y(24*size_scale)
@@ -2101,7 +2125,7 @@ do
 
 		do
 			local v2r <const> = v2()
-			local offset <const> = 62.4*size_scale
+			local offset <const> = 62.4*size_scale*2
 			local prev_pick_pos <const> = v2(
 				hue_slider.pos.x + hue_slider.size.x/2 + scriptdraw_size_pixel_to_rel_x(40*size_scale),
 				hue_slider.pos.y + hue_slider.size.y/2 - scriptdraw_size_pixel_to_rel_y(24*size_scale)
