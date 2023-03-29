@@ -188,6 +188,9 @@ if menu then
 		gltw.write(tbl, name, path, nil, nil, compile)
 	end
 
+	---@param fmap table table containing key value pairs, where value is the feature
+	---@param name string file containing saved data including or excluding .lua
+	---@param path string absolute or relative (starts at 2Take1Menu) path of folder containing saved file
 	function gltw.read_fmap(fmap, name, path)
 		local tbl <const> = gltw.read(name, path)
 		if not tbl then
