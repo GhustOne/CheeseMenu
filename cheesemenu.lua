@@ -379,6 +379,7 @@ function loadCurrentMenu()
 
 	stuff.menuData.color = {
 		background = {r = 0, g = 0, b = 0, a = 0},
+		sprite_background = {r = 255, g = 255, b = 255, a = 170},
 		sprite = 0xE6FFFFFF,
 		slider_active = {r = 255, g = 200, b = 0, a = 255},
 		slider_background = {r = 0, g = 0, b = 0, a = 160},
@@ -1539,6 +1540,7 @@ function loadCurrentMenu()
 			end
 			for k, v in pairs(settings.controls) do
 				stuff.controls[k] = v
+				menu_configuration_features.control_features[k]:set_str_data({v})
 			end
 			for k, v in pairs(stuff.controls) do
 				stuff.vkcontrols[k] = stuff.char_codes[v]
@@ -1769,11 +1771,12 @@ function loadCurrentMenu()
 				)
 			else
 				local value_str = "< "..tostring(rounded_value).." >"
+				local original_size
 				if v.str_data then
 					local pixel_size = scriptdraw.get_text_size(value_str, 1, font).x
 					local screenWidth = graphics.get_screen_width()
 					if pixel_size/screenWidth > 370/screenWidth then
-						local original_size = stuff.drawFeatParams.textSize
+						original_size = stuff.drawFeatParams.textSize
 						stuff.drawFeatParams.textSize = stuff.drawFeatParams.textSize * (370 / pixel_size * 0.8)
 						stuff.drawFeatParams.textSize = math.min(stuff.drawFeatParams.textSize + 0.2, original_size)
 					end
@@ -1787,6 +1790,8 @@ function loadCurrentMenu()
 					cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorText.r, stuff.drawFeatParams.colorText.g, stuff.drawFeatParams.colorText.b, stuff.drawFeatParams.colorText.a),
 					0, font
 				)
+
+				stuff.drawFeatParams.textSize = original_size or stuff.drawFeatParams.textSize
 			end
 		end
 	end
@@ -1811,15 +1816,16 @@ function loadCurrentMenu()
 			end
 		end
 		local background_sprite_path = stuff.path.background..(stuff.menuData.background_sprite.sprite or "")
-		if stuff.menuData.background_sprite.sprite and func.load_sprite(background_sprite_path) then
+		if stuff.menuData.background_sprite.sprite and func.load_sprite(background_sprite_path) and stuff.menuData.color.sprite_background.a > 0 then
 			scriptdraw.draw_sprite(
 				func.load_sprite(background_sprite_path),
 				cheeseUtils.memoize.v2((stuff.menuData.pos_x + stuff.menuData.background_sprite.offset.x)*2-1, (stuff.menuData.pos_y+stuff.menuData.background_sprite.offset.y+stuff.menuData.height/2+0.01458)*-2+1),
 				stuff.menuData.background_sprite.size,
 				0,
-				cheeseUtils.convert_rgba_to_int(255, 255, 255, stuff.menuData.color.background.a)
+				cheeseUtils.convert_rgba_to_int(stuff.menuData.color.sprite_background.r, stuff.menuData.color.sprite_background.g, stuff.menuData.color.sprite_background.b, stuff.menuData.color.sprite_background.a)
 			)
-		else
+		end
+		if stuff.menuData.color.background.a > 0 then
 			scriptdraw.draw_rect(
 				cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, (stuff.menuData.pos_y+stuff.menuData.border+stuff.menuData.height/2)*-2+1),
 				cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.height*2),
@@ -2524,9 +2530,8 @@ function loadCurrentMenu()
 		end
 	end, nil)
 	--End of threads
-	menu.notify("Kektram for teaching me lua & sharing neat functions\n\nRimuru for making the first separate ui that helped me in making cheese menu\n\nProddy for showing better ways to do things & sharing Script Manager", "Credits:", 12, 0x00ff00)
-	menu.notify("Controls can be found in\nScript Features > Cheese Menu > Controls", "CheeseMenu by GhostOne\n"..stuff.controls.open.." to open", 6, 0x00ff00)
 
+	-- menu configuration features
 	menu_configuration_features = {}
 	menu_configuration_features.cheesemenuparent = menu.add_feature("Cheese Menu", "parent")
 
@@ -2822,7 +2827,23 @@ function loadCurrentMenu()
 		menu_configuration_features.controls = menu.add_feature("Controls", "parent", menu_configuration_features.cheesemenuparent.id)
 
 			do
-				local proper_names = {
+				local control_handler <const> = function(f, k)
+					for k, v in pairs(stuff.char_codes) do
+						while cheeseUtils.get_key(v):is_down() do
+							system.wait(0)
+						end
+					end
+					menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+					local disablethread = menu.create_thread(stuff.disable_all_controls, nil)
+					local stringkey, vk = func.get_hotkey({}, {}, true)
+					if stringkey ~= "escaped" then
+						stuff.controls[k] = stringkey
+						stuff.vkcontrols[k] = vk
+						f:set_str_data({stringkey})
+					end
+					menu.delete_thread(disablethread)
+				end
+				local proper_names <const> = {
 					left = "Left",
 					up = "Up",
 					right = "Right",
@@ -2834,23 +2855,12 @@ function loadCurrentMenu()
 					specialKey = "Special Key",
 					revealMouse = "Reveal Mouse",
 				}
+				menu_configuration_features.control_features = {}
 				for k, v in pairs(stuff.controls) do
-					menu.add_feature(proper_names[k], "action_value_str", menu_configuration_features.controls.id, function(f)
-						for k, v in pairs(stuff.char_codes) do
-							while cheeseUtils.get_key(v):is_down() do
-								system.wait(0)
-							end
-						end
-						menu.notify("Press any button\nESC to cancel", "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
-						local disablethread = menu.create_thread(stuff.disable_all_controls, nil)
-						local stringkey, vk = func.get_hotkey({}, {}, true)
-						if stringkey ~= "escaped" then
-							stuff.controls[k] = stringkey
-							stuff.vkcontrols[k] = vk
-							f:set_str_data({stringkey})
-						end
-						menu.delete_thread(disablethread)
-					end):set_str_data({v})
+					local feat <const> = menu.add_feature(proper_names[k], "action_value_str", menu_configuration_features.controls.id, control_handler)
+					feat:set_str_data({v})
+					feat.data = k
+					menu_configuration_features.control_features[k] = feat
 				end
 			end
 
@@ -3295,6 +3305,8 @@ function loadCurrentMenu()
 			end
 		end
 	--
+	menu.notify("Kektram for teaching me lua & sharing neat functions\n\nRimuru for making the first separate ui that helped me in making cheese menu\n\nProddy for showing better ways to do things & sharing Script Manager", "Credits:", 12, 0x00ff00)
+	menu.notify("Controls can be found in\nScript Features > Cheese Menu > Controls", "CheeseMenu by GhostOne\n"..stuff.controls.open.." to open", 6, 0x00ff00)	
 end
 if httpTrustedOff then
 	loadCurrentMenu()
