@@ -1,5 +1,6 @@
 # CheeseMenu
-Cheese menu is a UI made for the 2take1 lua api, it is supposed to be as close as possible in usage to the 2t1 api to support luas not made for it.
+Cheese Menu is a user interface built using Lua, specifically designed to mimic the functionality of 2take1's API for features.
+As a result, it natively supports most 2take1 scripts.
 
 ## Preview
 ![GTA5_kzYH52SWMf](https://user-images.githubusercontent.com/71855034/176974636-6d80196e-fd48-47d6-8767-f18206ce5b81.png)
