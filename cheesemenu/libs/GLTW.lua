@@ -11,6 +11,52 @@ table[]	        gltw.read(string name, string path|nil(in same path as lua), tab
 -- if the 5th arg is true the function won't throw an error if the file doesn't exist and will return nil
 ]]
 
+local utils = utils
+if not utils then
+	utils = {}
+
+	function utils.get_current_path()
+		local file = io.popen("cd")
+		local result = file:read("a"):gsub("[\r\n]", "")
+		result = result:sub(-1) == "\\" and result or result.."\\"
+		file:close()
+
+		return result
+	end
+
+	utils.cd = utils.get_current_path()
+
+	function utils.file_exists(file_path)
+		local exists = false
+
+		local path = file_path:find("^[A-Z]:") and "" or utils.cd
+		path = path .. file_path
+
+		local file = io.popen('if exist "'..path..'" echo true')
+		local result = file:read("a")
+		file:close()
+
+		if result:find("true") then
+			exists = true
+		end
+
+		return exists
+	end
+
+	utils.dir_exists = utils.file_exists
+
+	function utils.make_dir(dir_path)
+		local path = dir_path:find("^[A-Z]:") and "" or utils.cd
+		path = path .. dir_path
+		path = path:gsub("/", "\\")
+
+		return os.execute('mkdir "'..path..'"')
+	end
+
+	menu = {}
+	function menu.notify() end
+end
+
 local gltw				<const>	= {}
 local type				<const> = type
 local l_next			<const> = next
@@ -19,7 +65,7 @@ local tostring			<const> = tostring
 local string_format		<const> = string.format
 local string_match		<const> = string.match
 
-local appdata_path		<const> = utils and utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\" or ""
+local appdata_path		<const> = utils.get_appdata_path and utils.get_appdata_path("PopstarDevs", "2Take1Menu").."\\" or utils.cd
 local _loadfile			<const> = _loadfile or loadfile
 
 local long_str_levels	<const> = {}
@@ -91,8 +137,32 @@ function gltw.write(tableTW, name, path, exclusions, exclude_empty, compiled)
 	string_lines[#string_lines + 1] = "}"
 
 	if name then
-		local file = io.open(path..name, "wb")
-		assert(file, "'"..name.."' was not created.")
+		if path == "" and name:find("[\\/]") then
+			path, name = name:match("(.+)[\\/]([^\\/]+)")
+		end
+
+		if not path:find("^[A-Z]:") then
+			path = appdata_path .. path
+		end
+
+		if not (path:sub(-1) == "\\" or path:sub(-1) == "/") then
+			path = path .. "\\"
+		end
+
+		local full_path = path .. name
+
+		if not utils.dir_exists(path) then
+			local made <const> = utils.make_dir(path)
+			if not made then
+				menu.notify('Invalid path, was not able to make a dir there. Cancelling...\n'..full_path, 'GLTW', 4, 0x0000FF)
+				print("INVALID PATH: "..full_path)
+				return
+			end
+			menu.notify('Path not found, created successfully.', "GLTW", 3, 0x00FF00)
+		end
+
+		local file = io.open(full_path, "wb")
+		assert(file, "'"..full_path.."' was not created.")
 
 		local stringified = table.concat(string_lines, "\n")
 
@@ -130,16 +200,19 @@ function gltw.read(name, path, addToTable, typeMatched, overrideError)
 	end
 
 	path = path or ""
+
+	if not path:find("^[A-Z]:") then
+		path = appdata_path .. path
+	end
+
 	if not (path:sub(-1) == "\\" or path:sub(-1) == "/") then
 		path = path .. "\\"
-	end
-	if not path:find("C:") then
-		path = appdata_path..path
 	end
 
 	local readTable = _loadfile(path..name, "tb")
 	if not readTable then
-		error("File does not exist. use an absoulte path or a relative path from 2Take1Menu folder.\nFile: "..path..name)
+		print("Error 404 Path: "..path..name)
+		error("File does not exist/couldn't be parsed.\nuse an absoulte path or a relative path from 2Take1Menu folder.\nFile: "..path..name)
 	end
 	readTable = readTable()
 
@@ -188,13 +261,16 @@ if menu then
 		gltw.write(tbl, name, path, nil, nil, compile)
 	end
 
+	--[[
+		this does not toggle/activate the features
+	]]
 	---@param fmap table table containing key value pairs, where value is the feature
 	---@param name string file containing saved data including or excluding .lua
 	---@param path string absolute or relative (starts at 2Take1Menu) path of folder containing saved file
-	function gltw.read_fmap(fmap, name, path)
-		local tbl <const> = gltw.read(name, path)
+	function gltw.read_fmap(fmap, name, path, override)
+		local tbl <const> = gltw.read(name, path, nil, nil, override)
 		if not tbl then
-			return
+			return false, "Failed to load file: "..(path and tostring(path) or "")..tostring(name)
 		end
 
 		for k, saved_data in pairs(tbl) do
@@ -207,6 +283,7 @@ if menu then
 				end
 			end
 		end
+		return true
 	end
 end
 

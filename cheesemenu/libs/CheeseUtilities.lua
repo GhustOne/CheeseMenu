@@ -1,5 +1,5 @@
 --Made by GhostOne
-local cheeseUtils = {version = "2.4.1"}
+local cheeseUtils <const> = {version = "2.4.1"}
 
 local scriptdraw_size_rel_to_pixel_y	<const> = scriptdraw.size_rel_to_pixel_y
 local scriptdraw_size_rel_to_pixel_x	<const> = scriptdraw.size_rel_to_pixel_x
@@ -315,6 +315,7 @@ function cheeseUtils.get_key(...)
 
 	return cheeseUtils.Keys[ID], ID
 end
+--
 
 function cheeseUtils.new_reusable_v2(limit)
 	limit = limit or 2
@@ -1122,7 +1123,7 @@ function cheeseUtils.rgb_to_hsv(r, g, b)
 	return hue, saturation, value
 end
 
--- get control wether disabled or not
+-- get control whether disabled or not
 function cheeseUtils.controls_get_normal(...)
 	return math.max(menu.is_trusted_mode_enabled(4) and native.call(0x11E65974A982637C, ...):__tonumber() or 0, controls.get_control_normal(...))
 end

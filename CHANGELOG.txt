@@ -1,5 +1,13 @@
-- Organized Menu UI features
-- Added Set position with mouse
-- Added On Screen Shortcuts for features
-- Added Apply/Cancel buttons for Color Picker
-- Made hex text a button in Color Picker (one click = copy, two clicks = input)
+v1.11
+- Added Individual Trusted Mode for each script with "Spoof Trusted Modes"
+- Shows which player's feature was activated with bind hotkey
+- Checking if Auto Updater code has loaded correctly before running
+- Improvements to handling player features
+- Improvements to get_player_feature
+- Improvements to delete_feature/player_feature
+- Fixed generating functions on key press
+- Fixed Side window scaling issue
+- Fixed text scaling bug after value_str features
+- Fixed Shortcut reveal when file doesn't exist
+- Fixed NONE Header not sticking
+- Fixed Refresh Scripts & Search Script Features in Proddy's manager

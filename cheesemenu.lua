@@ -24,7 +24,7 @@
 ,8'         `         `8.`8888. 8 888888888888 8            `Yo    `Y88888P'
 ]]
 
-local version = "1.10"
+local version = "1.11"
 local loadCurrentMenu
 local httpTrustedOff
 
@@ -63,6 +63,10 @@ if menu.is_trusted_mode_enabled(1 << 3) and menu.is_trusted_mode_enabled(1 << 2)
 						local responseCode, autoupdater = web.get([[https://raw.githubusercontent.com/GhustOne/CheeseMenu/main/CMAutoUpdater.lua]])
 						if responseCode == 200 then
 							autoupdater = load(autoupdater)
+							if not autoupdater then
+								menu.notify("Error with loading Auto Updater\nNo files have been replaced.", "Cheese Menu", 5, 0x0000FF)
+								break
+							end
 							menu.create_thread(function()
 								menu.notify("Update started, please wait...", "Cheese Menu")
 								local status = autoupdater()
@@ -94,6 +98,8 @@ else
 		httpTrustedOff = true
 	else
 		menu.notify("Trusted mode > Natives has to be on. If you wish for auto updates enable Http too.", "Cheese Menu", 5, 0x0000FF)
+		menu.exit()
+		return
 	end
 end
 
@@ -103,7 +109,7 @@ local func
 local stuff
 local menu_configuration_features
 function loadCurrentMenu()
-	features = {OnlinePlayers = {}}
+	features = {OnlinePlayers = {}, children = {}}
 	currentMenu = features
 	func = {}
 	stuff = {
@@ -373,7 +379,7 @@ function loadCurrentMenu()
 	}
 	cheeseUIdata = stuff.menuData
 	stuff.input = require("cheesemenu.libs.Get Input")
-	local gltw = require("cheesemenu.libs.GLTW")
+	gltw = require("cheesemenu.libs.GLTW")
 	local cheeseUtils = require("cheesemenu.libs.CheeseUtilities")
 	assert(gltw, "GLTW library is not found, please install the menu with 'cheesemenu' folder.")
 
@@ -407,8 +413,23 @@ function loadCurrentMenu()
 	}
 
 	stuff.path.cheesemenu = stuff.path.scripts.."cheesemenu\\"
+	if not utils.dir_exists(stuff.path.cheesemenu) then
+		menu.notify("The main folder 'cheesemenu' does not exist.\nMake sure you put it in scripts along with the lua script.", "Cheese Menu", 5, 0x0000FF)
+		menu.exit()
+		return
+	end
+
 	for k, v in pairs(utils.get_all_sub_directories_in_directory(stuff.path.cheesemenu)) do
 		stuff.path[v] = stuff.path.cheesemenu..v.."\\"
+	end
+	if not (stuff.path.background
+	and stuff.path.header
+	and stuff.path.hotkeys
+	and stuff.path.ui
+	and stuff.path.libs) then
+		menu.notify("One or more of the required folders does not exist, Please make sure you installed correctly.", "Cheese Menu", 5, 0x0000FF)
+		menu.exit()
+		return
 	end
 
 	stuff.menuData.background_sprite.fit_size_to_width = function(self)
@@ -500,6 +521,9 @@ function loadCurrentMenu()
 	end
 
 	stuff.saved_shortcuts = gltw.read("shortcuts", stuff.path.hotkeys, nil, false, true)
+	if not stuff.saved_shortcuts then
+		stuff.saved_shortcuts = {}
+	end
 
 	--local originalGetInput = input.get
 	if stuff.input then
@@ -538,7 +562,7 @@ function loadCurrentMenu()
 		local _ENV <const> = {
 			getmetatable = debug.getmetatable
 		}
-		function stuff.rawget(Table, index, value) -- Matches performance of normal rawget.
+		function stuff.rawget(Table, index) -- Matches performance of normal rawget.
 			local metatable <const> = getmetatable(Table)
 			local __index
 			if metatable then
@@ -559,43 +583,49 @@ function loadCurrentMenu()
 	stuff.featMetaTable = {
 		__index = function(t, k)
 			if k == "is_highlighted" then
-				return t == currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+				return t == currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
 			elseif k == "parent" then
 				return t.type >> 15 & 1 == 0 and func.get_feature(t.parent_id) or func.get_player_feature(t.parent_id)
 			elseif k == "value" or k == "min" or k == "mod" or k == "max" or k == "str_data" or k == "type" or k == "id" or k == "on" or k == "hidden" or k == "data" then
-				if t.playerFeat and k ~= "str_data" and k ~= "type" and k ~= "id" and k ~= "hidden" and k ~= "data" then
-					return stuff.rawget(t, "table_"..k)
-				else
-					return stuff.rawget(t, "real_"..k)
+				local pfeat = t.real_type >> 15 & 1 ~= 0 and k ~= "str_data" and k ~= "type" and k ~= "id" and k ~= "hidden" and k ~= "data"
+				if pfeat then
+					pfeat = {}
+					for pid = 0, 31 do
+						pfeat[pid] = t.feats[pid][k]
+					end
 				end
+				return pfeat or stuff.rawget(t, "real_"..k)
 			elseif k == "children" and t.type >> 11 & 1 ~= 0 then
 				return t:get_children()
 			elseif k == "hint" then
 				local hintTable = t.type >> 15 & 1 ~= 0 and stuff.player_feature_hints or stuff.feature_hints
 				return hintTable[t.id].str
-			--[[ else
-				return stuff.rawget(t, k) ]]
 			end
 		end,
 
 		__newindex = function(t, k, v)
-			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "is_highlighted", "'"..k.."' is read only")
-			if k == "on" and type(v) == "boolean" then
+			assert(k ~= "id" and k ~= "type" and k ~= "is_highlighted", "'"..k.."' is read only")
+			if k == "str_data" then
+				t:set_str_data(v)
+			elseif k == "on" and type(v) == "boolean" then
 				if t.real_on == v then
 					return
 				end
-				--[[ if t.type >> 11 & 1 ~= 0 and t.real_on ~= nil then
-					func.check_scroll(t.index, (t.parent_id > 0 and t.parent or features), not v)
-				end ]]
 				stuff.rawset(t, "real_on", v)
+
+				if t.shortcut and t.type & 1 ~= 0 then
+					local button <const> = stuff.shortcuts[t.shortcut]
+					button.text = button.data.name..": "..(button.data.on and "ON" or "OFF")
+				end
 
 				if t.feats then
 					for pid, feat in pairs(t.feats) do
 						if player.is_player_valid(pid) then
 							feat.on = v
-							--[[ if feat.type >> 11 & 1 ~= 0 then
-								func.check_scroll(feat.index, (feat.parent_id > 0 and stuff.feature_by_id[feat.ps_parent_id] or stuff.PlayerParent), not v)
-							end ]]
+						end
+						if feat.shortcut and feat.type & 1 ~= 0 then
+							local button <const> = stuff.shortcuts[feat.shortcut]
+							button.text = button.data.name..": "..(button.data.on and "ON" or "OFF")
 						end
 					end
 				else
@@ -645,13 +675,9 @@ function loadCurrentMenu()
 						stuff.rawset(t, "real_value", t.real_value >= t.real_max and t.real_max or t.real_value <= t.real_min and t.real_min or t.real_value)
 					end
 
-					if t["table_"..k] then
-						local is_num = t.type & 140 ~= 0
-						for i = 0, 31 do
-							t["table_"..k][i] = v
-							if is_num then
-								t["table_value"][i] = t["table_value"][i] >= t["table_max"][i] and t["table_max"][i] or t["table_value"][i] <= t["table_min"][i] and t["table_min"][i] or t["table_value"][i]
-							end
+					if t.feats then
+						for pid, feat in pairs(t.feats) do
+							feat[k] = v
 						end
 					end
 				end
@@ -660,10 +686,6 @@ function loadCurrentMenu()
 				if t.real_hidden == v then
 					return
 				end
-
-				--[[ if t.real_hidden ~= nil then
-					func.check_scroll(t.index, (t.parent_id > 0 and t.parent or features), v)
-				end ]]
 
 				t.real_hidden = v
 				if t.feats then
@@ -699,14 +721,15 @@ function loadCurrentMenu()
 	stuff.playerfeatMetaTable = {
 		__index = function(t, k)
 			if k == "is_highlighted" then
-				return t == currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+				return t == currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
 			elseif k == "parent" then
 				return func.get_player_feature(t.parent_id)
 			elseif k == "str_data" or k == "type" or k == "id" or k == "data" or k == "hidden" then
 				return stuff.rawget(t, "real_"..k)
 			elseif stuff.playerSpecialValues[k] then
-				if t["table_"..k:gsub("real_", "")] then
-					return t["table_"..k:gsub("real_", "")][t.pid]
+				k = k:gsub("real_", "")
+				if t["table_"..k] then
+					return t["table_"..k][t.pid]
 				end
 			elseif k == "children" and t.type >> 11 & 1 ~= 0 then
 				return t:get_children()
@@ -716,7 +739,7 @@ function loadCurrentMenu()
 		end,
 
 		__newindex = function(t, k, v)
-			assert(k ~= "id" and k ~= "children" and k ~= "type" and k ~= "str_data" and k ~= "is_highlighted", "'"..k.."' is read only")
+			assert(k ~= "id" and k ~= "type" and k ~= "str_data" and k ~= "is_highlighted", "'"..k.."' is read only")
 			if (k == "on" or k == "real_on") and type(v) == "boolean" then
 				t["table_on"][t.pid] = v
 				if v then
@@ -775,58 +798,6 @@ function loadCurrentMenu()
 
 	-- featMethods
 
-	-- dogshit dont use
-	--[[ stuff.set_val = function(self, valueType, val, dont_set_all)
-		assert(stuff.type_id.id_to_name[self.type]:match("value_[if]") or stuff.type_id.id_to_name[self.type]:match("value_str"), "feat type not supported")
-		assert(tonumber(val), "tried to set "..valueType.." to a non-number value")
-		if stuff.type_id.id_to_name[self.type]:match("value_i") then
-			val = tonumber(math.floor(val))
-		else
-			val = tonumber(val)
-		end
-
-		if valueType == "value" then
-			if self.real_min then
-				if val < self.real_min then
-					val = self.real_min
-				end
-			else
-				if val < 0 then
-					val = 0
-				end
-			end
-			if self.real_max then
-				if val > self.real_max then
-					val = self.real_max
-				end
-			elseif self.real_str_data then
-				if val+1 > #self.real_str_data then
-					val = #self.real_str_data-1
-				end
-			end
-		end
-
-		self[valueType] = val
-		if self["table_"..valueType] and not dont_set_all then
-			for i = 0, 31 do
-				self["table_"..valueType][i] = val
-			end
-		end
-	end
-
-	stuff.set_value = function(self, val, dont_set_all)
-		stuff.set_val(self, "value", val, dont_set_all)
-	end
-	stuff.set_max = function(self, val, dont_set_all)
-		stuff.set_val(self, "max", val, dont_set_all)
-	end
-	stuff.set_min = function(self, val, dont_set_all)
-		stuff.set_val(self, "min", val, dont_set_all)
-	end
-	stuff.set_mod = function(self, val, dont_set_all)
-		stuff.set_val(self, "mod", val, dont_set_all)
-	end ]]
-
 	stuff.get_str_data = function(self)
 		assert(self.type >> 5 & 1 ~= 0, "used get_str_data on a feature that isn't value_str")
 		return self.str_data
@@ -849,13 +820,11 @@ function loadCurrentMenu()
 			self.real_value = #self.real_str_data-1 >= 0 and #self.real_str_data-1 or 0
 		end
 		if self.feats then
-			for k, v in pairs(self.table_value) do
-				if v+1 > #self.real_str_data then
-					self.table_value[k] = #self.real_str_data-1
-				end
-			end
 			for k, v in pairs(self.feats) do
 				v.real_str_data = stringTable
+				if v.value+1 > #self.real_str_data then
+					v.value = #self.real_str_data-1
+				end
 			end
 		end
 	end
@@ -935,15 +904,17 @@ function loadCurrentMenu()
 
 		if not self.hidden then
 			local hiddenOffset = 0
-			for k, v in ipairs(parent_of_feat_wanted) do
-				if type(k) == "number" then
-					if v.hidden and not (k > self.index) then
-						hiddenOffset = hiddenOffset + 1
-					end
+			local index
+			for k, v in ipairs(parent_of_feat_wanted.children) do
+				if v == self then
+					index = k
+				end
+				if v.hidden then -- fix = go through until match self, when match self set index to variable and use to compare
+					hiddenOffset = hiddenOffset + 1
 				end
 			end
-			stuff.scroll = self.index - hiddenOffset
-			stuff.drawScroll = (stuff.maxDrawScroll >= self.index) and self.index-1 or stuff.maxDrawScroll
+			stuff.scroll = index - hiddenOffset
+			stuff.drawScroll = (stuff.maxDrawScroll >= index) and index-1 or stuff.maxDrawScroll
 		end
 
 		stuff.scrollHiddenOffset = 0
@@ -973,22 +944,21 @@ function loadCurrentMenu()
 	}
 
 	--Functions
-	function func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback, playerFeat)
+	function func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback, playerFeat, override)
 		assert((type(nameOfFeat) == "string"), "invalid name in add_feature")
 		assert((type(TypeOfFeat) == "string") and stuff.type_id.name_to_id[TypeOfFeat], "invalid type in add_feature")
 		assert((type(parentOfFeat) == "number") or not parentOfFeat, "invalid parent id in add_feature")
 		assert((type(functionCallback) == "function") or not functionCallback, "invalid function in add_feature")
-		playerFeat = playerFeat or false
 		parentOfFeat = parentOfFeat or 0
-		--TypeOfFeat = TypeOfFeat:gsub("slider", "value_f")
+		playerFeat = playerFeat or false
 		local currentParent = playerFeat and features["OnlinePlayers"] or features
 
 		local hierarchy_key
-		if parentOfFeat ~= 0 and parentOfFeat then
-			currentParent = playerFeat and stuff.player_feature_by_id[parentOfFeat] or stuff.feature_by_id[parentOfFeat]
+		if parentOfFeat ~= 0 then
+			currentParent = playerFeat and func.get_player_feature(parentOfFeat) or stuff.feature_by_id[parentOfFeat]
 			if currentParent then
 				assert(currentParent.type >> 11 & 1 ~= 0, "parent is not a parent feature")
-				assert(currentParent.type >> 15 & 1 ~= 0 == playerFeat, "parent is not valid "..((currentParent.type >> 15 & 1 ~= 0 and not playerFeat) and "using player feature as parent for a local feature" or (currentParent.type >> 15 & 1 == 0 and playerFeat and "using local parent for player feature") or "unknown"))
+				assert(currentParent.type >> 15 & 1 ~= 0 == playerFeat or override, "parent is not valid "..((currentParent.type >> 15 & 1 ~= 0 and not playerFeat) and "using player feature as parent for a local feature" or (currentParent.type >> 15 & 1 == 0 and playerFeat and "using local parent for player feature") or "unknown"))
 			else
 				error("parent does not exist")
 			end
@@ -999,8 +969,20 @@ function loadCurrentMenu()
 			hierarchy_key = nameOfFeat:gsub("[ %.]", "_")
 		end
 
-		currentParent[#currentParent + 1] = {name = nameOfFeat, real_type = stuff.type_id.name_to_id[TypeOfFeat] | (playerFeat and 1 << 15 or 0), real_id = 0, --[[parent = {id = currentParent.id or 0},]] parent_id = currentParent.id or 0, playerFeat = playerFeat, index = #currentParent + 1}
-		local feat = currentParent[#currentParent]
+		local feat <const> = {
+			name = nameOfFeat,
+			real_type = stuff.type_id.name_to_id[TypeOfFeat] | (playerFeat and 1 << 15 or 0),
+			real_id = 0,
+			parent_id = currentParent.id or 0,
+			player_parent_id = currentParent.player_feat_id or nil,
+			playerFeat = playerFeat,
+			index = #currentParent + 1
+		}
+		if not playerFeat then
+			currentParent.children = currentParent.children or {}
+			currentParent.children[#currentParent.children + 1] = feat
+		end
+
 		feat.activate_feat_func = stuff.activate_feat_func
 		feat.activate_hl_func = stuff.activate_hl_func
 		feat.set_str_data = stuff.set_str_data
@@ -1010,37 +992,13 @@ function loadCurrentMenu()
 		feat.select = stuff.select
 		setmetatable(feat, stuff.featMetaTable)
 		feat.thread = 0
-		--if feat.real_type & 1 ~= 0 or feat.real_type >> 9 & 1 ~= 0 then -- toggle
-			if playerFeat then
-				feat.table_on = {}
-				for i = 0, 31 do
-					feat.table_on[i] = feat.type >> 11 & 1 ~= 0
-				end
-			end
-			feat.on = feat.type >> 11 & 1 ~= 0
-		--end
+
+		feat.on = feat.type >> 11 & 1 ~= 0
+
 		if feat.real_type >> 5 & 1 ~= 0 then -- value_str
 			feat.real_str_data = {}
-			if playerFeat then
-				feat.table_value = {}
-				for i = 0, 31 do
-					feat.table_value[i] = 0
-				end
-			end
 			feat.value = 0
 		elseif feat.real_type >> 1 & 1 ~= 0 then --value any
-			if playerFeat then
-				feat.table_max = {}
-				feat.table_min = {}
-				feat.table_mod = {}
-				feat.table_value = {}
-				for i = 0, 31 do
-					feat.table_max[i] = 0
-					feat.table_min[i] = 0
-					feat.table_mod[i] = 1
-					feat.table_value[i] = 0
-				end
-			end
 			feat.max = 0
 			feat.min = 0
 			feat.mod = 1
@@ -1052,21 +1010,18 @@ function loadCurrentMenu()
 		if TypeOfFeat == "parent" then
 			feat.child_count = 0
 		end
-		currentParent.child_count = 0
-		for k, v in pairs(currentParent) do
-			if type(k) == "number" then
-				currentParent.child_count = currentParent.child_count + 1
-			end
-		end
+		currentParent.child_count = feat.children and #feat.children or 0
 
 		feat.hotkey = stuff.hierarchy_key_to_hotkey[hierarchy_key]
 		feat.hierarchy_key = hierarchy_key
-		if stuff.hotkey_feature_hierarchy_keys[hierarchy_key] then
-			stuff.hotkey_feature_hierarchy_keys[hierarchy_key][#stuff.hotkey_feature_hierarchy_keys[hierarchy_key] + 1] = feat
-	 	else
-			stuff.hotkey_feature_hierarchy_keys[hierarchy_key] = {feat}
+		if not playerFeat then
+			if stuff.hotkey_feature_hierarchy_keys[hierarchy_key] then
+				stuff.hotkey_feature_hierarchy_keys[hierarchy_key][#stuff.hotkey_feature_hierarchy_keys[hierarchy_key] + 1] = feat
+			else
+				stuff.hotkey_feature_hierarchy_keys[hierarchy_key] = {feat}
+			end
+			feat.hierarchy_id = #stuff.hotkey_feature_hierarchy_keys[hierarchy_key]
 		end
-		feat.hierarchy_id = #stuff.hotkey_feature_hierarchy_keys[hierarchy_key]
 
 		if stuff.saved_shortcuts and stuff.saved_shortcuts[hierarchy_key] then
 			func.add_shortcut(feat, stuff.saved_shortcuts[hierarchy_key])
@@ -1074,7 +1029,7 @@ function loadCurrentMenu()
 
 		if playerFeat then
 			stuff.player_feature_by_id[#stuff.player_feature_by_id+1] = feat
-			feat.real_id = #stuff.player_feature_by_id
+			feat.real_id = #stuff.player_feature_by_id << 32
 		else
 			stuff.feature_by_id[#stuff.feature_by_id+1] = feat
 			feat.real_id = #stuff.feature_by_id
@@ -1083,7 +1038,6 @@ function loadCurrentMenu()
 	end
 
 	--player feature functions
-
 	-- if you set a toggle player feature to on it'll enable for any valid players/joining players but if a player leaves functions like player.get_player_name will return nil before the feature is turned off
 	function func.add_player_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback)
 		parentOfFeat = parentOfFeat or 0
@@ -1091,32 +1045,21 @@ function loadCurrentMenu()
 		local pfeat = func.add_feature(nameOfFeat, TypeOfFeat, parentOfFeat, functionCallback, highlightCallback, true)
 		pfeat.feats = {}
 
-		if parentOfFeat == 0 then
-			for k = 0, 31 do
-				stuff.playerIds[k][#stuff.playerIds[k]+1] = {}
-				local currentFeat = stuff.playerIds[k][#stuff.playerIds[k]]
-				func.add_to_table(pfeat, currentFeat, k, nil, true)
-				stuff.feature_by_id[#stuff.feature_by_id+1] = currentFeat
-				currentFeat.ps_id = #stuff.feature_by_id
-				currentFeat.ps_parent_id = stuff.playerIds[k].id
-				currentFeat.pid = k
-				pfeat.feats[k] = currentFeat
-			end
+		local is_inside_parent = parentOfFeat ~= 0
+		local parent
+		if is_inside_parent then
+			parent = func.get_player_feature(parentOfFeat).feats
 		else
-			local playerParent = stuff.player_feature_by_id[parentOfFeat]
-			if playerParent then
-				for k = 0, 31 do
-					playerParent.feats[k][#playerParent.feats[k]+1] = {}
-					local currentFeat = playerParent.feats[k][#playerParent.feats[k]]
+			parent = stuff.playerIds
+		end
 
-					func.add_to_table(pfeat, currentFeat, k, nil, true)
-					stuff.feature_by_id[#stuff.feature_by_id+1] = currentFeat
-					currentFeat.ps_id = #stuff.feature_by_id
-					currentFeat.ps_parent_id = playerParent.feats[k].ps_id
-					currentFeat.pid = k
-					pfeat.feats[k] = currentFeat
-				end
-			end
+		for k = 0, 31 do
+			local player_parent = parent[k]
+			local currentFeat = func.add_feature(nameOfFeat, TypeOfFeat, player_parent.id, functionCallback, highlightCallback, false, true) --player_parent[#player_parent]
+			currentFeat.player_feat_id = pfeat.id
+
+			currentFeat.pid = k
+			pfeat.feats[k] = currentFeat
 		end
 
 		return pfeat
@@ -1183,7 +1126,6 @@ function loadCurrentMenu()
 			stuff.playerIds[i].pid = i
 			stuff.playerIds[i].hidden = not player.is_player_valid(i)
 			stuff.playerIds[i].hierarchy_key = hierarchy_pattern..i
-			stuff.playerIds[i].real_type = 1 << 15 | stuff.playerIds[i].type
 		end
 
 		event.add_event_listener("player_join", function(listener)
@@ -1191,7 +1133,7 @@ function loadCurrentMenu()
 			stuff.playerIds[listener.player].hidden = false
 			stuff.playerIds[listener.player].name = player.get_player_name(listener.player)
 			func.reset_player_submenu(listener.player)
-			table.sort(stuff.PlayerParent, stuff.table_sort_functions[stuff.player_submenu_sort])
+			table.sort(stuff.PlayerParent.children, stuff.table_sort_functions[stuff.player_submenu_sort])
 		end)
 		event.add_event_listener("player_leave", function(listener)
 			func.reset_player_submenu(listener.player)
@@ -1199,7 +1141,7 @@ function loadCurrentMenu()
 				stuff.playerIds[listener.player].hidden = true
 				stuff.playerIds[listener.player].name = "nil"
 			end
-			table.sort(stuff.PlayerParent, stuff.table_sort_functions[stuff.player_submenu_sort])
+			table.sort(stuff.PlayerParent.children, stuff.table_sort_functions[stuff.player_submenu_sort])
 		end)
 
 		return stuff.PlayerParent
@@ -1212,11 +1154,11 @@ function loadCurrentMenu()
 				local feat_type = v.type
 				if feat_type then
 					if feat_type >> 1 & 1 ~= 0 then -- toggle
-						v.table_value[pid] = v.real_value
+						v.feats[pid].value = v.real_value
 						if feat_type & 136 ~= 0 then -- value if
-							v.table_min[pid] = v.real_min
-							v.table_max[pid] = v.real_max
-							v.table_mod[pid] = v.real_mod
+							v.feats[pid].min = v.real_min
+							v.feats[pid].max = v.real_max
+							v.feats[pid].mod = v.real_mod
 						end
 					end
 					if feat_type & 1 ~= 0 then -- toggle
@@ -1224,7 +1166,6 @@ function loadCurrentMenu()
 							v.feats[pid].on = v.real_on
 						else
 							v.feats[pid].on = false
-							v.table_on[pid] = false
 						end
 					end
 					if feat_type >> 11 & 1 ~= 0 then -- parent
@@ -1241,14 +1182,14 @@ function loadCurrentMenu()
 			if bool then
 				--stuff.scroll = stuff.scroll - 1
 				--stuff.scroll = stuff.scroll > 0 and stuff.scroll or 0
-				if #currentMenu - stuff.drawHiddenOffset > 1 and stuff.scroll - 1 > 0 then
+				if #currentMenu.children - stuff.drawHiddenOffset > 1 and stuff.scroll - 1 > 0 then
 					stuff.scroll = stuff.scroll - 1
 					if stuff.scroll - stuff.drawScroll <= 2 and stuff.drawScroll > 0 then
 						stuff.drawScroll = stuff.drawScroll - 1
 					end
 				end
 			else
-				if #currentMenu - stuff.drawHiddenOffset > 1 then
+				if #currentMenu.children - stuff.drawHiddenOffset > 1 then
 					stuff.scroll = stuff.scroll + 1
 					if stuff.scroll - stuff.drawScroll >= (stuff.menuData.max_features - 1) and stuff.drawScroll < stuff.maxDrawScroll then
 						stuff.drawScroll = stuff.drawScroll + 1
@@ -1300,28 +1241,11 @@ function loadCurrentMenu()
 	end
 
 	function func.get_feature(id)
-		assert(type(id) == "number" and id ~= 0, "invalid id in get_feature")
+		assert(type(id) == "number", "invalid id in get_feature")
 		return stuff.feature_by_id[id]
 	end
 
-	function func.delete_feature(id, bool_ps)
-		if type(id) == "table" then
-			id = id.id
-		end
-
-		local feat = stuff.feature_by_id[id]
-		if not feat then
-			return false
-		end
-
-		stuff.hotkey_feature_hierarchy_keys[feat.hierarchy_key][feat.hierarchy_id] = nil
-		func.delete_shortcut(feat.shortcut)
-
-		if stuff.old_selected == stuff.feature_by_id[id] then
-			stuff.old_selected = nil
-		end
-		stuff.feature_by_id[id] = nil
-
+	function func.delete_thread_handler(feat)
 		if feat.thread then
 			if not menu.has_thread_finished(feat.thread) then
 				menu.delete_thread(feat.thread)
@@ -1332,71 +1256,106 @@ function loadCurrentMenu()
 				menu.delete_thread(feat.hl_thread)
 			end
 		end
+	end
+
+	function func.delete_feature(id, recursive, bool_ps)
+		local feat <const> = type(id) == "table" and id or stuff.feature_by_id[id]
+		if not feat then
+			return false
+		end
+
+		if feat.type >> 11 & 1 ~= 0 and recursive and feat.child_count > 0 then
+			for _, child in pairs(feat.children) do
+				func.delete_feature(child)
+			end
+		elseif feat.child_count and feat.child_count > 0 then
+			return false
+		end
+
+		if feat.hierarchy_key and feat.hierarchy_id then
+			stuff.hotkey_feature_hierarchy_keys[feat.hierarchy_key][feat.hierarchy_id] = nil
+		end
+		func.delete_shortcut(feat.shortcut)
+
+		if stuff.old_selected == stuff.feature_by_id[id] then
+			stuff.old_selected = nil
+		end
+		stuff.feature_by_id[id] = nil
+
+		if (feat.thread and not menu.has_thread_finished(feat.thread)) or (feat.hl_thread and not menu.has_thread_finished(feat.hl_thread)) then
+			menu.create_thread(func.delete_thread_handler, feat)
+		end
 
 		local parent
-		if feat.parent_id ~= 0 or bool_ps then
-			parent = bool_ps and stuff.feature_by_id[feat.ps_parent_id] or stuff.feature_by_id[feat.parent_id]
+		if feat.parent_id ~= 0 then
+			parent = stuff.feature_by_id[feat.parent_id]
 		else
 			parent = features
 		end
+
+		if not parent then
+			return false
+		end
+
+		parent = parent.children
 
 		if feat.type >> 11 & 1 ~= 0 then
 			func.deleted_or_hidden_parent_check(feat)
 		end
 
-		local index = feat.index
+		local index
+		for i, f in pairs(parent) do
+			if f == feat then
+				index = i
+			end
+		end
+
+		if not index then
+			return false
+		end
+
 		if not bool_ps then
-			stuff.feature_hints[index] = nil
+			stuff.feature_hints[feat.id] = nil
 		end
-		table.remove(parent, tonumber(feat.index))
 
-		--func.check_scroll(index, parent, true)
-
-		for i = index, #parent do
-			parent[i].index = i
-		end
+		table.remove(parent, index)
 
 		return true
 	end
 
 	function func.delete_player_feature(id)
-		if type(id) == "table" then
-			id = id.id
-		end
-
-		stuff.player_feature_hints[id] = nil
-
-		local feat = stuff.player_feature_by_id[id]
-		if not feat then
+		local feat = type(id) == "table" and id or func.get_player_feature(id)
+		if not feat or feat.type >> 15 & 1 == 0 then
 			return false
 		end
 
-		stuff.player_feature_by_id[id] = nil
+		stuff.player_feature_hints[feat.id >> 32] = nil
+		stuff.player_feature_by_id[feat.id >> 32] = nil
 
 		local parent
 		if feat.parent_id ~= 0 then
-			parent = stuff.player_feature_by_id[feat.parent_id]
+			parent = func.get_player_feature(feat.parent_id)
 		else
 			parent = features["OnlinePlayers"]
 		end
 
 		for k, v in pairs(feat.feats) do
-			func.delete_feature(v.ps_id, true)
+			func.delete_feature(v, true, true)
 		end
 
-		local index = feat.index
-		table.remove(parent, tonumber(index))
-		for i = index, #parent do
-			parent[i].index = i
-			for pid = 0, 31 do
-				parent[i].feats[pid].index = i
+		local index
+		for i, f in pairs(parent) do
+			if f == feat then
+				index = i
 			end
 		end
+		table.remove(parent, tonumber(index))
 	end
 
 	function func.get_player_feature(id)
-		assert(type(id) == "number" and id ~= 0, "invalid id in get_player_feature")
-		return stuff.player_feature_by_id[id]
+		assert(type(id) == "number", "invalid id in get_player_feature")
+		local feat <const> = id & 0xFFFFFFFF ~= 0 and stuff.player_feature_by_id[stuff.feature_by_id[id].player_feat_id >> 32] or stuff.player_feature_by_id[id >> 32]
+		return feat
 	end
 
 	function func.do_key(time, key, doLoopedFunction, functionToDo)
@@ -1420,12 +1379,9 @@ function loadCurrentMenu()
 
 	stuff.header_ids = {}
 	function func.load_sprite(path_to_file, id_table)
-		--path = path or stuff.path.header
 		id_table = id_table or stuff.header_ids
 		path_to_file = tostring(path_to_file)
 		assert(path_to_file, "invalid header path")
-
-		--name = name:gsub("%.[a-z]+$", "")
 
 		if not id_table[path_to_file] then
 			if path_to_file:find("%.ogif") and utils.dir_exists(path_to_file:gsub("%.ogif", "")) then
@@ -1471,8 +1427,8 @@ function loadCurrentMenu()
 	function func.toggle_menu(bool)
 		stuff.menuData.menuToggle = bool
 		if stuff.menuData.menuToggle then
-			if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-				currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+			if currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset] then
+				currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 			end
 		end
 	end
@@ -1567,6 +1523,7 @@ function loadCurrentMenu()
 	function func.load_ui(name)
 		local uiTable = gltw.read(name, stuff.path.ui, stuff.menuData, true, true)
 		if not uiTable then
+			menu.notify("Failed to read UI", "Cheese Menu", 4, 0x0000ff)
 			return
 		end
 		if menu_configuration_features then
@@ -1580,8 +1537,6 @@ function loadCurrentMenu()
 				menu_configuration_features.backgroundfeat:toggle()
 			end
 
-			--[[ menu_configuration_features.menuXfeat.value = math.floor(stuff.menuData.pos_x*graphics.get_screen_width())
-			menu_configuration_features.menuYfeat.value = math.floor(stuff.menuData.pos_y*graphics.get_screen_height()) ]]
 			menu_configuration_features.maxfeats.value = math.floor(stuff.menuData.max_features)
 			menu_configuration_features.menuWidth.value = math.floor(stuff.menuData.width*graphics.get_screen_width())
 			menu_configuration_features.featXfeat.value = math.floor(stuff.menuData.feature_scale.x*graphics.get_screen_width())
@@ -1608,12 +1563,6 @@ function loadCurrentMenu()
 			menu_configuration_features.footerPadding.value = math.floor(stuff.menuData.footer.padding*graphics.get_screen_width())
 			menu_configuration_features.draw_footer.on = stuff.menuData.footer.draw_footer
 			menu_configuration_features.footer_pos_related_to_background.on = stuff.menuData.footer.footer_pos_related_to_background
-			--[[ menu_configuration_features.side_window_offsetx.value = math.floor(stuff.menuData.side_window.offset.x*graphics.get_screen_width())
-			menu_configuration_features.side_window_offsety.value = math.floor(stuff.menuData.side_window.offset.y*graphics.get_screen_height())
-			menu_configuration_features.side_window_spacing.value = math.floor(stuff.menuData.side_window.spacing*graphics.get_screen_height())
-			menu_configuration_features.side_window_padding.value = math.floor(stuff.menuData.side_window.padding*graphics.get_screen_width())
-			menu_configuration_features.side_window_width.value = math.floor(stuff.menuData.side_window.width*graphics.get_screen_width())
-			menu_configuration_features.side_window_on.on = stuff.menuData.side_window.on ]]
 			menu_configuration_features.text_font.value = stuff.menuData.fonts.text
 			menu_configuration_features.footer_font.value = stuff.menuData.fonts.footer
 			menu_configuration_features.hint_font.value = stuff.menuData.fonts.hint
@@ -1628,21 +1577,24 @@ function loadCurrentMenu()
 						menu_configuration_features[k].b.value = v.b
 						menu_configuration_features[k].a.value = v.a
 					else
-						menu_configuration_features[k].r.value = cheeseUtils.convert_int_to_rgba(v, "r")
-						menu_configuration_features[k].g.value = cheeseUtils.convert_int_to_rgba(v, "g")
-						menu_configuration_features[k].b.value = cheeseUtils.convert_int_to_rgba(v, "b")
-						menu_configuration_features[k].a.value = cheeseUtils.convert_int_to_rgba(v, "a")
+						local r, g, b, a <const> = cheeseUtils.convert_int_to_rgba(v, "r", "g", "b", "a")
+						menu_configuration_features[k].r.value = r
+						menu_configuration_features[k].g.value = g
+						menu_configuration_features[k].b.value = b
+						menu_configuration_features[k].a.value = a
 					end
 				end
 			end
 
-			for k, v in pairs(menu_configuration_features.headerfeat.str_data) do
-				if v == stuff.menuData.header then
-					menu_configuration_features.headerfeat.value = k - 1
+			if header then
+				for k, v in pairs(menu_configuration_features.headerfeat.str_data) do
+					if v == stuff.menuData.header then
+						menu_configuration_features.headerfeat.value = k - 1
+					end
 				end
 			end
 
-			if uiTable.background_sprite then
+			if bgSprite and uiTable.background_sprite then
 				for k, v in pairs(menu_configuration_features.backgroundfeat.str_data) do
 					if v == uiTable.background_sprite.sprite then
 						menu_configuration_features.backgroundfeat.value = k - 1
@@ -1659,10 +1611,6 @@ function loadCurrentMenu()
 		textSize = 0,
 	}
 	function func.draw_feat(k, v, offset, hiddenOffset)
-		--[[ stuff.drawFeatParams.rectPos.x = stuff.menuData.pos_x
-		stuff.drawFeatParams.rectPos.y = stuff.menuData.pos_y - stuff.menuData.feature_offset/2 + stuff.menuData.border
-		stuff.drawFeatParams.textOffset.x = stuff.menuData.feature_scale.x/2
-		stuff.drawFeatParams.textSize = textSize ]]
 		stuff.drawFeatParams.colorText = stuff.menuData.color.text
 		stuff.drawFeatParams.bottomLeft = stuff.menuData.color.feature_bottomLeft
 		stuff.drawFeatParams.topLeft = stuff.menuData.color.feature_topLeft
@@ -1683,11 +1631,6 @@ function loadCurrentMenu()
 		if offset == 0 then
 			local memv2 = cheeseUtils.memoize.v2
 			local posX = stuff.drawFeatParams.rectPos.x*2-1
-			--[[ scriptdraw.draw_rect(
-				cheeseUtils.memoize.v2(posX, posY),
-				cheeseUtils.memoize.v2(stuff.menuData.feature_scale.x*2, stuff.menuData.feature_scale.y*2),
-				cheeseUtils.convert_rgba_to_int(stuff.drawFeatParams.colorFeature.r, stuff.drawFeatParams.colorFeature.g, stuff.drawFeatParams.colorFeature.b, stuff.drawFeatParams.colorFeature.a)
-			) ]]
 			local Left = posX - stuff.menuData.feature_scale.x
 			local Right = posX + stuff.menuData.feature_scale.x
 			local Top = posY + stuff.menuData.feature_scale.y
@@ -1750,7 +1693,7 @@ function loadCurrentMenu()
 		end
 
 		if v.type >> 1 & 1 ~= 0 then -- value_i_f_str
-			local rounded_value = v.str_data and v.str_data[v.real_value + 1] or v.real_value
+			local rounded_value = v.str_data and v.str_data[v.value + 1] or v.value
 			if v.type >> 7 & 1 ~= 0 or v.type >> 2 & 1 ~= 0 then
 				rounded_value = (rounded_value * 10000) + 0.5
 				rounded_value = math.floor(rounded_value)
@@ -1808,7 +1751,7 @@ function loadCurrentMenu()
 			end
 		end
 		stuff.drawHiddenOffset = 0
-		for k, v in pairs(currentMenu) do
+		for k, v in pairs(currentMenu.children) do
 			if type(k) == "number" then
 				if v.hidden or (v.type >> 11 & 1 ~= 0 and not v.on) then
 					stuff.drawHiddenOffset = stuff.drawHiddenOffset + 1
@@ -1816,7 +1759,7 @@ function loadCurrentMenu()
 			end
 		end
 		local background_sprite_path = stuff.path.background..(stuff.menuData.background_sprite.sprite or "")
-		if stuff.menuData.background_sprite.sprite and func.load_sprite(background_sprite_path) and stuff.menuData.color.sprite_background.a > 0 then
+		if stuff.menuData.background_sprite.sprite and stuff.menuData.color.sprite_background.a > 0 and func.load_sprite(background_sprite_path) then
 			scriptdraw.draw_sprite(
 				func.load_sprite(background_sprite_path),
 				cheeseUtils.memoize.v2((stuff.menuData.pos_x + stuff.menuData.background_sprite.offset.x)*2-1, (stuff.menuData.pos_y+stuff.menuData.background_sprite.offset.y+stuff.menuData.height/2+0.01458)*-2+1),
@@ -1832,17 +1775,17 @@ function loadCurrentMenu()
 				cheeseUtils.convert_rgba_to_int(stuff.menuData.color.background.r, stuff.menuData.color.background.g, stuff.menuData.color.background.b, stuff.menuData.color.background.a)
 			)
 		end
-		if #currentMenu - stuff.drawHiddenOffset >= stuff.menuData.max_features  then
-			stuff.maxDrawScroll = #currentMenu - stuff.drawHiddenOffset - stuff.menuData.max_features
+		if #currentMenu.children - stuff.drawHiddenOffset >= stuff.menuData.max_features  then
+			stuff.maxDrawScroll = #currentMenu.children - stuff.drawHiddenOffset - stuff.menuData.max_features
 		else
 			stuff.maxDrawScroll = 0
 		end
 		if stuff.drawScroll > stuff.maxDrawScroll then
 			stuff.drawScroll = stuff.maxDrawScroll
 		end
-		if stuff.scroll > #currentMenu - stuff.drawHiddenOffset then
-			stuff.scroll = #currentMenu - stuff.drawHiddenOffset
-		elseif stuff.scroll < 1 and #currentMenu > 0 then
+		if stuff.scroll > #currentMenu.children - stuff.drawHiddenOffset then
+			stuff.scroll = #currentMenu.children - stuff.drawHiddenOffset
+		elseif stuff.scroll < 1 and #currentMenu.children > 0 then
 			stuff.scroll = 1
 		end
 
@@ -1860,7 +1803,7 @@ function loadCurrentMenu()
 		stuff.drawFeatParams.colorFeature = stuff.menuData.color.feature
 		stuff.drawFeatParams.textSize = stuff.menuData.text_size * stuff.menuData.text_size_modifier
 
-		for k, v in ipairs(currentMenu) do
+		for k, v in ipairs(currentMenu.children) do
 			if type(k) == "number" then
 				if v.hidden or (v.type >> 11 & 1 ~= 0 and not v.on) then
 					hiddenOffset = hiddenOffset + 1
@@ -1892,8 +1835,8 @@ function loadCurrentMenu()
 			scriptdraw.draw_rect(cheeseUtils.memoize.v2(stuff.menuData.pos_x*2-1, footer_y_pos), cheeseUtils.memoize.v2(stuff.menuData.width*2, stuff.menuData.footer.footer_size*2), footerColor)
 
 			local footerTextColor = cheeseUtils.convert_rgba_to_int(stuff.menuData.color.footer_text.r, stuff.menuData.color.footer_text.g, stuff.menuData.color.footer_text.b, stuff.menuData.color.footer_text.a)
-			local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-			local featHint = feat and (feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id] or stuff.feature_hints[feat.id])
+			local feat = currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
+			local featHint = feat and (feat.type >> 15 & 1 ~= 0 and stuff.player_feature_hints[feat.id >> 32] or stuff.feature_hints[feat.id])
 			if featHint then
 				local padding = scriptdraw.size_pixel_to_rel_y(5)
 				local hintStrSize = scriptdraw.size_pixel_to_rel_y(featHint.size.y) * (stuff.menuData.text_size * stuff.menuData.hint_size_modifier)
@@ -1928,7 +1871,7 @@ function loadCurrentMenu()
 			)
 
 			scriptdraw.draw_text(
-				tostring(stuff.scroll.." / "..(#currentMenu - stuff.drawHiddenOffset)),
+				tostring(stuff.scroll.." / "..(#currentMenu.children - stuff.drawHiddenOffset)),
 				cheeseUtils.memoize.v2((stuff.menuData.pos_x + stuff.menuData.width/2 - stuff.menuData.footer.padding)*2-1, text_y_pos),
 				cheeseUtils.memoize.v2(2, 2),
 				footer_size,
@@ -1968,7 +1911,7 @@ function loadCurrentMenu()
 		}
 		has to be in this structure, you can add more than three
 	]]
-	function func.draw_side_window(header_text, table_of_lines, v2pos, rect_color, rect_width, text_spacing, text_padding, text_color)
+	function func.draw_side_window(header_text, table_of_lines, v2pos, rect_color, rect_width, text_spacing, text_padding, text_color, text_size_multiplier)
 		text_color = text_color or 0xFFFFFFFF
 		assert(
 			type(header_text) == "string"
@@ -1988,6 +1931,7 @@ function loadCurrentMenu()
 		scriptdraw.draw_rect(v2pos, cheeseUtils.memoize.v2(rect_width, rect_height), rect_color)
 
 		local text_size = graphics.get_screen_width()*graphics.get_screen_height()/3686400*0.75+0.25
+		text_size = text_size * text_size_multiplier
 		-- Header text
 		scriptdraw.draw_text(header_text, cheeseUtils.memoize.v2(v2pos.x - scriptdraw.get_text_size(header_text, text_size, 0).x/graphics.get_screen_width(), v2pos.y+(rect_height/2)-0.015), cheeseUtils.memoize.v2(2, 2), text_size, text_color, 0, 0)
 		-- table_of_lines
@@ -2184,12 +2128,13 @@ function loadCurrentMenu()
 
 	--threads
 	menu.create_thread(function()
+		local tFunc <const> = function() -- F4
+			func.toggle_menu(not stuff.menuData.menuToggle)
+		end
 		while true do
 			stuff.menuData.menuNav = native.call(0x5FCF4D7069B09026):__tointeger() ~= 1 and not (stuff.menuData.inputBoxOpen or input.is_open() --[[or console.on]])
 			if stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.open, false, function() -- F4
-					func.toggle_menu(not stuff.menuData.menuToggle)
-				end)
+				func.do_key(500, stuff.vkcontrols.open, false, tFunc)
 			end
 			if currentMenu.hidden or not currentMenu then
 				currentMenu = stuff.previousMenus[#stuff.previousMenus].menu
@@ -2210,45 +2155,47 @@ function loadCurrentMenu()
 	menu.create_thread(function()
 		local selector_table = {"Hotkey", "On Screen Shortcut"}
 		local choice_table = {"Set", "Delete", "Reveal"}
+		local hFunc <const> = function() -- F11
+			func.toggle_menu(false)
+			local index = cheeseUtils.selector(nil, stuff.menuData.selector_speed, 1, selector_table)
+			if index then
+				local choice = cheeseUtils.selector(nil, stuff.menuData.selector_speed, 1, choice_table)
+				local feat = currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
+				if index == 1 then
+					if choice == 2 and stuff.hotkeys[feat.hotkey] then
+						stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
+						if not next(stuff.hotkeys[feat.hotkey]) then
+							stuff.hotkeys[feat.hotkey] = nil
+						end
+						feat.hotkey = nil
+						gltw.write(stuff.hotkeys, "hotkeys", stuff.path.hotkeys, nil, true)
+						menu.notify("Removed "..feat.name.."'s hotkey")
+					elseif choice == 3 then
+						menu.notify(feat.name.."'s hotkey is "..(feat.hotkey or "none"))
+					elseif choice == 1 then
+						if stuff.hotkeys[feat.hotkey] then
+							stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
+						end
+						if func.start_hotkey_process(feat) then
+							menu.notify("Set "..feat.name.."'s hotkey to "..feat.hotkey)
+						end
+					end
+				elseif index == 2 then
+					if choice == 1 then
+						func.add_shortcut(feat)
+					elseif choice == 2 then
+						func.delete_shortcut(feat.shortcut, true)
+					end
+					func.save_shortcuts()
+				end
+			end
+			func.toggle_menu(true)
+		end
+
 		while true do
 			system.wait(0)
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.setHotkey, false, function() -- F11
-					func.toggle_menu(false)
-					local index = cheeseUtils.selector(nil, stuff.menuData.selector_speed, 1, selector_table)
-					if index then
-						local choice = cheeseUtils.selector(nil, stuff.menuData.selector_speed, 1, choice_table)
-						local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-						if index == 1 then
-							if --[[cheeseUtils.get_key(0x10):is_down()]] choice == 2 and stuff.hotkeys[feat.hotkey] then
-								stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
-								if not next(stuff.hotkeys[feat.hotkey]) then
-									stuff.hotkeys[feat.hotkey] = nil
-								end
-								feat.hotkey = nil
-								gltw.write(stuff.hotkeys, "hotkeys", stuff.path.hotkeys, nil, true)
-								menu.notify("Removed "..feat.name.."'s hotkey")
-							elseif --[[cheeseUtils.get_key(0x11):is_down()]] choice == 3 then
-								menu.notify(feat.name.."'s hotkey is "..(feat.hotkey or "none"))
-							elseif choice == 1 then -- not cheeseUtils.get_key(0x10):is_down() and not cheeseUtils.get_key(0x11):is_down() then
-								if stuff.hotkeys[feat.hotkey] then
-									stuff.hotkeys[feat.hotkey][feat.hierarchy_key] = nil
-								end
-								if func.start_hotkey_process(feat) then
-									menu.notify("Set "..feat.name.."'s hotkey to "..feat.hotkey)
-								end
-							end
-						elseif index == 2 then
-							if choice == 1 then
-								func.add_shortcut(feat)
-							elseif choice == 2 then
-								func.delete_shortcut(feat.shortcut, true)
-							end
-							func.save_shortcuts()
-						end
-					end
-					func.toggle_menu(true)
-				end)
+				func.do_key(500, stuff.vkcontrols.setHotkey, false, hFunc)
 			end
 			local is_reveal_down = cheeseUtils.get_key(stuff.vkcontrols.revealMouse):is_down()
 			for _, shortcut in pairs(stuff.shortcuts) do
@@ -2260,172 +2207,156 @@ function loadCurrentMenu()
 		end
 	end,nil)
 	menu.create_thread(function()
+		local dFunc <const> = function() -- downKey
+			if stuff.scroll + stuff.drawHiddenOffset >= #currentMenu.children and #currentMenu.children - stuff.drawHiddenOffset > 1 then
+				stuff.scroll = 1
+				stuff.drawScroll = 0
+			elseif #currentMenu.children - stuff.drawHiddenOffset > 1 then
+				stuff.scroll = stuff.scroll + 1
+				if stuff.scroll - stuff.drawScroll >= (stuff.menuData.max_features - 1) and stuff.drawScroll < stuff.maxDrawScroll then
+					stuff.drawScroll = stuff.drawScroll + 1
+				end
+			end
+		end
 		while true do
 			system.wait(0)
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.down, true, function() -- downKey
-					--[[ local old_scroll = stuff.scroll + stuff.scrollHiddenOffset ]]
-					if stuff.scroll + stuff.drawHiddenOffset >= #currentMenu and #currentMenu - stuff.drawHiddenOffset > 1 then
-						stuff.scroll = 1
-						stuff.drawScroll = 0
-					elseif #currentMenu - stuff.drawHiddenOffset > 1 then
-						stuff.scroll = stuff.scroll + 1
-						if stuff.scroll - stuff.drawScroll >= (stuff.menuData.max_features - 1) and stuff.drawScroll < stuff.maxDrawScroll then
-							stuff.drawScroll = stuff.drawScroll + 1
-						end
-					end
-					--[[ if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
-						currentMenu[old_scroll]:activate_hl_func()
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
-						end
-					end ]]
-				end)
+				func.do_key(500, stuff.vkcontrols.down, true, dFunc)
 			end
 		end
 	end, nil)
 	menu.create_thread(function()
+		local uFunc <const> = function() -- upKey
+			if stuff.scroll <= 1 and #currentMenu.children - stuff.drawHiddenOffset > 1 then
+				stuff.scroll = #currentMenu.children
+				stuff.drawScroll = stuff.maxDrawScroll
+			elseif #currentMenu.children - stuff.drawHiddenOffset > 1 then
+				stuff.scroll = stuff.scroll - 1
+				if stuff.scroll - stuff.drawScroll <= 2 and stuff.drawScroll > 0 then
+					stuff.drawScroll = stuff.drawScroll - 1
+				end
+			end
+		end
 		while true do
 			system.wait(0)
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.up, true, function() -- upKey
-					--[[ local old_scroll = stuff.scroll + stuff.scrollHiddenOffset ]]
-					if stuff.scroll <= 1 and #currentMenu - stuff.drawHiddenOffset > 1 then
-						stuff.scroll = #currentMenu
-						stuff.drawScroll = stuff.maxDrawScroll
-					elseif #currentMenu - stuff.drawHiddenOffset > 1 then
-						stuff.scroll = stuff.scroll - 1
-						if stuff.scroll - stuff.drawScroll <= 2 and stuff.drawScroll > 0 then
-							stuff.drawScroll = stuff.drawScroll - 1
-						end
-					end
-					--[[ if old_scroll ~= (stuff.scroll + stuff.scrollHiddenOffset) then
-						currentMenu[old_scroll]:activate_hl_func()
-						if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
-						end
-					end ]]
-				end)
+				func.do_key(500, stuff.vkcontrols.up, true, uFunc)
 			end
 		end
 	end,nil)
 	menu.create_thread(function()
+		local sFunc <const> = function() --enter
+			local feat = currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
+			if feat then
+				if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() and feat.type >> 5 & 1 ~= 0 then
+					menu.create_thread(func.selector, feat)
+				elseif feat.type >> 11 & 1 ~= 0 and not feat.hidden then
+					stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
+					currentMenu = feat
+					currentMenu:activate_feat_func()
+					stuff.scroll = 1
+					system.wait(0)
+					stuff.drawScroll = 0
+					stuff.scrollHiddenOffset = 0
+					while cheeseUtils.get_key(stuff.vkcontrols.select):is_down() do
+						system.wait(0)
+					end
+				elseif feat.type & 1536 ~= 0 and not feat.hidden then
+					feat:activate_feat_func()
+				elseif feat.type & 1 ~= 0 and not feat.hidden then
+					feat.real_on = not feat.real_on
+					feat:activate_feat_func()
+				end
+			else
+				system.wait(100)
+			end
+		end
 		while true do
 			system.wait(0)
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.select, true, function() --enter
-					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-					if feat then
-						if cheeseUtils.get_key(stuff.vkcontrols.specialKey):is_down() and feat.type >> 5 & 1 ~= 0 then
-							menu.create_thread(func.selector, feat)
-						elseif feat.type >> 11 & 1 ~= 0 and not feat.hidden then
-							--feat:activate_hl_func()
-							stuff.previousMenus[#stuff.previousMenus + 1] = {menu = currentMenu, scroll = stuff.scroll, drawScroll = stuff.drawScroll, scrollHiddenOffset = stuff.scrollHiddenOffset}
-							currentMenu = feat
-							currentMenu:activate_feat_func()
-							stuff.scroll = 1
-							system.wait(0)
-							stuff.drawScroll = 0
-							stuff.scrollHiddenOffset = 0
-							--[[ if feat then
-								feat:activate_hl_func()
-							end ]]
-							while cheeseUtils.get_key(stuff.vkcontrols.select):is_down() do
-								system.wait(0)
-							end
-						elseif feat.type & 1536 ~= 0 and not feat.hidden then
-							feat:activate_feat_func()
-						elseif feat.type & 1 ~= 0 and not feat.hidden then
-							feat.real_on = not feat.real_on
-							feat:activate_feat_func()
+				func.do_key(500, stuff.vkcontrols.select, true, sFunc)
+			end
+		end
+	end, nil)
+	menu.create_thread(function()
+		local bFunc <const> = function() --backspace
+			if stuff.previousMenus[#stuff.previousMenus] then
+				currentMenu = stuff.previousMenus[#stuff.previousMenus].menu
+				stuff.scroll = stuff.previousMenus[#stuff.previousMenus].scroll
+				stuff.drawScroll = stuff.previousMenus[#stuff.previousMenus].drawScroll
+				stuff.scrollHiddenOffset = stuff.previousMenus[#stuff.previousMenus].scrollHiddenOffset
+				stuff.previousMenus[#stuff.previousMenus] = nil
+			end
+		end
+		while true do
+			system.wait(0)
+			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
+				func.do_key(500, stuff.vkcontrols.back, false, bFunc)
+			end
+		end
+	end, nil)
+	menu.create_thread(function()
+		local lFunc <const> = function() -- left
+			local feat = currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
+			if feat then
+				if feat.value then
+					if feat.str_data then
+						if feat.value <= 0 then
+							feat.value = #feat.str_data - 1
+						else
+							feat.value = feat.value - 1
 						end
 					else
-						system.wait(100)
+						if tonumber(feat.value) <= feat.min and feat.type >> 2 & 1 == 0 then
+							feat.value = feat.max
+						else
+							feat.value = tonumber(feat.value) - feat.mod
+						end
 					end
-				end)
+				end
+				if feat.type then
+					if feat.type >> 10 & 1 ~= 0 or (feat.type & 3 == 3 and feat.on) then
+						feat:activate_feat_func()
+					end
+				end
 			end
 		end
-	end, nil)
-	menu.create_thread(function()
 		while true do
 			system.wait(0)
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.back, false, function() --backspace
-					if stuff.previousMenus[#stuff.previousMenus] then
-						--[[ if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-							currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
-						end ]]
-						currentMenu = stuff.previousMenus[#stuff.previousMenus].menu
-						stuff.scroll = stuff.previousMenus[#stuff.previousMenus].scroll
-						stuff.drawScroll = stuff.previousMenus[#stuff.previousMenus].drawScroll
-						stuff.scrollHiddenOffset = stuff.previousMenus[#stuff.previousMenus].scrollHiddenOffset
-						stuff.previousMenus[#stuff.previousMenus] = nil
-						--currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
-					end
-				end)
+				func.do_key(500, stuff.vkcontrols.left, true, lFunc)
 			end
 		end
 	end, nil)
 	menu.create_thread(function()
-		while true do
-			system.wait(0)
-			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.left, true, function() -- left
-					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-					if feat then
-						if feat.value then
-							if feat.str_data then
-								if feat.value <= 0 then
-									feat.value = #feat.str_data - 1
-								else
-									feat.value = feat.value - 1
-								end
-							else
-								if tonumber(feat.value) <= feat.min and feat.type >> 2 & 1 == 0 then
-									feat.value = feat.max
-								else
-									feat.value = tonumber(feat.value) - feat.mod
-								end
-							end
+		local rFunc <const> = function() -- right
+			local feat = currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
+			if feat then
+				if feat.value then
+					if feat.str_data then
+						if tonumber(feat.value) >= tonumber(#feat.str_data) - 1 then
+							feat.value = 0
+						else
+							feat.value = feat.value + 1
 						end
-						if feat.type then
-							if feat.type >> 10 & 1 ~= 0 or (feat.type & 3 == 3 and feat.on) then
-								feat:activate_feat_func()
-							end
+					else
+						if tonumber(feat.value) >= feat.max and feat.type >> 2 & 1 == 0 then
+							feat.value = feat.min
+						else
+							feat.value = tonumber(feat.value) + feat.mod
 						end
 					end
-				end)
+				end
+				if feat.type then
+					if feat.type >> 10 & 1 ~= 0 or (feat.type & 3 == 3 and feat.on) then
+						feat:activate_feat_func()
+					end
+				end
 			end
 		end
-	end, nil)
-	menu.create_thread(function()
 		while true do
 			if stuff.menuData.menuToggle and stuff.menuData.menuNav then
-				func.do_key(500, stuff.vkcontrols.right, true, function() -- right
-					local feat = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
-					if feat then
-						if feat.value then
-							if feat.str_data then
-								if tonumber(feat.value) >= tonumber(#feat.str_data) - 1 then
-									feat.value = 0
-								else
-									feat.value = feat.value + 1
-								end
-							else
-								if tonumber(feat.value) >= feat.max and feat.type >> 2 & 1 == 0 then
-									feat.value = feat.min
-								else
-									feat.value = tonumber(feat.value) + feat.mod
-								end
-							end
-						end
-						if feat.type then
-							if feat.type >> 10 & 1 ~= 0 or (feat.type & 3 == 3 and feat.on) then
-								feat:activate_feat_func()
-							end
-						end
-					end
-				end)
+				func.do_key(500, stuff.vkcontrols.right, true, rFunc)
 			end
 			system.wait(0)
 		end
@@ -2438,8 +2369,8 @@ function loadCurrentMenu()
 				func.draw_current_menu()
 				if currentMenu and stuff.menuData.side_window.on then
 					local pid = currentMenu.pid
-					if not pid and currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						pid = currentMenu[stuff.scroll + stuff.scrollHiddenOffset].pid
+					if not pid and currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset] then
+						pid = currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset].pid
 					end
 					if pid and pid ~= stuff.pid then
 						if not stuff.playerIds[pid].hidden then
@@ -2470,18 +2401,19 @@ function loadCurrentMenu()
 							side_window_pos,
 							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_background.r, stuff.menuData.color.side_window_background.g, stuff.menuData.color.side_window_background.b, stuff.menuData.color.side_window_background.a),
 							stuff.menuData.side_window.width, stuff.menuData.side_window.spacing, stuff.menuData.side_window.padding,
-							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a)
+							cheeseUtils.convert_rgba_to_int(stuff.menuData.color.side_window_text.r, stuff.menuData.color.side_window_text.g, stuff.menuData.color.side_window_text.b, stuff.menuData.color.side_window_text.a),
+							stuff.menuData.text_size_modifier
 						)
 					end
 				end
-				if stuff.old_selected ~= currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
+				if stuff.old_selected ~= currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset] then
 					if type(stuff.old_selected) == "table" then
 						stuff.old_selected:activate_hl_func()
 					end
-					if currentMenu[stuff.scroll + stuff.scrollHiddenOffset] then
-						currentMenu[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
+					if currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset] then
+						currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]:activate_hl_func()
 					end
-					stuff.old_selected = currentMenu[stuff.scroll + stuff.scrollHiddenOffset]
+					stuff.old_selected = currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
 				end
 				controls.disable_control_action(0, 172, true)
 				controls.disable_control_action(0, 27, true)
@@ -2499,18 +2431,23 @@ function loadCurrentMenu()
 				for k, v in pairs(stuff.hotkeys) do
 					local hotkey = cheeseUtils.get_key(table.unpack(stuff.hotkeys_to_vk[k]))
 					if hotkey:is_down() and (not (cheeseUtils.get_key(0x10):is_down() or cheeseUtils.get_key(0x11):is_down() or cheeseUtils.get_key(0x12):is_down()) or not (k:match("NOMOD"))) and utils.time_ms() > stuff.hotkey_cooldowns[k] then
-						for k, v in pairs(stuff.hotkeys[k]) do
+						for k, v in pairs(v) do
 							if stuff.hotkey_feature_hierarchy_keys[k] then
 								for k, v in pairs(stuff.hotkey_feature_hierarchy_keys[k]) do
+									local player_name
+									if v.pid then
+										player_name = player.get_player_name(v.pid).."'s "
+									end
+
 									if v.type & 1 ~= 0 then
 										v.on = not v.on
 										if stuff.hotkey_notifications.toggle then
-											menu.notify("Turned "..v.name.." "..(v.on and "on" or "off"), "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+											menu.notify("Turned "..(player_name or "")..v.name.." "..(v.on and "on" or "off"), "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
 										end
 									else
 										v:activate_feat_func()
 										if stuff.hotkey_notifications.action then
-											menu.notify("Activated "..v.name, "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
+											menu.notify("Activated "..(player_name or "")..v.name, "Cheese Menu", 3, cheeseUtils.convert_rgba_to_int(stuff.menuData.color.notifications.r, stuff.menuData.color.notifications.g, stuff.menuData.color.notifications.b, stuff.menuData.color.notifications.a))
 										end
 									end
 								end
@@ -2655,11 +2592,6 @@ function loadCurrentMenu()
 			end
 		end
 
-		--[[ menu_configuration_features.load_ui = menu.add_feature("Load UI", "action_value_str", menu_configuration_features.profiles.id, function(f)
-			func.load_ui(f.str_data[f.value + 1])
-		end)
-		menu_configuration_features.load_ui:set_str_data(stuff.menuData.files.ui) ]]
-
 	menu_configuration_features.layoutParent = menu.add_feature("Layout", "parent", menu_configuration_features.menu_ui.id)
 
 	menu_configuration_features.maxfeats = menu.add_feature("Max features", "autoaction_value_i", menu_configuration_features.layoutParent.id, function(f)
@@ -2755,7 +2687,7 @@ function loadCurrentMenu()
 
 	-- Online Player Submenu Sorting
 		menu_configuration_features.player_submenu_sort = menu.add_feature("Online Players Sort:", "autoaction_value_str", menu_configuration_features.layoutParent.id, function(f)
-			table.sort(stuff.PlayerParent, stuff.table_sort_functions[f.value])
+			table.sort(stuff.PlayerParent.children, stuff.table_sort_functions[f.value])
 			stuff.player_submenu_sort = f.value
 		end)
 		menu_configuration_features.player_submenu_sort:set_str_data({'PID', 'PID Reversed', 'Alphabetically', 'Alphabetically Reversed', 'Host Priority', 'Host Priority Reversed'})
@@ -3264,46 +3196,13 @@ function loadCurrentMenu()
 
 	-- Proddy's Script Manager
 		gltw.read("Trusted Flags", stuff.path.cheesemenu, stuff, true, true)
-		menu.is_trusted_mode_enabled = function(flag)
-			if not flag then
-				return stuff.trusted_mode & 7 == 7, stuff.trusted_mode_notification
-			else
-				return stuff.trusted_mode & flag == flag, stuff.trusted_mode_notification
-			end
-		end
 
 		dofile("\\scripts\\cheesemenu\\libs\\Proddy's Script Manager.lua")
 
-		do
-			local trusted_parent = menu_get_feature_by_hierarchy_key("local.script_features.cheese_menu.proddy_s_script_manager.trusted_mode")
-
-			menu_originals.add_feature("Save Trusted Flags", "action", trusted_parent.id, function()
-				gltw.write({trusted_mode = stuff.trusted_mode, trusted_mode_notification = stuff.trusted_mode_notification}, "Trusted Flags", stuff.path.cheesemenu, nil, nil, true)
-				menu.notify("Saved Successfully", "Cheese Menu", 2, 0x00ff00)
-			end)
-
-			menu_originals.add_feature("Trusted Flags Notification", "toggle", trusted_parent.id, function(f)
-				stuff.trusted_mode_notification = f.on
-			end).on = stuff.trusted_mode_notification
-
-			local trusted_names = {
-				[0] = "Stats",
-				[1] = "Globals / Locals",
-				[2] = "Natives",
-				[3] = "HTTP",
-				[4] = "Memory"
-			}
-
-			for i = 0, 4 do
-				menu_originals.add_feature(trusted_names[i], "toggle", trusted_parent.id, function(f)
-					if f.on then
-						stuff.trusted_mode = stuff.trusted_mode | 1 << i
-					else
-						stuff.trusted_mode = stuff.trusted_mode ~ 1 << i
-					end
-				end).on = stuff.trusted_mode & 1 << i ~= 0
-			end
-		end
+		menu_originals.add_feature("Trusted Flags Notification", "toggle", menu_get_feature_by_hierarchy_key("local.script_features.cheese_menu.proddy_s_script_manager").id, function(f)
+			stuff.trusted_mode_notification = f.on
+			trusted_mode_notification = f.on
+		end).on = stuff.trusted_mode_notification
 	--
 	menu.notify("Kektram for teaching me lua & sharing neat functions\n\nRimuru for making the first separate ui that helped me in making cheese menu\n\nProddy for showing better ways to do things & sharing Script Manager", "Credits:", 12, 0x00ff00)
 	menu.notify("Controls can be found in\nScript Features > Cheese Menu > Controls", "CheeseMenu by GhostOne\n"..stuff.controls.open.." to open", 6, 0x00ff00)	

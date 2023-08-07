@@ -2,6 +2,8 @@ local ScriptName <const> = "Proddy's Script Manager (CheeseMenu)"
 local Version <const> = "2.3.2"
 local Exiting = false
 
+local FileFMAP <const> = {}
+
 local Paths <const> = {}
 Paths.Root = utils.get_appdata_path("PopstarDevs", "2Take1Menu")
 Paths.Cfg = Paths.Root .. "\\cfg"
@@ -10,6 +12,9 @@ Paths.Scripts = Paths.Root .. "\\scripts"
 
 local og_loadfile <const> = loadfile
 local og__loadfile <const> = _loadfile
+local function ploadfile(...)
+	return og__loadfile(...) or og_loadfile(...)
+end
 local og_load <const> = load
 local og_pcall <const> = _pcall
 local io_open <const> = io.open
@@ -181,7 +186,7 @@ local FirstChild
 local AutoloadFirstChild
 local FilterFeat
 
-menu_originals.add_feature("Trusted Mode", "parent", ParentId)
+-- menu_originals.add_feature("Trusted Mode", "parent", ParentId)
 
 local AutoloadParent <const> = menu_originals.add_feature("Manage Autoload Scripts", "parent", ParentId)
 local AutoloadParentId <const> = AutoloadParent.id
@@ -208,7 +213,7 @@ local function DeleteFeature(Feat)
 		if Feat.activate_feat_func then
 			delete_feature(Feat.id)
 		else
-			menu_originals.delete_feature(Feat.id)
+			menu_originals.delete_feature(Feat.id, Feat.type == 2048 and Feat.child_count > 0)
 		end
 	end
 end
@@ -216,11 +221,15 @@ local function DeletePlayerFeature(Feat)
 	delete_player_feature(Feat.id)
 end
 
+local fid_to_filename <const> = {}
+
 UnloadScript = function(f)
 	if Exiting then return end
 	if not f.data or type(f.data) ~= "table" or not f.data.ScriptManager then return end
 
-	print("Unloading script: " .. f.name)
+	local Filename = fid_to_filename[f.id]
+
+	print("Unloading script: " .. Filename)
 
 	local success, result = og_pcall(function(data)
 		if data.exits then
@@ -304,14 +313,14 @@ UnloadScript = function(f)
 		end
 	end, f.data)
 
-	LoadedScripts[f.name] = nil
+	LoadedScripts[Filename] = nil
 	f.data = nil
 	f.on = false
 
 	if success then
-		notify("Unloaded script: " .. f.name, 0xFF00FF00)
+		notify("Unloaded script: " .. Filename, 0xFF00FF00)
 	else
-		notify("Failed to unload script: " .. f.name .. "\n" .. result, 0xFF00FF00)
+		notify("Failed to unload script: " .. Filename .. "\n" .. result, 0xFF00FF00)
 	end
 
 	collectgarbage("collect")
@@ -359,6 +368,7 @@ local limited_functions = {
 		table = memory,
 		["get_any"] = true,
 		["get_entity"] = true,
+		["get_physical"] = true,
 		["get_ped"] = true,
 		["get_vehicle"] = true,
 		["get_object"] = true,
@@ -375,15 +385,15 @@ local limited_functions = {
 	},
 }
 
-local trusted_names = {
-	[0] = "Stats",
+local trusted_names <const> = {
+	"Stats",
 	"Globals / Locals",
 	"Natives",
 	"HTTP",
 	"Memory"
 }
 
-local modified_functions = {
+local blocked_functions <const> = {
 	stats = {},
 	script = {},
 	native = {},
@@ -391,19 +401,34 @@ local modified_functions = {
 	memory = {},
 }
 
+local namespace_to_child_num <const> = {
+	stats = 3,
+	script = 4,
+	native = 5,
+	web = 6,
+	memory = 7,
+}
+
 for k, v in ipairs(limited_functions) do
-	local namespace = v.namespace
+	local namespace <const> = v.namespace
 	for name, data in pairs(v) do
 		if data == true then
-			modified_functions[namespace][name] = function(...)
-				local is_flag_on, notify = menu.is_trusted_mode_enabled(1 << (k-1))
-				if is_flag_on then
-					return v.table[name](...)
-				elseif notify then
-					menu.notify("Trusted Flag '"..trusted_names[k-1].."' is not enabled.\nFunction used: "..namespace..'.'..name, "Cheese Menu", 5, 0x00ffff)
+			blocked_functions[namespace][name] = function(...)
+				if trusted_mode_notification then
+					menu.notify("Trusted Flag '"..trusted_names[k].."' is not enabled.\nFunction used: "..namespace..'.'..name, "Cheese Menu", 5, 0x00ffff)
 				end
 			end
 		end
+	end
+end
+
+local function remove_children_for_recursive(feat, feat_table)
+	for _, child in pairs(feat.children) do
+		if child.type >> 11 & 1 ~= 0 then
+			remove_children_for_recursive(child)
+		end
+		delete_feature(child.id)
+		feat_table[child.id] = nil
 	end
 end
 --
@@ -411,18 +436,20 @@ end
 local function LoadScript(f)
 	if f.on then
 		if not f.data then
-			local Filename = f.name
+			local Filename = fid_to_filename[f.id]
 			local Filepath = Paths.Scripts .. "\\" .. Filename
+
+			f.parent.name = "[R] "..Filename
 
 			if not utils.file_exists(Filepath) then
 				notify("Could not find script: " .. Filename,0xFF0000FF)
-				LoadedScripts[f.name] = nil
+				LoadedScripts[Filename] = nil
 				f.data = nil
 				f.on = false
 				return
 			end
 
-			print("Enabling script: " .. f.name)
+			print("Enabling script: " .. Filename)
 			f.data = {}
 			f.data.ScriptManager = true
 			f.data.features = {}
@@ -447,33 +474,79 @@ local function LoadScript(f)
 				end
 			end
 
-			for namespace, func_table in pairs(modified_functions) do
-				local env_namespace = env[namespace]
-				for name, func in pairs(func_table) do
-					env_namespace[name] = func
+			local parent_children <const> = f.parent.children
+			for namespace, func_table in pairs(blocked_functions) do
+				if not parent_children[namespace_to_child_num[namespace]].on then
+					local env_namespace = env[namespace]
+					for name, func in pairs(func_table) do
+						env_namespace[name] = func
+					end
 				end
+			end
+
+			local trusted_mode = parent_children[2].on and 31 or
+			(parent_children[3].on and eTrustedFlags.LUA_TRUST_STATS		or 0) |
+			(parent_children[4].on and eTrustedFlags.LUA_TRUST_SCRIPT_VARS	or 0) |
+			(parent_children[5].on and eTrustedFlags.LUA_TRUST_NATIVES		or 0) |
+			(parent_children[6].on and eTrustedFlags.LUA_TRUST_HTTP			or 0) |
+			(parent_children[7].on and eTrustedFlags.LUA_TRUST_MEMORY		or 0)
+
+			function env.menu.is_trusted_mode_enabled(flag)
+				if not flag then
+					return trusted_mode & 7 == 7
+				else
+					return trusted_mode & flag == flag
+				end
+			end
+
+			function env.menu.get_trust_flags()
+				return trusted_mode
+			end
+
+			function env.menu.exit()
+				menu.create_thread(function()
+					local timer = utils.time_ms() + 10000
+					while not LoadedScripts[Filename] and timer > utils.time_ms() do
+						system.wait(0)
+					end
+					f.on = false
+				end)
 			end
 
 			env.cheeseUIdata = cheeseUIdata
 
 			env.menu.add_feature = function(...)
-				local feat = add_feature(...)
+				local success, feat = og_pcall(add_feature, ...)
+				if not success then
+					print(feat)
+					menu.notify(feat, ScriptName, 6, 0x0000FF)
+					return false
+				end
 				if feat then
-					f.data.features[feat.id] = feat
+					f.data.features[#f.data.features+1] = feat
 				end
 				return feat
 			end
 			env.menu.add_player_feature = function(...)
-				local feat = add_player_feature(...)
+				local success, feat = og_pcall(add_player_feature, ...)
+				if not success then
+					print(feat)
+					menu.notify(feat, ScriptName, 6, 0x0000FF)
+					return false
+				end
 				if feat then
-					f.data.player_features[feat.id] = feat
+					f.data.player_features[#f.data.player_features+1] = feat
 				end
 				return feat
 			end
-			env.menu.delete_feature = function(id)
-				local success = delete_feature(id)
+			env.menu.delete_feature = function(...)
+				local feat <const> = f.data.features[...]
+				if select(2, ...) and feat.type >> 11 & 1 ~= 0 then
+					remove_children_for_recursive(feat, f.data.features)
+				end
+				local success = delete_feature(...)
 				if success then
-					f.data.features[id] = nil
+					f.data.features[...] = nil
 				end
 				return success
 			end
@@ -570,13 +643,16 @@ local function LoadScript(f)
 				return og_load(chunk, chunkname or "=(load)", mode or "bt", env2 or env)
 			end
 			env.dofile = function(filename)
-				return og__loadfile(filename, "bt", env)()
+				if not filename:find("C:") then
+					filename = Paths.Root.."/"..filename
+				end
+				return ploadfile(filename, "bt", env)()
 			end
 			env.loadfile = function(filename, mode, env2)
-				return og__loadfile(filename, mode or "bt", env2 or env)
+				return ploadfile(filename, mode or "bt", env2 or env)
 			end
-			env._loadfile = function(filename, mode, env)
-				return og__loadfile(filename, mode or "bt", env or env)
+			env._loadfile = function(filename, mode, env2)
+				return ploadfile(filename, mode or "bt", env2 or env)
 			end
 			local loaders = {}
 			local loaded = {}
@@ -609,7 +685,7 @@ local function LoadScript(f)
 				for rootDir in env.package.path:gmatch("[^;]+") do
 					local path = rootDir:gsub("%?", subDir .. lib)
 					if utils.file_exists(path) then
-						local chunk, err = og__loadfile(path, "bt", env)
+						local chunk, err = ploadfile(path, "bt", env)
 						assert(chunk, "Failed to load \"" .. Library .. "\": " .. tostring(err))
 						local status, result = og_pcall(chunk)
 						assert(status, "Failed to exec  \"" .. Library .. "\": " .. tostring(result))
@@ -645,7 +721,7 @@ local function LoadScript(f)
 			end
 			f.data.env = env
 
-			local chunk, err = og__loadfile(Filepath, "bt", f.data.env)
+			local chunk, err = ploadfile(Filepath, "bt", f.data.env)
 			if chunk then
 				local status, result = og_pcall(chunk)
 				if not status then
@@ -661,6 +737,7 @@ local function LoadScript(f)
 			end
 		end
 	else
+		f.parent.name = fid_to_filename[f.id]
 		if f.data then
 			menu.create_thread(UnloadScript, f)
 		end
@@ -669,6 +746,18 @@ end
 
 local function CaseInsensitiveSort(a, b)
 	return tostring(a):lower() < tostring(b):lower()
+end
+
+local FMAP_hierarchy = {}
+local function FMAP_add_feature(...)
+	local feat <const> = menu_originals.add_feature(...)
+	if feat.name ~= "Run" then
+		local tosParent = tostring(feat.parent)
+		local hierarchy_key <const> = (FMAP_hierarchy[tosParent] and (FMAP_hierarchy[tosParent] .. " > ") or "") .. feat.name
+		FMAP_hierarchy[tostring(feat)] = hierarchy_key
+		FileFMAP[hierarchy_key] = feat
+	end
+	return feat
 end
 
 local function LoadScripts(feat)
@@ -692,10 +781,10 @@ local function LoadScripts(feat)
 	table.sort(files, CaseInsensitiveSort)
 	local threads = {}
 	for i=Parent.child_count,FirstChild,-1 do
-		if not files2[Parent.children[i].name] then
+		if not files2[fid_to_filename[Parent.children[i].children[1].id]] then
 			threads[#threads + 1] = create_thread(DeleteFeature, Parent.children[i])
 		else
-			files2[Parent.children[i].name] = false
+			files2[fid_to_filename[Parent.children[i].children[1].id]] = false
 			Parent.children[i].hidden = false
 		end
 	end
@@ -714,7 +803,13 @@ local function LoadScripts(feat)
 	for i=1,#files do
 		if not ExcludedScripts[files[i]:lower()] then
 			if files2[files[i]] then
-				menu_originals.add_feature(files[i], "toggle", ParentId, LoadScript, f)
+				local parent <const> = FMAP_add_feature(files[i], "parent", ParentId).id
+				local run <const> = menu_originals.add_feature("Run", "toggle", parent, LoadScript, f)
+				fid_to_filename[run.id] = files[i]
+				FMAP_add_feature("Spoof Trusted Modes", "toggle", parent)
+				for k, v in pairs(trusted_names) do
+					FMAP_add_feature(v, "toggle", parent)
+				end
 			end
 			local autoloadFeat = menu_originals.add_feature(files[i], "value_i", AutoloadParentId)
 			autoloadFeat.min = 1
@@ -793,7 +888,8 @@ local function FocusFeat(f)
 end
 
 local function ToggleFeat(f)
-	f.data:toggle()
+	f.data:select()
+	f.parent:toggle()
 end
 
 local SearchParentId <const> = menu_originals.add_feature("Search Script Features", "parent", ParentId).id
@@ -828,17 +924,21 @@ menu_originals.add_feature("Filter: <None>", "action", SearchParentId, function(
 	end
 
 	local count = 0
-	for i=4,RefreshFeat.parent.child_count do
+	for i=7,RefreshFeat.parent.child_count do
 		local child = RefreshFeat.parent.children[i]
-		if child.data and child.data.features and type(child.data.features) == "table" then
+		child = child.type == 2048 and child.children[1] or nil
+		if child and child.data and child.data.features and type(child.data.features) == "table" then
+			--[[ print(child, "success")
+			print(child.data.features[1]) ]]
 			for j=1,#child.data.features do
 				local feat = child.data.features[j]
+				--[[ print(feat.name) ]]
 				if feat then
 					if feat.name:lower():find(s:lower(), 1, true) then
 						if feat.type == 2048 then
-							menu_originals.add_feature(FileNameWithoutExtension(child.name) .. " | " .. feat.name, "parent", SearchParentId, ToggleFeat).data = feat
+							menu_originals.add_feature(FileNameWithoutExtension(fid_to_filename[child.id]) .. " | " .. feat.name, "parent", SearchParentId, ToggleFeat).data = feat
 						else
-							menu_originals.add_feature(FileNameWithoutExtension(child.name) .. " | " .. feat.name, "action", SearchParentId, FocusFeat).data = feat
+							menu_originals.add_feature(FileNameWithoutExtension(fid_to_filename[child.id]) .. " | " .. feat.name, "action", SearchParentId, FocusFeat).data = feat
 						end
 						count = count + 1
 					end
@@ -884,12 +984,22 @@ FilterFeat = menu_originals.add_feature("Filter: <None>", "action", ParentId, fu
 end)
 FilterFeat.data = ""
 
+local save_trusted <const> = menu_originals.add_feature("Save Trusted Flags", "action", ParentId, function()
+	gltw.write_fmap(FileFMAP, "Trusted Flags", "scripts/cheesemenu/", nil, true)
+	menu.notify("Saved Trusted Flags", ScriptName, 2, 0xFF00FF00)
+end)
+
 ProddysScriptManager = true
 
 create_thread(function(f)
 	FirstChild = Parent.child_count + 1
 	AutoloadFirstChild = AutoloadParent.child_count + 1
 	LoadScripts(f)
+
+	if not gltw.read_fmap(FileFMAP, "Trusted Flags", "scripts/cheesemenu/", true) then
+		print('Failed to find `Trusted Flags.lua`, creating file...')
+		save_trusted:toggle()
+	end
 
 	local delay = 0
 	local autoload = {}
@@ -911,7 +1021,7 @@ create_thread(function(f)
 		local scripts = {}
 		for i=FirstChild,Parent.child_count do
 			local feat = Parent.children[i]
-			scripts[feat.name] = feat
+			scripts[feat.name] = feat.children[1]
 		end
 
 		local ids = {}
@@ -926,7 +1036,7 @@ create_thread(function(f)
 				local script = scripts[tbl[j]]
 				if script then
 					system_wait(delay)
-					print("Enabled autoload script: " .. script.name)
+					print("Enabled autoload script: " .. script.parent.name)
 					script.on = true
 				end
 			end
