@@ -412,7 +412,7 @@ local namespace_to_child_num <const> = {
 for k, v in ipairs(limited_functions) do
 	local namespace <const> = v.namespace
 	for name, data in pairs(v) do
-		if data == true then
+		if data then
 			blocked_functions[namespace][name] = function(...)
 				if trusted_mode_notification then
 					menu.notify("Trusted Flag '"..trusted_names[k].."' is not enabled.\nFunction used: "..namespace..'.'..name, "Cheese Menu", 5, 0x00ffff)
