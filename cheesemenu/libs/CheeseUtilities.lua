@@ -921,13 +921,14 @@ end
 ---@param flag			integer|number 1 = left instead of right, 2 = up instead of down, 3 = both
 ---@return number x, number y
 function cheeseUtils.grid_pos(start_pos, offset, place, limit, flag)
+	local is_offset_vec = type(offset) == "userdata"
 	place = place - 1
 	flag = flag or 0
 	local y_offset <const> = limit > 0 and place % limit or place
 	local x_offset <const> = limit > 0 and (place - y_offset) / limit or 0
 
-	local x_rel_offset <const> = limit > 0 and scriptdraw_size_pixel_to_rel_x(offset)/2 or 0
-	local y_rel_offset <const> = scriptdraw_size_pixel_to_rel_y(offset)/2
+	local x_rel_offset <const> = limit > 0 and scriptdraw_size_pixel_to_rel_x(is_offset_vec and offset.x or offset)/2 or 0
+	local y_rel_offset <const> = scriptdraw_size_pixel_to_rel_y(is_offset_vec and offset.y or offset)/2
 
 	local x <const> = start_pos.x + (flag & 1 ~= 0 and -x_offset or x_offset) * x_rel_offset
 	local y <const> = start_pos.y + (flag & 2 ~= 0 and y_offset or -y_offset) * y_rel_offset
