@@ -585,7 +585,7 @@ function loadCurrentMenu()
 			if k == "is_highlighted" then
 				return t == currentMenu.children[stuff.scroll + stuff.scrollHiddenOffset]
 			elseif k == "parent" then
-				return t.type >> 15 & 1 == 0 and func.get_feature(t.parent_id) or func.get_player_feature(t.parent_id)
+				return t.type >> 15 & 1 == 0 and func.get_feature(t.parent_id) or func.get_player_feature(t.parent_id) or {name = "Script Features", type = 2048, on = true}
 			elseif k == "value" or k == "min" or k == "mod" or k == "max" or k == "str_data" or k == "type" or k == "id" or k == "on" or k == "hidden" or k == "data" then
 				local pfeat = t.real_type >> 15 & 1 ~= 0 and k ~= "str_data" and k ~= "type" and k ~= "id" and k ~= "hidden" and k ~= "data"
 				if pfeat then
